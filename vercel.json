@@ -1,0 +1,15 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "rewrites": [
+    { "source": "/api/auth/:action", "destination": "/api/auth?action=:action" },
+    { "source": "/api/tasks/:id", "destination": "/api/tasks?id=:id" },
+    { "source": "/api/tasks/:id/:action", "destination": "/api/tasks?id=:id&action=:action" },
+    { "source": "/api/time-blocks/:id", "destination": "/api/time-blocks?id=:id" },
+    { "source": "/api/reports/:kind", "destination": "/api/reports?kind=:kind" },
+    { "source": "/api/admin/:action", "destination": "/api/admin?action=:action" },
+    { "source": "/api/share/:token", "destination": "/api/share?token=:token" },
+    { "source": "/api/bookings/:action", "destination": "/api/bookings?action=:action" },
+    { "source": "/api/bookings/:action/:id", "destination": "/api/bookings?action=:action&id=:id" },
+    { "source": "/((?!api/).*)", "destination": "/index.html" }
+  ]
+}
