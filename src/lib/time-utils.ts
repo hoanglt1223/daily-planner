@@ -1,18 +1,33 @@
-import { formatInTimeZone, fromZonedTime, toZonedTime } from 'date-fns-tz';
+import { formatInTimeZone, fromZonedTime } from 'date-fns-tz';
 
 export const DEFAULT_TZ = 'Asia/Bangkok';
 
-export function startOfWeek(date: Date, tz: string = DEFAULT_TZ): Date {
-  const zoned = toZonedTime(date, tz);
-  const day = zoned.getDay();
-  const monOffset = (day + 6) % 7;
-  zoned.setDate(zoned.getDate() - monOffset);
-  zoned.setHours(0, 0, 0, 0);
-  return fromZonedTime(zoned, tz);
+/**
+ * All "day boundary" helpers below are TZ-aware. They return Date objects whose
+ * underlying UTC value represents the requested moment in the user's TZ, so
+ * (a) the math is independent of the browser's local timezone, and
+ * (b) subtracting UTC milliseconds from a block's startAt gives correct
+ *     minutes-since-midnight regardless of where the browser runs.
+ */
+
+/** Midnight (00:00) of the given date, interpreted in `tz`. */
+export function startOfDay(date: Date, tz: string = DEFAULT_TZ): Date {
+  const dateIso = formatInTimeZone(date, tz, 'yyyy-MM-dd');
+  return fromZonedTime(`${dateIso}T00:00:00`, tz);
 }
 
+/** Monday 00:00 of the week containing the given date, in `tz`. */
+export function startOfWeek(date: Date, tz: string = DEFAULT_TZ): Date {
+  // Get the day-of-week as it reads in tz, without relying on Date setters.
+  const weekday = formatInTimeZone(date, tz, 'i'); // ISO day 1..7 (Mon..Sun)
+  const monOffset = Number(weekday) - 1;
+  const day = startOfDay(date, tz);
+  return new Date(day.getTime() - monOffset * 86_400_000);
+}
+
+/** Add `n` whole days. Pure UTC arithmetic — safe for any TZ. */
 export function addDays(date: Date, n: number): Date {
-  const d = new Date(date); d.setDate(d.getDate() + n); return d;
+  return new Date(date.getTime() + n * 86_400_000);
 }
 
 export function addMinutes(date: Date, n: number): Date {
@@ -34,6 +49,13 @@ export function fmtIsoDate(date: Date, tz: string = DEFAULT_TZ): string {
 /** Build a Date at user-TZ wall-clock yyyy-MM-dd HH:mm. */
 export function fromWallClock(dateIso: string, hhmm: string, tz: string = DEFAULT_TZ): Date {
   return fromZonedTime(`${dateIso}T${hhmm}:00`, tz);
+}
+
+/** Minutes-since-midnight of a Date as it reads in `tz`. */
+export function minutesSinceMidnight(date: Date, tz: string = DEFAULT_TZ): number {
+  const hhmm = formatInTimeZone(date, tz, 'HH:mm');
+  const [h, m] = hhmm.split(':').map(Number);
+  return h * 60 + m;
 }
 
 export function diffMinutes(a: Date, b: Date): number {

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { WORKDAY_START_HOUR, SLOT_MINUTES } from '@/lib/time-utils';
+import { WORKDAY_START_HOUR, SLOT_MINUTES, WORKDAY_END_HOUR, minutesSinceMidnight } from '@/lib/time-utils';
 import { BLOCK_PX_PER_SLOT } from './block-card';
 
 const HEADER_OFFSET_PX = 28;
@@ -7,6 +7,7 @@ const HEADER_OFFSET_PX = 28;
 /**
  * Horizontal red line indicating "now" within the planner grid.
  * Re-renders every minute. Renders nothing if outside the working-hours window.
+ * Position computed via TZ-aware minutes-since-midnight, not local getHours().
  */
 export function NowLine() {
   const [now, setNow] = useState(() => new Date());
@@ -14,9 +15,9 @@ export function NowLine() {
     const id = setInterval(() => setNow(new Date()), 60_000);
     return () => clearInterval(id);
   }, []);
-  const hour = now.getHours() + now.getMinutes() / 60;
-  if (hour < WORKDAY_START_HOUR || hour >= 22) return null;
-  const top = HEADER_OFFSET_PX + ((hour - WORKDAY_START_HOUR) * 60) / SLOT_MINUTES * BLOCK_PX_PER_SLOT;
+  const m = minutesSinceMidnight(now);
+  if (m < WORKDAY_START_HOUR * 60 || m >= WORKDAY_END_HOUR * 60) return null;
+  const top = HEADER_OFFSET_PX + ((m - WORKDAY_START_HOUR * 60) / SLOT_MINUTES) * BLOCK_PX_PER_SLOT;
   return (
     <div className="pointer-events-none absolute inset-x-0 z-20" style={{ top }}>
       <div className="flex items-center">

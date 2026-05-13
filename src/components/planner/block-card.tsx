@@ -2,7 +2,7 @@ import { useRef } from 'react';
 import { useDraggable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
 import type { TimeBlock } from './use-planner-data';
-import { fmtHour, SLOT_MINUTES, WORKDAY_START_HOUR } from '@/lib/time-utils';
+import { fmtHour, minutesSinceMidnight, SLOT_MINUTES, WORKDAY_START_HOUR } from '@/lib/time-utils';
 import { blockColor } from '@/lib/block-color';
 import { cn } from '@/lib/utils';
 
@@ -16,7 +16,10 @@ export function BlockCard({ block, dayStart, onResize, onClick }: {
 }) {
   const start = new Date(block.startAt);
   const end = new Date(block.endAt);
-  const startMin = Math.max(0, (start.getTime() - dayStart.getTime()) / 60_000 - WORKDAY_START_HOUR * 60);
+  // TZ-aware: compute pixel position from minutes-since-midnight-Bangkok,
+  // not from `start - dayStart` (that depends on browser TZ for midnight).
+  void dayStart;
+  const startMin = Math.max(0, minutesSinceMidnight(start) - WORKDAY_START_HOUR * 60);
   const durMin = Math.max(SLOT_MINUTES, (end.getTime() - start.getTime()) / 60_000);
   const top = (startMin / SLOT_MINUTES) * PX_PER_SLOT;
   const height = (durMin / SLOT_MINUTES) * PX_PER_SLOT - 2;

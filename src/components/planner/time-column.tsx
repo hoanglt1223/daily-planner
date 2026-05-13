@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useDroppable } from '@dnd-kit/core';
-import { addMinutes, fmtDay, fmtIsoDate, SLOT_MINUTES, WORKDAY_END_HOUR, WORKDAY_START_HOUR } from '@/lib/time-utils';
+import { addMinutes, fmtDay, fmtIsoDate, minutesSinceMidnight, SLOT_MINUTES, WORKDAY_END_HOUR, WORKDAY_START_HOUR } from '@/lib/time-utils';
 import { BlockCard, BLOCK_PX_PER_SLOT } from './block-card';
 import type { TimeBlock } from './use-planner-data';
 import { cn } from '@/lib/utils';
@@ -55,14 +55,13 @@ export function TimeColumn({ dayStart, blocks, isToday, isWeekend, onResizeBlock
   // Pixel band for the live selection overlay (rendered absolutely over cells).
   const overlay = (() => {
     if (!selecting) return null;
-    const lo = Math.min(selecting.start.getTime(), selecting.end.getTime());
-    const hi = Math.max(selecting.start.getTime(), selecting.end.getTime()) + SLOT_MINUTES * 60_000;
-    const dayStartMs = dayStart.getTime() + WORKDAY_START_HOUR * 60 * 60_000;
-    const topMin = Math.max(0, (lo - dayStartMs) / 60_000);
-    const heightMin = Math.max(SLOT_MINUTES, (hi - lo) / 60_000);
+    const lo = selecting.start.getTime() < selecting.end.getTime() ? selecting.start : selecting.end;
+    const hi = selecting.start.getTime() < selecting.end.getTime() ? selecting.end : selecting.start;
+    const topMin = Math.max(0, minutesSinceMidnight(lo) - WORKDAY_START_HOUR * 60);
+    const heightMin = minutesSinceMidnight(hi) - minutesSinceMidnight(lo) + SLOT_MINUTES;
     return {
       top: (topMin / SLOT_MINUTES) * BLOCK_PX_PER_SLOT,
-      height: (heightMin / SLOT_MINUTES) * BLOCK_PX_PER_SLOT,
+      height: (Math.max(SLOT_MINUTES, heightMin) / SLOT_MINUTES) * BLOCK_PX_PER_SLOT,
     };
   })();
 

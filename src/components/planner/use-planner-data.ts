@@ -21,17 +21,22 @@ export function usePlannerData(from: Date, to: Date) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Stable string keys so useEffect/useCallback don't refire on every parent
+  // render just because parents recreated Date instances.
+  const fromIso = from.toISOString();
+  const toIso = to.toISOString();
+
   const reload = useCallback(async () => {
     setLoading(true); setError(null);
     try {
       const [t, b] = await Promise.all([
         apiFetch<Task[]>('/api/tasks'),
-        apiFetch<TimeBlock[]>(`/api/time-blocks?from=${from.toISOString()}&to=${to.toISOString()}`),
+        apiFetch<TimeBlock[]>(`/api/time-blocks?from=${fromIso}&to=${toIso}`),
       ]);
       setTasks(t); setBlocks(b);
     } catch (e) { setError((e as Error).message); }
     finally { setLoading(false); }
-  }, [from, to]);
+  }, [fromIso, toIso]);
 
   useEffect(() => { reload(); }, [reload]);
 

@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { DndContext, type DragEndEvent, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { toast } from 'sonner';
-import { addDays, fmtIsoDate, startOfWeek, WORKDAY_START_HOUR } from '@/lib/time-utils';
+import { addDays, fmtIsoDate, startOfDay, startOfWeek, WORKDAY_START_HOUR } from '@/lib/time-utils';
 import { Button } from '@/components/ui/button';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { TimeColumn } from './time-column';
@@ -20,8 +20,13 @@ export function PlannerGrid({ initialView = 'week' as View }) {
   const [editor, setEditor] = useState<BlockEditorState | null>(null);
 
   const days = view === 'week' ? 7 : 1;
-  const rangeStart = view === 'week' ? startOfWeek(anchor) : startOfDay(anchor);
-  const rangeEnd = addDays(rangeStart, days);
+  // Memoize range so identity is stable across renders — otherwise
+  // usePlannerData's effect fires every render and triggers an infinite loop.
+  const rangeStart = useMemo(
+    () => view === 'week' ? startOfWeek(anchor) : startOfDay(anchor),
+    [view, anchor],
+  );
+  const rangeEnd = useMemo(() => addDays(rangeStart, days), [rangeStart, days]);
   const dayList = useMemo(
     () => Array.from({ length: days }, (_, i) => addDays(rangeStart, i)),
     [rangeStart, days],
@@ -159,6 +164,3 @@ function HourRail() {
   );
 }
 
-function startOfDay(d: Date): Date {
-  const x = new Date(d); x.setHours(0, 0, 0, 0); return x;
-}
