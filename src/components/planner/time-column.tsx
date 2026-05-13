@@ -1,8 +1,11 @@
+import { useState } from 'react';
 import { useDroppable } from '@dnd-kit/core';
 import { addMinutes, fmtDay, fmtIsoDate, SLOT_MINUTES, WORKDAY_END_HOUR, WORKDAY_START_HOUR } from '@/lib/time-utils';
 import { BlockCard, BLOCK_PX_PER_SLOT } from './block-card';
 import type { TimeBlock } from './use-planner-data';
 import { cn } from '@/lib/utils';
+
+type SelectRange = { start: Date; end: Date };
 
 export function TimeColumn({ dayStart, blocks, isToday, isWeekend, onResizeBlock, onBlockClick, onSelectRange }: {
   dayStart: Date;
@@ -15,17 +18,16 @@ export function TimeColumn({ dayStart, blocks, isToday, isWeekend, onResizeBlock
 }) {
   const slots = ((WORKDAY_END_HOUR - WORKDAY_START_HOUR) * 60) / SLOT_MINUTES;
   const dayIso = fmtIsoDate(dayStart);
+  const [selecting, setSelecting] = useState<SelectRange | null>(null);
 
   function pointerDown(e: React.PointerEvent<HTMLDivElement>, cellStart: Date) {
-    // Skip if clicking on a block
     const target = e.target as HTMLElement;
     if (target.closest('[data-block]')) return;
     e.preventDefault();
 
-    const colEl = e.currentTarget.closest('[data-col]') as HTMLElement;
-    if (!colEl) return;
-
     let endStart = cellStart;
+    setSelecting({ start: cellStart, end: cellStart });
+
     const onMove = (ev: PointerEvent) => {
       const el = document.elementFromPoint(ev.clientX, ev.clientY) as HTMLElement | null;
       const cell = el?.closest('[data-cell-iso]') as HTMLElement | null;
@@ -34,10 +36,12 @@ export function TimeColumn({ dayStart, blocks, isToday, isWeekend, onResizeBlock
       const col = cell.getAttribute('data-col');
       if (!iso || col !== dayIso) return;
       endStart = new Date(iso);
+      setSelecting({ start: cellStart, end: endStart });
     };
     const onUp = () => {
       document.removeEventListener('pointermove', onMove);
       document.removeEventListener('pointerup', onUp);
+      setSelecting(null);
       const a = cellStart.getTime();
       const b = endStart.getTime();
       const lo = Math.min(a, b);
@@ -47,6 +51,20 @@ export function TimeColumn({ dayStart, blocks, isToday, isWeekend, onResizeBlock
     document.addEventListener('pointermove', onMove);
     document.addEventListener('pointerup', onUp);
   }
+
+  // Pixel band for the live selection overlay (rendered absolutely over cells).
+  const overlay = (() => {
+    if (!selecting) return null;
+    const lo = Math.min(selecting.start.getTime(), selecting.end.getTime());
+    const hi = Math.max(selecting.start.getTime(), selecting.end.getTime()) + SLOT_MINUTES * 60_000;
+    const dayStartMs = dayStart.getTime() + WORKDAY_START_HOUR * 60 * 60_000;
+    const topMin = Math.max(0, (lo - dayStartMs) / 60_000);
+    const heightMin = Math.max(SLOT_MINUTES, (hi - lo) / 60_000);
+    return {
+      top: (topMin / SLOT_MINUTES) * BLOCK_PX_PER_SLOT,
+      height: (heightMin / SLOT_MINUTES) * BLOCK_PX_PER_SLOT,
+    };
+  })();
 
   return (
     <div data-col={dayIso}
@@ -78,6 +96,17 @@ export function TimeColumn({ dayStart, blocks, isToday, isWeekend, onResizeBlock
             </div>
           );
         })}
+
+        {overlay && (
+          <div
+            className="pointer-events-none absolute inset-x-1 z-10 rounded-md border-2 border-primary/70 bg-primary/15 shadow-sm"
+            style={{ top: overlay.top, height: overlay.height - 2 }}>
+            <div className="m-1 text-[10px] font-medium text-primary">
+              {fmtRange(selecting!.start, selecting!.end)}
+            </div>
+          </div>
+        )}
+
         {blocks.map(b => (
           <div key={b.id} data-block className="absolute inset-x-0">
             <BlockCard block={b} dayStart={dayStart}
@@ -95,4 +124,17 @@ function DroppableTarget({ startAt }: { startAt: Date }) {
     data: { kind: 'cell', startAt },
   });
   return <div ref={setNodeRef} className={cn('h-full', isOver && 'bg-primary/15')} />;
+}
+
+function fmtRange(a: Date, b: Date): string {
+  const lo = a < b ? a : b;
+  const hi = a < b ? b : a;
+  const hiEnd = new Date(hi.getTime() + SLOT_MINUTES * 60_000);
+  const dur = Math.round((hiEnd.getTime() - lo.getTime()) / 60_000);
+  const h = Math.floor(dur / 60); const m = dur % 60;
+  const durStr = h ? (m ? `${h}h${m}m` : `${h}h`) : `${m}m`;
+  return `${fmtHHmm(lo)}–${fmtHHmm(hiEnd)} · ${durStr}`;
+}
+function fmtHHmm(d: Date): string {
+  return d.toTimeString().slice(0, 5);
 }
