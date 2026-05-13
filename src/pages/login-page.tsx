@@ -36,10 +36,10 @@ export function LoginPage() {
         <div>
           <Sparkles className="mb-3 size-6 text-primary" />
           <p className="text-2xl font-semibold leading-tight">
-            Block out your time.<br />Say no with confidence.
+            Plan with clarity.<br />Deliver with confidence.
           </p>
           <p className="mt-2 text-sm text-muted-foreground">
-            Capacity check shows free slots the moment a new task lands.
+            See workload and capacity instantly — for you and your team.
           </p>
         </div>
       </aside>

@@ -36,8 +36,8 @@ export function DashboardPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Good day 👋</h1>
-        <p className="text-sm text-muted-foreground">Here's how today and this week are shaping up.</p>
+        <h1 className="text-3xl font-bold tracking-tight">Today's overview</h1>
+        <p className="text-sm text-muted-foreground">Workload, capacity, and pending requests at a glance.</p>
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">

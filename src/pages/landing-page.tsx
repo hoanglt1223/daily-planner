@@ -36,11 +36,11 @@ export function LandingPage() {
           <Sparkles className="size-3" /> Kanban × Calendar × Timesheet
         </span>
         <h1 className="mt-6 bg-gradient-to-br from-foreground via-primary to-fuchsia-600 bg-clip-text text-5xl font-bold leading-tight tracking-tight text-transparent sm:text-7xl">
-          Plan your day.<br />Defend it from chaos.
+          Plan with clarity.<br />Deliver with confidence.
         </h1>
         <p className="mx-auto mt-6 max-w-2xl text-lg text-muted-foreground">
-          Time-blocked kanban with recurring events, capacity check, share links and external booking.
-          See exactly what shifts when something urgent lands.
+          A time-blocked planner that combines kanban, calendar, and timesheet — built so individuals and
+          their managers can see workload, capacity, and trade-offs at a glance.
         </p>
         <div className="mt-10 flex justify-center gap-3">
           <Button asChild size="lg" className="shadow-lg shadow-primary/30">

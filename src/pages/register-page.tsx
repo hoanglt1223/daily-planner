@@ -37,10 +37,10 @@ export function RegisterPage() {
         <div>
           <Sparkles className="mb-3 size-6 text-primary" />
           <p className="text-2xl font-semibold leading-tight">
-            Start with one good week.<br />The rest follows.
+            Plan with clarity.<br />Deliver with confidence.
           </p>
           <p className="mt-2 text-sm text-muted-foreground">
-            Free forever for personal use. Add team features when you need them.
+            Start solo or bring your team. Manager-ready from day one.
           </p>
         </div>
       </aside>
