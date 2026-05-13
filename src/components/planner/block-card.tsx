@@ -66,6 +66,7 @@ export function BlockCard({ block, dayStart, onResize, onClick }: {
 
   return (
     <div ref={setNodeRef}
+      data-block
       {...listeners} {...attributes}
       onClick={(e) => { e.stopPropagation(); onClick(block); }}
       style={{
@@ -74,7 +75,7 @@ export function BlockCard({ block, dayStart, onResize, onClick }: {
         opacity: isDragging ? 0.5 : 1,
       }}
       className={cn(
-        'absolute left-1 right-1 cursor-grab rounded-md border px-1.5 py-1 text-[11px] leading-tight overflow-hidden shadow-sm transition-shadow hover:shadow-md',
+        'absolute left-1 right-1 z-10 cursor-grab rounded-md border px-1.5 py-1 text-[11px] leading-tight overflow-hidden shadow-sm transition-shadow hover:shadow-md',
         color.bg, color.border, color.fg,
         isPending && 'border-dashed opacity-70',
       )}>

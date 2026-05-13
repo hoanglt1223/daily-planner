@@ -107,10 +107,8 @@ export function TimeColumn({ dayStart, blocks, isToday, isWeekend, onResizeBlock
         )}
 
         {blocks.map(b => (
-          <div key={b.id} data-block className="absolute inset-x-0">
-            <BlockCard block={b} dayStart={dayStart}
-              onResize={onResizeBlock} onClick={onBlockClick} />
-          </div>
+          <BlockCard key={b.id} block={b} dayStart={dayStart}
+            onResize={onResizeBlock} onClick={onBlockClick} />
         ))}
       </div>
     </div>
