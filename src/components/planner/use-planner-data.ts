@@ -80,5 +80,18 @@ export function usePlannerData(from: Date, to: Date) {
     return created;
   }, []);
 
-  return { tasks, blocks, loading, error, reload, createBlock, updateBlock, deleteBlock, createTask };
+  const updateTask = useCallback(async (id: string, patch: Partial<Pick<Task, 'status' | 'priority'>>) => {
+    const updated = await apiFetch<Task>(`/api/tasks/${id}`, {
+      method: 'PATCH', body: JSON.stringify(patch),
+    });
+    setTasks(prev => prev.map(t => t.id === id ? updated : t));
+    return updated;
+  }, []);
+
+  const deleteTask = useCallback(async (id: string) => {
+    await apiFetch(`/api/tasks/${id}`, { method: 'DELETE' });
+    setTasks(prev => prev.filter(t => t.id !== id));
+  }, []);
+
+  return { tasks, blocks, loading, error, reload, createBlock, updateBlock, deleteBlock, createTask, updateTask, deleteTask };
 }

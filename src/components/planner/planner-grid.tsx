@@ -32,7 +32,7 @@ export function PlannerGrid({ initialView = 'week' as View }) {
     [rangeStart, days],
   );
 
-  const { tasks, blocks, loading, createBlock, updateBlock, deleteBlock, createTask }
+  const { tasks, blocks, loading, createBlock, updateBlock, deleteBlock, createTask, updateTask, deleteTask }
     = usePlannerData(rangeStart, rangeEnd);
 
   const sensors = useSensors(
@@ -104,6 +104,14 @@ export function PlannerGrid({ initialView = 'week' as View }) {
           <BacklogColumn tasks={tasks}
             onNew={async (title, min) => {
               try { await createTask({ title, estimatedMinutes: min, status: 'todo' }); toast.success('Task added'); }
+              catch (e) { toast.error((e as Error).message); }
+            }}
+            onUpdate={async (id, patch) => {
+              try { await updateTask(id, patch); }
+              catch (e) { toast.error((e as Error).message); }
+            }}
+            onDelete={async (id) => {
+              try { await deleteTask(id); }
               catch (e) { toast.error((e as Error).message); }
             }} />
           <div className="relative flex flex-1 overflow-auto rounded-lg border bg-card shadow-sm">
