@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { DndContext, type DragEndEvent, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { toast } from 'sonner';
@@ -6,11 +6,12 @@ import { addDays, fmtIsoDate, startOfDay, startOfWeek, WORKDAY_START_HOUR } from
 import { Button } from '@/components/ui/button';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { TimeColumn } from './time-column';
-import { BacklogColumn } from './backlog-column';
+import { BacklogColumn, type BacklogColumnHandle } from './backlog-column';
 import { CapacitySummary } from './capacity-summary';
 import { NowLine } from './now-line';
 import { BlockEditorDialog, type BlockEditorState } from './block-editor-dialog';
 import { usePlannerData, type Task, type TimeBlock } from './use-planner-data';
+import { usePlannerShortcuts } from './use-keyboard-shortcuts';
 
 type View = 'day' | 'week';
 
@@ -18,6 +19,7 @@ export function PlannerGrid({ initialView = 'week' as View }) {
   const [view, setView] = useState<View>(initialView);
   const [anchor, setAnchor] = useState<Date>(new Date());
   const [editor, setEditor] = useState<BlockEditorState | null>(null);
+  const backlogRef = useRef<BacklogColumnHandle>(null);
 
   const days = view === 'week' ? 7 : 1;
   // Memoize range so identity is stable across renders — otherwise
@@ -41,6 +43,15 @@ export function PlannerGrid({ initialView = 'week' as View }) {
   );
 
   const todayIso = fmtIsoDate(new Date());
+
+  const closeEditor = useCallback(() => setEditor(null), []);
+  usePlannerShortcuts({
+    view, setView, days, setAnchor,
+    editorOpen: editor !== null,
+    onCloseEditor: closeEditor,
+    onNewTask: () => backlogRef.current?.openNewTask(),
+    onFocusSearch: () => backlogRef.current?.focusSearch(),
+  });
 
   function blocksForDay(d: Date): TimeBlock[] {
     const isoDay = fmtIsoDate(d);
@@ -101,7 +112,7 @@ export function PlannerGrid({ initialView = 'week' as View }) {
         {loading && <p className="text-sm text-muted-foreground">Loading…</p>}
 
         <div className="flex gap-3">
-          <BacklogColumn tasks={tasks}
+          <BacklogColumn ref={backlogRef} tasks={tasks}
             onNew={async (title, min) => {
               try { await createTask({ title, estimatedMinutes: min, status: 'todo' }); toast.success('Task added'); }
               catch (e) { toast.error((e as Error).message); }

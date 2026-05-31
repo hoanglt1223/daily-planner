@@ -2,8 +2,10 @@ import { useEffect, useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { CalendarDays, LayoutDashboard, LogOut, ShieldCheck, Users } from 'lucide-react';
 import { apiFetch, clearAuthToken, getAuthToken } from '@/lib/api-client';
+import { useGlobalShortcuts } from '@/lib/use-global-keyboard-shortcuts';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { KeyboardShortcutsDialog } from '@/components/keyboard-shortcuts-dialog';
 import { cn } from '@/lib/utils';
 
 type Me = { id: string; name: string; role: 'user' | 'manager' | 'admin'; email: string };
@@ -19,6 +21,8 @@ export function AppLayout() {
   const { pathname } = useLocation();
   const nav = useNavigate();
   const [me, setMe] = useState<Me | null>(null);
+
+  useGlobalShortcuts();
 
   useEffect(() => {
     if (!getAuthToken()) { nav('/login'); return; }
@@ -81,6 +85,7 @@ export function AppLayout() {
       <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6">
         <Outlet />
       </main>
+      <KeyboardShortcutsDialog />
     </div>
   );
 }

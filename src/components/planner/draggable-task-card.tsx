@@ -101,8 +101,15 @@ export function DraggableTaskCard({ task, onUpdate, onDelete }: {
   );
 }
 
-export function NewTaskDialog({ onCreate }: { onCreate: (title: string, minutes: number) => void }) {
-  const [open, setOpen] = useState(false);
+export function NewTaskDialog({ onCreate, open: controlledOpen, onOpenChange }: {
+  onCreate: (title: string, minutes: number) => void;
+  /** Optional controlled mode for external triggering (keyboard shortcut). */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+}) {
+  const [internalOpen, setInternalOpen] = useState(false);
+  const open = controlledOpen ?? internalOpen;
+  const setOpen = onOpenChange ?? setInternalOpen;
   const [title, setTitle] = useState('');
   const [minutes, setMinutes] = useState(60);
 

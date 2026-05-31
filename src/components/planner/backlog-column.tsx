@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { forwardRef, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import { Search } from 'lucide-react';
 import type { Task } from './use-planner-data';
 import { DraggableTaskCard, NewTaskDialog, STATUS_META } from './draggable-task-card';
@@ -9,14 +9,26 @@ import { cn } from '@/lib/utils';
 const FILTER_STATUSES = ['all', 'backlog', 'todo', 'doing'] as const;
 type FilterStatus = (typeof FILTER_STATUSES)[number];
 
-export function BacklogColumn({ tasks, onNew, onUpdate, onDelete }: {
+export interface BacklogColumnHandle {
+  openNewTask: () => void;
+  focusSearch: () => void;
+}
+
+export const BacklogColumn = forwardRef<BacklogColumnHandle, {
   tasks: Task[];
   onNew: (title: string, minutes: number) => void;
   onUpdate: (id: string, patch: Partial<Pick<Task, 'status' | 'priority'>>) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
-}) {
+}>(function BacklogColumn({ tasks, onNew, onUpdate, onDelete }, ref) {
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<FilterStatus>('all');
+  const [newTaskOpen, setNewTaskOpen] = useState(false);
+  const searchRef = useRef<HTMLInputElement>(null);
+
+  useImperativeHandle(ref, () => ({
+    openNewTask: () => setNewTaskOpen(true),
+    focusSearch: () => searchRef.current?.focus(),
+  }));
 
   /** Non-archived/non-done tasks, filtered by search + status, sorted by priority then title */
   const visible = useMemo(() => {
@@ -32,13 +44,14 @@ export function BacklogColumn({ tasks, onNew, onUpdate, onDelete }: {
     <aside className="w-64 shrink-0 space-y-3">
       <div className="flex items-center justify-between">
         <h2 className="font-semibold">Backlog</h2>
-        <NewTaskDialog onCreate={onNew} />
+        <NewTaskDialog onCreate={onNew} open={newTaskOpen} onOpenChange={setNewTaskOpen} />
       </div>
 
       {/* Search input */}
       <div className="relative">
         <Search className="absolute left-2 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
         <Input
+          ref={searchRef}
           placeholder="Search tasks…"
           value={search}
           onChange={e => setSearch(e.target.value)}
@@ -77,4 +90,4 @@ export function BacklogColumn({ tasks, onNew, onUpdate, onDelete }: {
       </div>
     </aside>
   );
-}
+});
