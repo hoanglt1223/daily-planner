@@ -3,6 +3,7 @@ import { CalendarCheck2, Clock4, TrendingUp } from 'lucide-react';
 import { apiFetch } from '@/lib/api-client';
 import { SharePanel } from '@/components/dashboard/share-panel';
 import { BookingsInbox } from '@/components/dashboard/bookings-inbox';
+import { WeeklyChart } from '@/components/dashboard/weekly-chart';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { addDays, startOfWeek } from '@/lib/time-utils';
@@ -13,6 +14,7 @@ type Block = { startAt: string; endAt: string };
 export function DashboardPage() {
   const [todayMin, setTodayMin] = useState<number | null>(null);
   const [weekMin, setWeekMin] = useState<number | null>(null);
+  const [weekBlocks, setWeekBlocks] = useState<Block[]>([]);
 
   useEffect(() => {
     const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
@@ -25,6 +27,7 @@ export function DashboardPage() {
     ]).then(([today, week]) => {
       setTodayMin(sumMinutes(today));
       setWeekMin(sumMinutes(week));
+      setWeekBlocks(week);
     }).catch(() => undefined);
   }, []);
 
@@ -50,6 +53,8 @@ export function DashboardPage() {
           sub={weekMin !== null ? `${fmtHm(weekMin)} of ${fmtHm(workWeekMin)}` : undefined}
           bar={weekLoadPct ?? undefined} />
       </div>
+
+      {weekBlocks.length > 0 && <WeeklyChart blocks={weekBlocks} />}
 
       <div className="grid gap-4 md:grid-cols-2">
         <SharePanel />
