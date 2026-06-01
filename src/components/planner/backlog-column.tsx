@@ -17,7 +17,7 @@ export interface BacklogColumnHandle {
 export const BacklogColumn = forwardRef<BacklogColumnHandle, {
   tasks: Task[];
   onNew: (title: string, minutes: number) => void;
-  onUpdate: (id: string, patch: Partial<Pick<Task, 'status' | 'priority'>>) => Promise<void>;
+  onUpdate: (id: string, patch: Partial<Pick<Task, 'status' | 'priority' | 'title' | 'description' | 'estimatedMinutes'>>) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
 }>(function BacklogColumn({ tasks, onNew, onUpdate, onDelete }, ref) {
   const [search, setSearch] = useState('');

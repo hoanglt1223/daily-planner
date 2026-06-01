@@ -80,7 +80,7 @@ export function usePlannerData(from: Date, to: Date) {
     return created;
   }, []);
 
-  const updateTask = useCallback(async (id: string, patch: Partial<Pick<Task, 'status' | 'priority'>>) => {
+  const updateTask = useCallback(async (id: string, patch: Partial<Pick<Task, 'status' | 'priority' | 'title' | 'description' | 'estimatedMinutes'>>) => {
     const updated = await apiFetch<Task>(`/api/tasks/${id}`, {
       method: 'PATCH', body: JSON.stringify(patch),
     });
