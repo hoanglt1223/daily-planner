@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils';
 
 type SelectRange = { start: Date; end: Date };
 
-export function TimeColumn({ dayStart, blocks, isToday, isWeekend, onResizeBlock, onBlockClick, onSelectRange }: {
+export function TimeColumn({ dayStart, blocks, isToday, isWeekend, onResizeBlock, onBlockClick, onSelectRange, onBlockStatusChange }: {
   dayStart: Date;
   blocks: TimeBlock[];
   isToday: boolean;
@@ -15,6 +15,7 @@ export function TimeColumn({ dayStart, blocks, isToday, isWeekend, onResizeBlock
   onResizeBlock: (id: string, newEndAt: Date) => void;
   onBlockClick: (b: TimeBlock) => void;
   onSelectRange: (startAt: Date, endAt: Date) => void;
+  onBlockStatusChange: (id: string, status: TimeBlock['status']) => void;
 }) {
   const slots = ((WORKDAY_END_HOUR - WORKDAY_START_HOUR) * 60) / SLOT_MINUTES;
   const dayIso = fmtIsoDate(dayStart);
@@ -108,7 +109,7 @@ export function TimeColumn({ dayStart, blocks, isToday, isWeekend, onResizeBlock
 
         {blocks.map(b => (
           <BlockCard key={b.id} block={b} dayStart={dayStart}
-            onResize={onResizeBlock} onClick={onBlockClick} />
+            onResize={onResizeBlock} onClick={onBlockClick} onStatusChange={onBlockStatusChange} />
         ))}
       </div>
     </div>

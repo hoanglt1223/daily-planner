@@ -140,6 +140,10 @@ export function PlannerGrid({ initialView = 'week' as View }) {
                     startAt: new Date(b.startAt), endAt: new Date(b.endAt), note: b.note,
                   })}
                   onSelectRange={(s, e) => setEditor({ mode: 'create', startAt: s, endAt: e })}
+                  onBlockStatusChange={async (id, status) => {
+                    try { await updateBlock(id, { status }); }
+                    catch (e) { toast.error((e as Error).message); }
+                  }}
                 />
               );
             })}
