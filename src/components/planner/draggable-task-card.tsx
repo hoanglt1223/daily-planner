@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { useDraggable } from '@dnd-kit/core';
 import { Check, ChevronUp, Circle, Loader2, Pencil, Plus, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
-import type { Task } from './use-planner-data';
+import type { Task, Category } from './use-planner-data';
+import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -32,9 +33,11 @@ const PRIORITY_COLORS: Record<number, string> = {
   4: 'bg-slate-50 text-slate-400',
 };
 
-export function DraggableTaskCard({ task, onUpdate, onDelete }: {
+export function DraggableTaskCard({ task, category, categories, onUpdate, onDelete }: {
   task: Task;
-  onUpdate: (id: string, patch: Partial<Pick<Task, 'status' | 'priority' | 'title' | 'description' | 'estimatedMinutes'>>) => Promise<void>;
+  category?: Category;
+  categories?: Category[];
+  onUpdate: (id: string, patch: Partial<Pick<Task, 'status' | 'priority' | 'title' | 'description' | 'estimatedMinutes' | 'categoryId'>>) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
 }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
@@ -101,12 +104,18 @@ export function DraggableTaskCard({ task, onUpdate, onDelete }: {
           P{task.priority}
         </span>
         <span className={`text-[10px] ${meta.fg}`}>{meta.label}</span>
+        {category && (
+          <span className="inline-flex items-center gap-1 rounded px-1 py-0.5 text-[10px] font-medium" style={{ backgroundColor: category.color + '20', color: category.color }}>
+            <span className="size-1.5 rounded-full" style={{ backgroundColor: category.color }} />
+            {category.name}
+          </span>
+        )}
         <span className="text-[10px] text-muted-foreground ml-auto">{task.estimatedMinutes}m</span>
       </div>
       {task.description && (
         <p className="mt-1 text-[10px] text-muted-foreground line-clamp-2">{task.description}</p>
       )}
-      <TaskEditDialog task={task} open={editOpen} onOpenChange={setEditOpen}
+      <TaskEditDialog task={task} categories={categories ?? []} open={editOpen} onOpenChange={setEditOpen}
         onSave={async (patch) => {
           try { await onUpdate(task.id, patch); toast.success('Task updated'); }
           catch (e) { toast.error((e as Error).message); }
@@ -115,8 +124,9 @@ export function DraggableTaskCard({ task, onUpdate, onDelete }: {
   );
 }
 
-export function NewTaskDialog({ onCreate, open: controlledOpen, onOpenChange }: {
-  onCreate: (title: string, minutes: number) => void;
+export function NewTaskDialog({ categories, onCreate, open: controlledOpen, onOpenChange }: {
+  categories: Category[];
+  onCreate: (title: string, minutes: number, categoryId?: string | null) => void;
   /** Optional controlled mode for external triggering (keyboard shortcut). */
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
@@ -126,12 +136,13 @@ export function NewTaskDialog({ onCreate, open: controlledOpen, onOpenChange }: 
   const setOpen = onOpenChange ?? setInternalOpen;
   const [title, setTitle] = useState('');
   const [minutes, setMinutes] = useState(60);
+  const [categoryId, setCategoryId] = useState<string | null>(null);
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!title.trim()) return;
-    onCreate(title.trim(), minutes);
-    setTitle(''); setMinutes(60); setOpen(false);
+    onCreate(title.trim(), minutes, categoryId);
+    setTitle(''); setMinutes(60); setCategoryId(null); setOpen(false);
   }
 
   return (
@@ -156,6 +167,41 @@ export function NewTaskDialog({ onCreate, open: controlledOpen, onOpenChange }: 
               <Input id="t-min" type="number" min={15} step={15}
                 value={minutes} onChange={e => setMinutes(Number(e.target.value) || 60)} />
             </div>
+            {categories.length > 0 && (
+              <div className="space-y-1">
+                <Label>Category</Label>
+                <div className="flex flex-wrap gap-1">
+                  <button
+                    type="button"
+                    className={cn(
+                      'rounded-full border px-2 py-0.5 text-[10px] font-medium transition-colors',
+                      categoryId === null
+                        ? 'border-primary bg-primary text-primary-foreground'
+                        : 'border-border text-muted-foreground hover:border-foreground/30',
+                    )}
+                    onClick={() => setCategoryId(null)}
+                  >
+                    None
+                  </button>
+                  {categories.map(c => (
+                    <button
+                      key={c.id}
+                      type="button"
+                      className={cn(
+                        'rounded-full border px-2 py-0.5 text-[10px] font-medium transition-colors flex items-center gap-1',
+                        categoryId === c.id
+                          ? 'border-primary bg-primary text-primary-foreground'
+                          : 'border-border text-muted-foreground hover:border-foreground/30',
+                      )}
+                      onClick={() => setCategoryId(c.id)}
+                    >
+                      <span className="size-2 rounded-full" style={{ backgroundColor: c.color }} />
+                      {c.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button type="button" variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
@@ -167,16 +213,18 @@ export function NewTaskDialog({ onCreate, open: controlledOpen, onOpenChange }: 
   );
 }
 
-export function TaskEditDialog({ task, open, onOpenChange, onSave }: {
+export function TaskEditDialog({ task, categories, open, onOpenChange, onSave }: {
   task: Task;
+  categories: Category[];
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSave: (patch: Partial<Pick<Task, 'title' | 'description' | 'estimatedMinutes' | 'priority'>>) => Promise<void>;
+  onSave: (patch: Partial<Pick<Task, 'title' | 'description' | 'estimatedMinutes' | 'priority' | 'categoryId'>>) => Promise<void>;
 }) {
   const [title, setTitle] = useState(task.title);
   const [description, setDescription] = useState(task.description ?? '');
   const [minutes, setMinutes] = useState(task.estimatedMinutes);
   const [priority, setPriority] = useState(task.priority);
+  const [categoryId, setCategoryId] = useState<string | null>(task.categoryId);
   const [saving, setSaving] = useState(false);
 
   function reset() {
@@ -184,6 +232,7 @@ export function TaskEditDialog({ task, open, onOpenChange, onSave }: {
     setDescription(task.description ?? '');
     setMinutes(task.estimatedMinutes);
     setPriority(task.priority);
+    setCategoryId(task.categoryId);
   }
 
   async function submit(e: React.FormEvent) {
@@ -196,6 +245,7 @@ export function TaskEditDialog({ task, open, onOpenChange, onSave }: {
         description: description.trim() || null,
         estimatedMinutes: minutes,
         priority,
+        categoryId,
       });
       onOpenChange(false);
     } finally { setSaving(false); }
@@ -233,6 +283,41 @@ export function TaskEditDialog({ task, open, onOpenChange, onSave }: {
                   value={priority} onChange={e => setPriority(Math.min(4, Math.max(1, Number(e.target.value) || 3)))} />
               </div>
             </div>
+            {categories.length > 0 && (
+              <div className="space-y-1">
+                <Label>Category</Label>
+                <div className="flex flex-wrap gap-1">
+                  <button
+                    type="button"
+                    className={cn(
+                      'rounded-full border px-2 py-0.5 text-[10px] font-medium transition-colors',
+                      categoryId === null
+                        ? 'border-primary bg-primary text-primary-foreground'
+                        : 'border-border text-muted-foreground hover:border-foreground/30',
+                    )}
+                    onClick={() => setCategoryId(null)}
+                  >
+                    None
+                  </button>
+                  {categories.map(c => (
+                    <button
+                      key={c.id}
+                      type="button"
+                      className={cn(
+                        'rounded-full border px-2 py-0.5 text-[10px] font-medium transition-colors flex items-center gap-1',
+                        categoryId === c.id
+                          ? 'border-primary bg-primary text-primary-foreground'
+                          : 'border-border text-muted-foreground hover:border-foreground/30',
+                      )}
+                      onClick={() => setCategoryId(c.id)}
+                    >
+                      <span className="size-2 rounded-full" style={{ backgroundColor: c.color }} />
+                      {c.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button type="button" variant="ghost" onClick={() => { reset(); onOpenChange(false); }}>Cancel</Button>

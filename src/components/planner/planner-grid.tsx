@@ -34,7 +34,7 @@ export function PlannerGrid({ initialView = 'week' as View }) {
     [rangeStart, days],
   );
 
-  const { tasks, blocks, loading, createBlock, updateBlock, deleteBlock, createTask, updateTask, deleteTask }
+  const { tasks, blocks, categories, loading, createBlock, updateBlock, deleteBlock, createTask, updateTask, deleteTask, createCategory, updateCategory, deleteCategory }
     = usePlannerData(rangeStart, rangeEnd);
 
   const sensors = useSensors(
@@ -112,9 +112,9 @@ export function PlannerGrid({ initialView = 'week' as View }) {
         {loading && <p className="text-sm text-muted-foreground">Loading…</p>}
 
         <div className="flex gap-3">
-          <BacklogColumn ref={backlogRef} tasks={tasks}
-            onNew={async (title, min) => {
-              try { await createTask({ title, estimatedMinutes: min, status: 'todo' }); toast.success('Task added'); }
+          <BacklogColumn ref={backlogRef} tasks={tasks} categories={categories}
+            onNew={async (title, min, categoryId) => {
+              try { await createTask({ title, estimatedMinutes: min, status: 'todo', categoryId }); toast.success('Task added'); }
               catch (e) { toast.error((e as Error).message); }
             }}
             onUpdate={async (id, patch) => {
@@ -124,7 +124,10 @@ export function PlannerGrid({ initialView = 'week' as View }) {
             onDelete={async (id) => {
               try { await deleteTask(id); }
               catch (e) { toast.error((e as Error).message); }
-            }} />
+            }}
+            onCreateCategory={createCategory}
+            onUpdateCategory={updateCategory}
+            onDeleteCategory={deleteCategory} />
           <div className="relative flex flex-1 overflow-auto rounded-lg border bg-card shadow-sm">
             <HourRail />
             {dayList.map(d => {

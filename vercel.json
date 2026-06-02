@@ -3,6 +3,7 @@
   "rewrites": [
     { "source": "/api/auth/:action", "destination": "/api/auth?action=:action" },
     { "source": "/api/tasks/:id", "destination": "/api/tasks?id=:id" },
+    { "source": "/api/categories/:id", "destination": "/api/categories?id=:id" },
     { "source": "/api/tasks/:id/:action", "destination": "/api/tasks?id=:id&action=:action" },
     { "source": "/api/time-blocks/:id", "destination": "/api/time-blocks?id=:id" },
     { "source": "/api/reports/:kind", "destination": "/api/reports?kind=:kind" },

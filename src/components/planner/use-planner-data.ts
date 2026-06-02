@@ -8,6 +8,10 @@ export type Task = {
   recurringRule: unknown | null; categoryId: string | null;
 };
 
+export type Category = {
+  id: string; name: string; color: string;
+};
+
 export type TimeBlock = {
   id: string; taskId: string | null; title: string;
   startAt: string; endAt: string;
@@ -18,6 +22,7 @@ export type TimeBlock = {
 export function usePlannerData(from: Date, to: Date) {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [blocks, setBlocks] = useState<TimeBlock[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -29,11 +34,12 @@ export function usePlannerData(from: Date, to: Date) {
   const reload = useCallback(async () => {
     setLoading(true); setError(null);
     try {
-      const [t, b] = await Promise.all([
+      const [t, b, c] = await Promise.all([
         apiFetch<Task[]>('/api/tasks'),
         apiFetch<TimeBlock[]>(`/api/time-blocks?from=${fromIso}&to=${toIso}`),
+        apiFetch<Category[]>('/api/categories'),
       ]);
-      setTasks(t); setBlocks(b);
+      setTasks(t); setBlocks(b); setCategories(c);
     } catch (e) { setError((e as Error).message); }
     finally { setLoading(false); }
   }, [fromIso, toIso]);
@@ -80,7 +86,7 @@ export function usePlannerData(from: Date, to: Date) {
     return created;
   }, []);
 
-  const updateTask = useCallback(async (id: string, patch: Partial<Pick<Task, 'status' | 'priority' | 'title' | 'description' | 'estimatedMinutes'>>) => {
+  const updateTask = useCallback(async (id: string, patch: Partial<Pick<Task, 'status' | 'priority' | 'title' | 'description' | 'estimatedMinutes' | 'categoryId'>>) => {
     const updated = await apiFetch<Task>(`/api/tasks/${id}`, {
       method: 'PATCH', body: JSON.stringify(patch),
     });
@@ -93,5 +99,28 @@ export function usePlannerData(from: Date, to: Date) {
     setTasks(prev => prev.filter(t => t.id !== id));
   }, []);
 
-  return { tasks, blocks, loading, error, reload, createBlock, updateBlock, deleteBlock, createTask, updateTask, deleteTask };
+  const createCategory = useCallback(async (payload: { name: string; color?: string }) => {
+    const created = await apiFetch<Category>('/api/categories', {
+      method: 'POST', body: JSON.stringify(payload),
+    });
+    setCategories(prev => [...prev, created]);
+    return created;
+  }, []);
+
+  const updateCategory = useCallback(async (id: string, patch: { name?: string; color?: string }) => {
+    const updated = await apiFetch<Category>(`/api/categories/${id}`, {
+      method: 'PATCH', body: JSON.stringify(patch),
+    });
+    setCategories(prev => prev.map(c => c.id === id ? updated : c));
+    return updated;
+  }, []);
+
+  const deleteCategory = useCallback(async (id: string) => {
+    await apiFetch(`/api/categories/${id}`, { method: 'DELETE' });
+    setCategories(prev => prev.filter(c => c.id !== id));
+    // Clear categoryId from tasks that used this category
+    setTasks(prev => prev.map(t => t.categoryId === id ? { ...t, categoryId: null } : t));
+  }, []);
+
+  return { tasks, blocks, categories, loading, error, reload, createBlock, updateBlock, deleteBlock, createTask, updateTask, deleteTask, createCategory, updateCategory, deleteCategory };
 }
