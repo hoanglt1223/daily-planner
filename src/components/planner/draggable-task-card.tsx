@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useDraggable } from '@dnd-kit/core';
-import { Check, ChevronUp, Circle, Loader2, Pencil, Plus, Trash2 } from 'lucide-react';
+import { Check, ChevronUp, Circle, Clock, Loader2, Pencil, Plus, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import type { Task, Category } from './use-planner-data';
 import { cn } from '@/lib/utils';
@@ -37,7 +37,7 @@ export function DraggableTaskCard({ task, category, categories, onUpdate, onDele
   task: Task;
   category?: Category;
   categories?: Category[];
-  onUpdate: (id: string, patch: Partial<Pick<Task, 'status' | 'priority' | 'title' | 'description' | 'estimatedMinutes' | 'categoryId'>>) => Promise<void>;
+  onUpdate: (id: string, patch: Partial<Pick<Task, 'status' | 'priority' | 'title' | 'description' | 'estimatedMinutes' | 'categoryId' | 'dueDate'>>) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
 }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
@@ -110,6 +110,7 @@ export function DraggableTaskCard({ task, category, categories, onUpdate, onDele
             {category.name}
           </span>
         )}
+        <DueDateBadge dueDate={task.dueDate} status={task.status} />
         <span className="text-[10px] text-muted-foreground ml-auto">{task.estimatedMinutes}m</span>
       </div>
       {task.description && (
@@ -126,7 +127,7 @@ export function DraggableTaskCard({ task, category, categories, onUpdate, onDele
 
 export function NewTaskDialog({ categories, onCreate, open: controlledOpen, onOpenChange }: {
   categories: Category[];
-  onCreate: (title: string, minutes: number, categoryId?: string | null) => void;
+  onCreate: (title: string, minutes: number, categoryId?: string | null, dueDate?: string | null) => void;
   /** Optional controlled mode for external triggering (keyboard shortcut). */
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
@@ -137,12 +138,13 @@ export function NewTaskDialog({ categories, onCreate, open: controlledOpen, onOp
   const [title, setTitle] = useState('');
   const [minutes, setMinutes] = useState(60);
   const [categoryId, setCategoryId] = useState<string | null>(null);
+  const [dueDate, setDueDate] = useState('');
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!title.trim()) return;
-    onCreate(title.trim(), minutes, categoryId);
-    setTitle(''); setMinutes(60); setCategoryId(null); setOpen(false);
+    onCreate(title.trim(), minutes, categoryId, dueDate || null);
+    setTitle(''); setMinutes(60); setCategoryId(null); setDueDate(''); setOpen(false);
   }
 
   return (
@@ -202,6 +204,11 @@ export function NewTaskDialog({ categories, onCreate, open: controlledOpen, onOp
                 </div>
               </div>
             )}
+            <div className="space-y-1">
+              <Label htmlFor="t-due">Due date</Label>
+              <Input id="t-due" type="date"
+                value={dueDate} onChange={e => setDueDate(e.target.value)} />
+            </div>
           </div>
           <DialogFooter>
             <Button type="button" variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
@@ -218,13 +225,14 @@ export function TaskEditDialog({ task, categories, open, onOpenChange, onSave }:
   categories: Category[];
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSave: (patch: Partial<Pick<Task, 'title' | 'description' | 'estimatedMinutes' | 'priority' | 'categoryId'>>) => Promise<void>;
+  onSave: (patch: Partial<Pick<Task, 'title' | 'description' | 'estimatedMinutes' | 'priority' | 'categoryId' | 'dueDate'>>) => Promise<void>;
 }) {
   const [title, setTitle] = useState(task.title);
   const [description, setDescription] = useState(task.description ?? '');
   const [minutes, setMinutes] = useState(task.estimatedMinutes);
   const [priority, setPriority] = useState(task.priority);
   const [categoryId, setCategoryId] = useState<string | null>(task.categoryId);
+  const [dueDate, setDueDate] = useState(task.dueDate ? task.dueDate.slice(0, 10) : '');
   const [saving, setSaving] = useState(false);
 
   function reset() {
@@ -233,6 +241,7 @@ export function TaskEditDialog({ task, categories, open, onOpenChange, onSave }:
     setMinutes(task.estimatedMinutes);
     setPriority(task.priority);
     setCategoryId(task.categoryId);
+    setDueDate(task.dueDate ? task.dueDate.slice(0, 10) : '');
   }
 
   async function submit(e: React.FormEvent) {
@@ -246,6 +255,7 @@ export function TaskEditDialog({ task, categories, open, onOpenChange, onSave }:
         estimatedMinutes: minutes,
         priority,
         categoryId,
+        dueDate: dueDate || null,
       });
       onOpenChange(false);
     } finally { setSaving(false); }
@@ -318,6 +328,11 @@ export function TaskEditDialog({ task, categories, open, onOpenChange, onSave }:
                 </div>
               </div>
             )}
+            <div className="space-y-1">
+              <Label htmlFor="te-due">Due date</Label>
+              <Input id="te-due" type="date"
+                value={dueDate} onChange={e => setDueDate(e.target.value)} />
+            </div>
           </div>
           <DialogFooter>
             <Button type="button" variant="ghost" onClick={() => { reset(); onOpenChange(false); }}>Cancel</Button>
@@ -328,5 +343,39 @@ export function TaskEditDialog({ task, categories, open, onOpenChange, onSave }:
         </form>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function DueDateBadge({ dueDate, status }: { dueDate: string | null; status: Task['status'] }) {
+  if (!dueDate || status === 'done' || status === 'archived') return null;
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const due = new Date(dueDate);
+  const dueDay = new Date(due.getFullYear(), due.getMonth(), due.getDate());
+  const diffDays = Math.round((dueDay.getTime() - today.getTime()) / 86_400_000);
+
+  const label = diffDays < 0
+    ? `${Math.abs(diffDays)}d overdue`
+    : diffDays === 0
+      ? 'Due today'
+      : diffDays === 1
+        ? 'Due tomorrow'
+        : diffDays <= 7
+          ? `Due in ${diffDays}d`
+          : due.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+
+  const tone = diffDays < 0
+    ? 'bg-red-100 text-red-700'
+    : diffDays === 0
+      ? 'bg-amber-100 text-amber-700'
+      : diffDays <= 3
+        ? 'bg-emerald-100 text-emerald-700'
+        : 'bg-slate-100 text-slate-500';
+
+  return (
+    <span className={cn('inline-flex items-center gap-0.5 rounded px-1 py-0.5 text-[10px] font-medium', tone)}>
+      <Clock className="size-2.5" />
+      {label}
+    </span>
   );
 }

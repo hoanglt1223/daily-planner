@@ -113,12 +113,12 @@ export function PlannerGrid({ initialView = 'week' as View }) {
 
         <div className="flex gap-3">
           <BacklogColumn ref={backlogRef} tasks={tasks} categories={categories}
-            onNew={async (title, min, categoryId) => {
-              try { await createTask({ title, estimatedMinutes: min, status: 'todo', categoryId }); toast.success('Task added'); }
+            onNew={async (title, min, categoryId, dueDate) => {
+              try { await createTask({ title, estimatedMinutes: min, status: 'todo', categoryId, dueDate: dueDate ?? null }); toast.success('Task added'); }
               catch (e) { toast.error((e as Error).message); }
             }}
             onUpdate={async (id, patch) => {
-              try { await updateTask(id, patch); }
+              try { await updateTask(id, patch as Parameters<typeof updateTask>[1]); }
               catch (e) { toast.error((e as Error).message); }
             }}
             onDelete={async (id) => {

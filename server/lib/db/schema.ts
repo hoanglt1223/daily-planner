@@ -53,6 +53,7 @@ export const tasks = pgTable('tasks', {
     defaultTime?: string;
     defaultDurationMinutes?: number;
   } | null>(),
+  dueDate: timestamp('due_date', { withTimezone: true }),
   isPinned: boolean('is_pinned').notNull().default(false),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),

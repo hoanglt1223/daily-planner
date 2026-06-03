@@ -6,6 +6,7 @@ export type Task = {
   status: 'backlog' | 'todo' | 'doing' | 'done' | 'archived';
   priority: number; estimatedMinutes: number;
   recurringRule: unknown | null; categoryId: string | null;
+  dueDate: string | null;
 };
 
 export type Category = {
@@ -86,7 +87,7 @@ export function usePlannerData(from: Date, to: Date) {
     return created;
   }, []);
 
-  const updateTask = useCallback(async (id: string, patch: Partial<Pick<Task, 'status' | 'priority' | 'title' | 'description' | 'estimatedMinutes' | 'categoryId'>>) => {
+  const updateTask = useCallback(async (id: string, patch: Partial<Pick<Task, 'status' | 'priority' | 'title' | 'description' | 'estimatedMinutes' | 'categoryId' | 'dueDate'>>) => {
     const updated = await apiFetch<Task>(`/api/tasks/${id}`, {
       method: 'PATCH', body: JSON.stringify(patch),
     });

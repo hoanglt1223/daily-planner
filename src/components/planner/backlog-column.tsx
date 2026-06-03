@@ -27,8 +27,8 @@ export interface BacklogColumnHandle {
 export const BacklogColumn = forwardRef<BacklogColumnHandle, {
   tasks: Task[];
   categories: Category[];
-  onNew: (title: string, minutes: number, categoryId?: string | null) => void;
-  onUpdate: (id: string, patch: Partial<Pick<Task, 'status' | 'priority' | 'title' | 'description' | 'estimatedMinutes' | 'categoryId'>>) => Promise<void>;
+  onNew: (title: string, minutes: number, categoryId?: string | null, dueDate?: string | null) => void;
+  onUpdate: (id: string, patch: Partial<Pick<Task, 'status' | 'priority' | 'title' | 'description' | 'estimatedMinutes' | 'categoryId' | 'dueDate'>>) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
   onCreateCategory: (payload: { name: string; color?: string }) => Promise<Category>;
   onUpdateCategory: (id: string, patch: { name?: string; color?: string }) => Promise<Category>;
@@ -46,15 +46,22 @@ export const BacklogColumn = forwardRef<BacklogColumnHandle, {
     focusSearch: () => searchRef.current?.focus(),
   }));
 
-  /** Non-archived/non-done tasks, filtered by search + status + category, sorted by priority then title */
+  /** Non-archived/non-done tasks, filtered by search + status + category, sorted by overdue → due date → priority → title */
   const visible = useMemo(() => {
     const pool = tasks.filter(t => t.status !== 'done' && t.status !== 'archived');
     const q = search.toLowerCase().trim();
+    const today = new Date(); today.setHours(0, 0, 0, 0);
     return pool
       .filter(t => filter === 'all' || t.status === filter)
       .filter(t => categoryFilter === null || t.categoryId === categoryFilter)
       .filter(t => !q || t.title.toLowerCase().includes(q))
-      .sort((a, b) => a.priority - b.priority || a.title.localeCompare(b.title));
+      .sort((a, b) => {
+        // Overdue / due-soonest first
+        const aDue = a.dueDate ? new Date(a.dueDate).getTime() : Infinity;
+        const bDue = b.dueDate ? new Date(b.dueDate).getTime() : Infinity;
+        if (aDue !== bDue) return aDue - bDue;
+        return a.priority - b.priority || a.title.localeCompare(b.title);
+      });
   }, [tasks, search, filter, categoryFilter]);
 
   const categoryMap = useMemo(() => {

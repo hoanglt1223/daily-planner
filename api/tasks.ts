@@ -26,13 +26,19 @@ export default async function handler(req: AuthedRequest, res: VercelResponse) {
         priority: body.priority ?? 3,
         estimatedMinutes: body.estimatedMinutes ?? 60,
         recurringRule: body.recurringRule ?? null,
+        dueDate: body.dueDate ? new Date(body.dueDate) : null,
       }).returning();
       return res.status(201).json(row);
     }
     if (req.method === 'PATCH' && id) {
       const body = req.body ?? {};
+      const patch: Record<string, unknown> = { updatedAt: new Date() };
+      for (const key of ['title', 'description', 'status', 'priority', 'estimatedMinutes', 'categoryId', 'recurringRule']) {
+        if (key in body) patch[key] = body[key];
+      }
+      if ('dueDate' in body) patch.dueDate = body.dueDate ? new Date(body.dueDate) : null;
       const [row] = await db.update(tasks)
-        .set({ ...body, updatedAt: new Date() })
+        .set(patch)
         .where(and(eq(tasks.id, id), eq(tasks.userId, user.sub)))
         .returning();
       if (!row) return res.status(404).json({ error: 'not_found' });
