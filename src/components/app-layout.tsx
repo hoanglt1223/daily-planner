@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { CalendarDays, LayoutDashboard, LogOut, ShieldCheck, Users } from 'lucide-react';
+import { CalendarDays, LayoutDashboard, LogOut, Moon, ShieldCheck, Sun, Users } from 'lucide-react';
+import { useTheme } from 'next-themes';
 import { apiFetch, clearAuthToken, getAuthToken } from '@/lib/api-client';
 import { useGlobalShortcuts } from '@/lib/use-global-keyboard-shortcuts';
 import { Button } from '@/components/ui/button';
@@ -21,6 +22,7 @@ export function AppLayout() {
   const { pathname } = useLocation();
   const nav = useNavigate();
   const [me, setMe] = useState<Me | null>(null);
+  const { theme, setTheme } = useTheme();
 
   useGlobalShortcuts();
 
@@ -68,6 +70,14 @@ export function AppLayout() {
                 </Link>
               );
             })}
+            <Button
+              variant="ghost" size="icon"
+              className="ml-1 size-8"
+              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+              title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+            >
+              {theme === 'dark' ? <Sun className="size-4" /> : <Moon className="size-4" />}
+            </Button>
             {me && (
               <div className="ml-2 flex items-center gap-2 border-l pl-3">
                 <div className="text-right">
