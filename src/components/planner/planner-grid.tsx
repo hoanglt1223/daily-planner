@@ -8,6 +8,7 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { TimeColumn } from './time-column';
 import { BacklogColumn, type BacklogColumnHandle } from './backlog-column';
 import { CapacitySummary } from './capacity-summary';
+import { FocusTimer } from './focus-timer';
 import { NowLine } from './now-line';
 import { BlockEditorDialog, type BlockEditorState } from './block-editor-dialog';
 import { usePlannerData, type Task, type TimeBlock } from './use-planner-data';
@@ -19,6 +20,7 @@ export function PlannerGrid({ initialView = 'week' as View }) {
   const [view, setView] = useState<View>(initialView);
   const [anchor, setAnchor] = useState<Date>(new Date());
   const [editor, setEditor] = useState<BlockEditorState | null>(null);
+  const [focusBlock, setFocusBlock] = useState<TimeBlock | null>(null);
   const backlogRef = useRef<BacklogColumnHandle>(null);
 
   const days = view === 'week' ? 7 : 1;
@@ -144,7 +146,14 @@ export function PlannerGrid({ initialView = 'week' as View }) {
                   })}
                   onSelectRange={(s, e) => setEditor({ mode: 'create', startAt: s, endAt: e })}
                   onBlockStatusChange={async (id, status) => {
-                    try { await updateBlock(id, { status }); }
+                    try {
+                      const updated = await updateBlock(id, { status });
+                      if (status === 'in_progress') {
+                        setFocusBlock(updated);
+                      } else if (focusBlock?.id === id) {
+                        setFocusBlock(null);
+                      }
+                    }
                     catch (e) { toast.error((e as Error).message); }
                   }}
                 />
@@ -171,6 +180,26 @@ export function PlannerGrid({ initialView = 'week' as View }) {
             catch (e) { toast.error((e as Error).message); }
           }}
         />
+
+        {focusBlock && (() => {
+          // Keep focus block in sync with latest data from the blocks array
+          const live = blocks.find(b => b.id === focusBlock.id);
+          if (!live || live.status !== 'in_progress') return null;
+          return (
+            <FocusTimer
+              key={live.id}
+              block={live}
+              onComplete={async () => {
+                try {
+                  await updateBlock(live.id, { status: 'completed' });
+                  setFocusBlock(null);
+                  toast.success(`"${live.title}" completed!`);
+                } catch (e) { toast.error((e as Error).message); }
+              }}
+              onStop={() => setFocusBlock(null)}
+            />
+          );
+        })()}
       </div>
     </DndContext>
   );
