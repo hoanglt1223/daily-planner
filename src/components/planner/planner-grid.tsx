@@ -9,6 +9,7 @@ import { TimeColumn } from './time-column';
 import { BacklogColumn, type BacklogColumnHandle } from './backlog-column';
 import { CapacitySummary } from './capacity-summary';
 import { FocusTimer } from './focus-timer';
+import { DailySummary } from './daily-summary';
 import { NowLine } from './now-line';
 import { BlockEditorDialog, type BlockEditorState } from './block-editor-dialog';
 import { usePlannerData, type Task, type TimeBlock } from './use-planner-data';
@@ -200,6 +201,8 @@ export function PlannerGrid({ initialView = 'week' as View }) {
             />
           );
         })()}
+
+        <DailySummary blocks={blocks} tasks={tasks} categories={categories} />
       </div>
     </DndContext>
   );

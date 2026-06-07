@@ -46,6 +46,17 @@ export default async function handler(req: AuthedRequest, res: VercelResponse) {
       const patch: Record<string, unknown> = { ...b };
       if (b.startAt) patch.startAt = new Date(b.startAt);
       if (b.endAt) patch.endAt = new Date(b.endAt);
+      // Auto-record actualMinutes when marking a block completed
+      if (b.status === 'completed' && !b.actualMinutes) {
+        const [existing] = await db.select().from(timeBlocks)
+          .where(and(eq(timeBlocks.id, id), eq(timeBlocks.userId, me.sub)))
+          .limit(1);
+        if (existing && !existing.actualMinutes) {
+          patch.actualMinutes = Math.round(
+            (existing.endAt.getTime() - existing.startAt.getTime()) / 60_000,
+          );
+        }
+      }
       const [row] = await db.update(timeBlocks)
         .set(patch)
         .where(and(eq(timeBlocks.id, id), eq(timeBlocks.userId, me.sub)))
