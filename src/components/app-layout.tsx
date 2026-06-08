@@ -7,6 +7,7 @@ import { useGlobalShortcuts } from '@/lib/use-global-keyboard-shortcuts';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { KeyboardShortcutsDialog } from '@/components/keyboard-shortcuts-dialog';
+import { QuickTaskDialog } from '@/components/quick-task-dialog';
 import { cn } from '@/lib/utils';
 
 type Me = { id: string; name: string; role: 'user' | 'manager' | 'admin'; email: string };
@@ -96,6 +97,7 @@ export function AppLayout() {
         <Outlet />
       </main>
       <KeyboardShortcutsDialog />
+      <QuickTaskDialog />
     </div>
   );
 }

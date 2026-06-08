@@ -1,15 +1,17 @@
 import { useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { isInputFocused } from './keyboard-utils';
 
 const CHORD_TIMEOUT = 800;
 
 /**
  * Global keyboard shortcuts: nav chords (g+d, g+p, g+m), Escape to close dialogs,
- * ? or Ctrl+/ to toggle help dialog. Mount once in AppLayout.
+ * ? or Ctrl+/ to toggle help dialog, n for quick task capture.
+ * Mount once in AppLayout.
  */
 export function useGlobalShortcuts() {
   const nav = useNavigate();
+  const { pathname } = useLocation();
   const chordRef = useRef<string | null>(null);
   const chordTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -29,6 +31,13 @@ export function useGlobalShortcuts() {
       }
 
       if (isInputFocused()) return;
+
+      // n: quick task capture (skip on /planner — it has its own n handler)
+      if (e.key === 'n' && !e.ctrlKey && !e.metaKey && !e.altKey && !pathname.startsWith('/planner')) {
+        e.preventDefault();
+        document.dispatchEvent(new CustomEvent('shortcut:quick-task'));
+        return;
+      }
 
       // Chord handling: g prefix
       if (e.key === 'g' && !e.ctrlKey && !e.metaKey && !e.altKey) {
@@ -52,5 +61,5 @@ export function useGlobalShortcuts() {
       document.removeEventListener('keydown', onKeyDown);
       if (chordTimer.current) clearTimeout(chordTimer.current);
     };
-  }, [nav]);
+  }, [nav, pathname]);
 }
