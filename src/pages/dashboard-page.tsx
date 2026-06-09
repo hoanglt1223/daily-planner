@@ -6,6 +6,7 @@ import { BookingsInbox } from '@/components/dashboard/bookings-inbox';
 import { WeeklyChart } from '@/components/dashboard/weekly-chart';
 import { TodayTasks } from '@/components/dashboard/today-tasks';
 import { ProductivityInsights } from '@/components/dashboard/productivity-insights';
+import { TimesheetExport } from '@/components/dashboard/timesheet-export';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { addDays, startOfWeek } from '@/lib/time-utils';
@@ -67,6 +68,8 @@ export function DashboardPage() {
         <SharePanel />
         <BookingsInbox />
       </div>
+
+      <TimesheetExport />
     </div>
   );
 }
