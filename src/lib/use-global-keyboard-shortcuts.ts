@@ -39,6 +39,13 @@ export function useGlobalShortcuts() {
         return;
       }
 
+      // l: quick time log
+      if (e.key === 'l' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        e.preventDefault();
+        document.dispatchEvent(new CustomEvent('shortcut:quick-time-log'));
+        return;
+      }
+
       // Chord handling: g prefix
       if (e.key === 'g' && !e.ctrlKey && !e.metaKey && !e.altKey) {
         chordRef.current = 'g';
