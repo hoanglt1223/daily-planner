@@ -5,6 +5,7 @@ import { SharePanel } from '@/components/dashboard/share-panel';
 import { BookingsInbox } from '@/components/dashboard/bookings-inbox';
 import { WeeklyChart } from '@/components/dashboard/weekly-chart';
 import { TodayTasks } from '@/components/dashboard/today-tasks';
+import { UpcomingTasks } from '@/components/dashboard/upcoming-tasks';
 import { ProductivityInsights } from '@/components/dashboard/productivity-insights';
 import { TimesheetExport } from '@/components/dashboard/timesheet-export';
 import { Card, CardContent } from '@/components/ui/card';
@@ -59,9 +60,10 @@ export function DashboardPage() {
 
       {weekBlocks.length > 0 && <WeeklyChart blocks={weekBlocks} />}
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid gap-4 lg:grid-cols-3">
         <ProductivityInsights />
         <TodayTasks />
+        <UpcomingTasks />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
