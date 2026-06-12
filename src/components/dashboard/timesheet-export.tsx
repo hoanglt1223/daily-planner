@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Download, FileSpreadsheet, Loader2 } from 'lucide-react';
+import { Download, FileSpreadsheet, Loader2, Calendar } from 'lucide-react';
 import { formatInTimeZone } from 'date-fns-tz';
 import { apiFetch } from '@/lib/api-client';
 import { Card, CardContent } from '@/components/ui/card';
@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { DEFAULT_TZ, addDays, startOfWeek, fmtIsoDate } from '@/lib/time-utils';
+import { generateIcs, downloadIcs } from '@/lib/ics-export';
 
 type Block = {
   id: string; taskId: string | null; title: string;
@@ -34,7 +35,7 @@ export function TimesheetExport() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(false);
-  const [exported, setExported] = useState(false);
+  const [exported, setExported] = useState<'csv' | 'ics' | null>(null);
 
   const fetchData = useCallback(async () => {
     if (!from || !to) return;
@@ -108,8 +109,15 @@ export function TimesheetExport() {
     a.download = `timesheet-${from}-to-${to}.csv`;
     a.click();
     URL.revokeObjectURL(url);
-    setExported(true);
-    setTimeout(() => setExported(false), 2000);
+    setExported('csv');
+    setTimeout(() => setExported(null), 2000);
+  }
+
+  function downloadIcsFile() {
+    const icsContent = generateIcs(blocks);
+    downloadIcs(icsContent, `timesheet-${from}-to-${to}.ics`);
+    setExported('ics');
+    setTimeout(() => setExported(null), 2000);
   }
 
   function csvEscape(val: string): string {
@@ -207,15 +215,27 @@ export function TimesheetExport() {
           </>
         )}
 
-        <Button
-          size="sm"
-          className="w-full"
-          disabled={loading || rows.length === 0}
-          onClick={downloadCsv}
-        >
-          <Download className="size-3.5 mr-1.5" />
-          {exported ? 'Downloaded!' : 'Download CSV'}
-        </Button>
+        <div className="grid grid-cols-2 gap-2">
+          <Button
+            size="sm"
+            className="w-full"
+            disabled={loading || rows.length === 0}
+            onClick={downloadCsv}
+          >
+            <Download className="size-3.5 mr-1.5" />
+            {exported === 'csv' ? 'Downloaded!' : 'Download CSV'}
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            className="w-full"
+            disabled={loading || blocks.length === 0}
+            onClick={downloadIcsFile}
+          >
+            <Calendar className="size-3.5 mr-1.5" />
+            {exported === 'ics' ? 'Downloaded!' : 'Export Calendar'}
+          </Button>
+        </div>
       </CardContent>
     </Card>
   );
