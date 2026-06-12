@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useDraggable } from '@dnd-kit/core';
-import { Check, ChevronUp, Circle, Clock, Loader2, Pencil, Plus, Trash2 } from 'lucide-react';
+import { Check, ChevronUp, Circle, Clock, Loader2, Pencil, Pin, PinOff, Plus, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import type { Task, Category } from './use-planner-data';
 import { cn } from '@/lib/utils';
@@ -37,7 +37,7 @@ export function DraggableTaskCard({ task, category, categories, onUpdate, onDele
   task: Task;
   category?: Category;
   categories?: Category[];
-  onUpdate: (id: string, patch: Partial<Pick<Task, 'status' | 'priority' | 'title' | 'description' | 'estimatedMinutes' | 'categoryId' | 'dueDate'>>) => Promise<void>;
+  onUpdate: (id: string, patch: Partial<Pick<Task, 'status' | 'priority' | 'title' | 'description' | 'estimatedMinutes' | 'categoryId' | 'dueDate' | 'isPinned'>>) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
 }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
@@ -72,12 +72,26 @@ export function DraggableTaskCard({ task, category, categories, onUpdate, onDele
     finally { setBusy(false); }
   }
 
+  async function togglePin() {
+    setBusy(true);
+    try { await onUpdate(task.id, { isPinned: !task.isPinned }); }
+    catch (e) { toast.error((e as Error).message); }
+    finally { setBusy(false); }
+  }
+
   return (
     <div ref={setNodeRef} {...listeners} {...attributes}
-      className={`group relative cursor-grab rounded border bg-card p-2 text-sm shadow-sm transition-colors hover:border-foreground/20 ${isDragging ? 'opacity-40' : ''}`}>
+      className={`group relative cursor-grab rounded border bg-card p-2 text-sm shadow-sm transition-colors hover:border-foreground/20 ${isDragging ? 'opacity-40' : ''} ${task.isPinned ? 'border-l-2 border-l-amber-400' : ''}`}>
       <div className="flex items-start justify-between gap-1">
-        <p className="font-medium leading-tight flex-1">{task.title}</p>
+        <div className="flex items-center gap-1.5 flex-1 min-w-0">
+          {task.isPinned && <Pin className="size-3 text-amber-500 shrink-0" />}
+          <p className="font-medium leading-tight truncate">{task.title}</p>
+        </div>
         <div className="flex shrink-0 items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+          <Button size="icon" variant="ghost" className="size-6" onClick={togglePin} disabled={busy}
+            title={task.isPinned ? 'Unpin task' : 'Pin task to top'}>
+            {task.isPinned ? <PinOff className="size-3" /> : <Pin className="size-3" />}
+          </Button>
           <Button size="icon" variant="ghost" className="size-6" onClick={() => setEditOpen(true)} disabled={busy}
             title="Edit task details">
             <Pencil className="size-3" />
@@ -225,7 +239,7 @@ export function TaskEditDialog({ task, categories, open, onOpenChange, onSave }:
   categories: Category[];
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSave: (patch: Partial<Pick<Task, 'title' | 'description' | 'estimatedMinutes' | 'priority' | 'categoryId' | 'dueDate'>>) => Promise<void>;
+  onSave: (patch: Partial<Pick<Task, 'title' | 'description' | 'estimatedMinutes' | 'priority' | 'categoryId' | 'dueDate' | 'isPinned'>>) => Promise<void>;
 }) {
   const [title, setTitle] = useState(task.title);
   const [description, setDescription] = useState(task.description ?? '');

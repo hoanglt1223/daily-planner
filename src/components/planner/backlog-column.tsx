@@ -28,7 +28,7 @@ export const BacklogColumn = forwardRef<BacklogColumnHandle, {
   tasks: Task[];
   categories: Category[];
   onNew: (title: string, minutes: number, categoryId?: string | null, dueDate?: string | null) => void;
-  onUpdate: (id: string, patch: Partial<Pick<Task, 'status' | 'priority' | 'title' | 'description' | 'estimatedMinutes' | 'categoryId' | 'dueDate'>>) => Promise<void>;
+  onUpdate: (id: string, patch: Partial<Pick<Task, 'status' | 'priority' | 'title' | 'description' | 'estimatedMinutes' | 'categoryId' | 'dueDate' | 'isPinned'>>) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
   onCreateCategory: (payload: { name: string; color?: string }) => Promise<Category>;
   onUpdateCategory: (id: string, patch: { name?: string; color?: string }) => Promise<Category>;
@@ -56,6 +56,8 @@ export const BacklogColumn = forwardRef<BacklogColumnHandle, {
       .filter(t => categoryFilter === null || t.categoryId === categoryFilter)
       .filter(t => !q || t.title.toLowerCase().includes(q))
       .sort((a, b) => {
+        // Pinned tasks first
+        if (a.isPinned !== b.isPinned) return a.isPinned ? -1 : 1;
         // Overdue / due-soonest first
         const aDue = a.dueDate ? new Date(a.dueDate).getTime() : Infinity;
         const bDue = b.dueDate ? new Date(b.dueDate).getTime() : Infinity;

@@ -33,7 +33,7 @@ export default async function handler(req: AuthedRequest, res: VercelResponse) {
     if (req.method === 'PATCH' && id) {
       const body = req.body ?? {};
       const patch: Record<string, unknown> = { updatedAt: new Date() };
-      for (const key of ['title', 'description', 'status', 'priority', 'estimatedMinutes', 'categoryId', 'recurringRule']) {
+      for (const key of ['title', 'description', 'status', 'priority', 'estimatedMinutes', 'categoryId', 'recurringRule', 'isPinned']) {
         if (key in body) patch[key] = body[key];
       }
       if ('dueDate' in body) patch.dueDate = body.dueDate ? new Date(body.dueDate) : null;
