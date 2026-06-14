@@ -9,6 +9,7 @@ import { UpcomingTasks } from '@/components/dashboard/upcoming-tasks';
 import { CompletedTasks } from '@/components/dashboard/completed-tasks';
 import { ProductivityInsights } from '@/components/dashboard/productivity-insights';
 import { TimesheetExport } from '@/components/dashboard/timesheet-export';
+import { DailyTimeline } from '@/components/dashboard/daily-timeline';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { addDays, startOfWeek } from '@/lib/time-utils';
@@ -60,6 +61,8 @@ export function DashboardPage() {
       </div>
 
       {weekBlocks.length > 0 && <WeeklyChart blocks={weekBlocks} />}
+
+      <DailyTimeline />
 
       <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-4">
         <ProductivityInsights />
