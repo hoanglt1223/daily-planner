@@ -10,6 +10,7 @@ import { CompletedTasks } from '@/components/dashboard/completed-tasks';
 import { ProductivityInsights } from '@/components/dashboard/productivity-insights';
 import { TimesheetExport } from '@/components/dashboard/timesheet-export';
 import { DailyTimeline } from '@/components/dashboard/daily-timeline';
+import { DailyNotes } from '@/components/dashboard/daily-notes';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { addDays, startOfWeek } from '@/lib/time-utils';
@@ -70,6 +71,8 @@ export function DashboardPage() {
         <UpcomingTasks />
         <CompletedTasks />
       </div>
+
+      <DailyNotes />
 
       <div className="grid gap-4 lg:grid-cols-2">
         <SharePanel />

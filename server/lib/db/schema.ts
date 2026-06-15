@@ -96,9 +96,21 @@ export const bookings = pgTable('bookings', {
   uniqueIndex('bookings_owner_start_unique').on(t.ownerUserId, t.startAt),
 ]);
 
+export const dailyNotes = pgTable('daily_notes', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  content: text('content').notNull().default(''),
+  noteDate: timestamp('note_date', { withTimezone: true }).notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, (t) => [
+  index('daily_notes_user_date_idx').on(t.userId, t.noteDate),
+]);
+
 export type User = typeof users.$inferSelect;
 export type Task = typeof tasks.$inferSelect;
 export type TimeBlock = typeof timeBlocks.$inferSelect;
 export type Category = typeof categories.$inferSelect;
 export type Booking = typeof bookings.$inferSelect;
 export type ManagerUser = typeof managerUsers.$inferSelect;
+export type DailyNote = typeof dailyNotes.$inferSelect;
