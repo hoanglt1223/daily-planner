@@ -1,16 +1,28 @@
 import { forwardRef, useImperativeHandle, useMemo, useRef, useState } from 'react';
-import { Plus, Search, Tag, X } from 'lucide-react';
+import { ArrowUpDown, Plus, Search, Tag, X } from 'lucide-react';
 import type { Task, Category } from './use-planner-data';
 import { DraggableTaskCard, NewTaskDialog, STATUS_META } from './draggable-task-card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
 
 /** Status values available for filtering */
 const FILTER_STATUSES = ['all', 'backlog', 'todo', 'doing'] as const;
 type FilterStatus = (typeof FILTER_STATUSES)[number];
+
+/** Sort options for the backlog */
+const SORT_OPTIONS = [
+  { value: 'smart', label: 'Smart (priority + due)' },
+  { value: 'priority', label: 'Priority' },
+  { value: 'dueDate', label: 'Due date' },
+  { value: 'estimated', label: 'Estimated time' },
+  { value: 'title', label: 'Title A–Z' },
+  { value: 'created', label: 'Newest first' },
+] as const;
+type SortKey = (typeof SORT_OPTIONS)[number]['value'];
 
 /** Preset colors for categories */
 const CATEGORY_COLORS = [
@@ -37,6 +49,7 @@ export const BacklogColumn = forwardRef<BacklogColumnHandle, {
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<FilterStatus>('all');
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
+  const [sortBy, setSortBy] = useState<SortKey>('smart');
   const [newTaskOpen, setNewTaskOpen] = useState(false);
   const [categoryManagerOpen, setCategoryManagerOpen] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
@@ -46,25 +59,43 @@ export const BacklogColumn = forwardRef<BacklogColumnHandle, {
     focusSearch: () => searchRef.current?.focus(),
   }));
 
-  /** Non-archived/non-done tasks, filtered by search + status + category, sorted by overdue → due date → priority → title */
+  /** Non-archived/non-done tasks, filtered by search + status + category, sorted per sortBy */
   const visible = useMemo(() => {
     const pool = tasks.filter(t => t.status !== 'done' && t.status !== 'archived');
     const q = search.toLowerCase().trim();
-    const today = new Date(); today.setHours(0, 0, 0, 0);
     return pool
       .filter(t => filter === 'all' || t.status === filter)
       .filter(t => categoryFilter === null || t.categoryId === categoryFilter)
       .filter(t => !q || t.title.toLowerCase().includes(q))
       .sort((a, b) => {
-        // Pinned tasks first
+        // Pinned always first regardless of sort mode
         if (a.isPinned !== b.isPinned) return a.isPinned ? -1 : 1;
-        // Overdue / due-soonest first
+
+        if (sortBy === 'priority') {
+          return a.priority - b.priority || a.title.localeCompare(b.title);
+        }
+        if (sortBy === 'dueDate') {
+          const aDue = a.dueDate ? new Date(a.dueDate).getTime() : Infinity;
+          const bDue = b.dueDate ? new Date(b.dueDate).getTime() : Infinity;
+          return aDue - bDue || a.priority - b.priority;
+        }
+        if (sortBy === 'estimated') {
+          return a.estimatedMinutes - b.estimatedMinutes || a.priority - b.priority;
+        }
+        if (sortBy === 'title') {
+          return a.title.localeCompare(b.title);
+        }
+        if (sortBy === 'created') {
+          // Newer tasks first — compare IDs as proxy for creation order
+          return b.id.localeCompare(a.id);
+        }
+        // 'smart' — default: overdue → due date → priority → title
         const aDue = a.dueDate ? new Date(a.dueDate).getTime() : Infinity;
         const bDue = b.dueDate ? new Date(b.dueDate).getTime() : Infinity;
         if (aDue !== bDue) return aDue - bDue;
         return a.priority - b.priority || a.title.localeCompare(b.title);
       });
-  }, [tasks, search, filter, categoryFilter]);
+  }, [tasks, search, filter, categoryFilter, sortBy]);
 
   const categoryMap = useMemo(() => {
     const map = new Map<string, Category>();
@@ -84,16 +115,29 @@ export const BacklogColumn = forwardRef<BacklogColumnHandle, {
         </div>
       </div>
 
-      {/* Search input */}
-      <div className="relative">
-        <Search className="absolute left-2 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          ref={searchRef}
-          placeholder="Search tasks…"
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          className="h-8 pl-7 text-xs"
-        />
+      {/* Search input + sort */}
+      <div className="flex gap-1.5">
+        <div className="relative flex-1">
+          <Search className="absolute left-2 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            ref={searchRef}
+            placeholder="Search tasks…"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="h-8 pl-7 text-xs"
+          />
+        </div>
+        <Select value={sortBy} onValueChange={v => setSortBy(v as SortKey)}>
+          <SelectTrigger className="h-8 w-auto gap-1 text-xs px-2" title="Sort tasks">
+            <ArrowUpDown className="size-3" />
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent align="end">
+            {SORT_OPTIONS.map(o => (
+              <SelectItem key={o.value} value={o.value} className="text-xs">{o.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Status filter chips */}
