@@ -6,6 +6,7 @@ import { DashboardPage } from '@/pages/dashboard-page';
 import { PlannerPage } from '@/pages/planner-page';
 import { AdminPage } from '@/pages/admin-page';
 import { ManagerPage } from '@/pages/manager-page';
+import { TasksPage } from '@/pages/tasks-page';
 import { ShareViewPage } from '@/pages/share-view-page';
 import { BookSlotPage } from '@/pages/book-slot-page';
 import { AppLayout } from '@/components/app-layout';
@@ -20,6 +21,7 @@ export const router = createBrowserRouter([
     element: <AppLayout />,
     children: [
       { path: '/dashboard', element: <DashboardPage /> },
+      { path: '/tasks', element: <TasksPage /> },
       { path: '/planner', element: <PlannerPage /> },
       { path: '/manager', element: <ManagerPage /> },
       { path: '/admin', element: <AdminPage /> },
