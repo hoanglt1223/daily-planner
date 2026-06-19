@@ -12,6 +12,7 @@ import { TimesheetExport } from '@/components/dashboard/timesheet-export';
 import { DailyTimeline } from '@/components/dashboard/daily-timeline';
 import { DailyNotes } from '@/components/dashboard/daily-notes';
 import { DailyFocus } from '@/components/dashboard/daily-focus';
+import { DailyReview } from '@/components/dashboard/daily-review';
 import { TimeAllocation } from '@/components/dashboard/time-allocation';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -68,7 +69,10 @@ export function DashboardPage() {
           {weekBlocks.length > 0 && <WeeklyChart blocks={weekBlocks} />}
           <TimeAllocation />
         </div>
-        <DailyFocus />
+        <div className="space-y-4">
+          <DailyFocus />
+          <DailyReview />
+        </div>
       </div>
 
       <DailyTimeline />
