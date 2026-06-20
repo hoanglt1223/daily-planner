@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   AlertTriangle, Archive, ArrowUpDown, CheckCircle2, ChevronDown, ChevronRight,
-  Clock, Edit3, PlayCircle, Plus, Search, Tag, Trash2,
+  Clock, Edit3, Palette, Pencil, PlayCircle, Plus, Search, Tag, Trash2,
 } from 'lucide-react';
 import { apiFetch } from '@/lib/api-client';
 import { Card, CardContent } from '@/components/ui/card';
@@ -71,6 +71,7 @@ export function TasksPage() {
   const [editTask, setEditTask] = useState<Task | null>(null);
   const [newOpen, setNewOpen] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [catManagerOpen, setCatManagerOpen] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -212,25 +213,26 @@ export function TasksPage() {
         </div>
 
         {/* Category filter */}
-        {categories.length > 0 && (
-          <Select value={categoryFilter ?? 'all'} onValueChange={v => setCategoryFilter(v === 'all' ? null : v)}>
-            <SelectTrigger className="h-9 w-auto min-w-[140px]">
-              <Tag className="size-3.5 mr-1.5" />
-              <SelectValue placeholder="All categories" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All categories</SelectItem>
-              {categories.map(c => (
-                <SelectItem key={c.id} value={c.id}>
-                  <span className="flex items-center gap-1.5">
-                    <span className="size-2 rounded-full" style={{ backgroundColor: c.color }} />
-                    {c.name}
-                  </span>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )}
+        <Select value={categoryFilter ?? 'all'} onValueChange={v => setCategoryFilter(v === 'all' ? null : v)}>
+          <SelectTrigger className="h-9 w-auto min-w-[140px]">
+            <Tag className="size-3.5 mr-1.5" />
+            <SelectValue placeholder="All categories" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All categories</SelectItem>
+            {categories.map(c => (
+              <SelectItem key={c.id} value={c.id}>
+                <span className="flex items-center gap-1.5">
+                  <span className="size-2 rounded-full" style={{ backgroundColor: c.color }} />
+                  {c.name}
+                </span>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Button size="sm" variant="outline" className="h-9" onClick={() => setCatManagerOpen(true)}>
+          <Palette className="size-3.5 mr-1.5" /> Categories
+        </Button>
 
         {/* Sort */}
         <Select value={sortBy} onValueChange={v => setSortBy(v as SortKey)}>
@@ -288,6 +290,14 @@ export function TasksPage() {
           onSaved={load}
         />
       )}
+
+      {/* Category manager dialog */}
+      <CategoryManagerDialog
+        open={catManagerOpen}
+        onOpenChange={setCatManagerOpen}
+        categories={categories}
+        onSaved={load}
+      />
     </div>
   );
 }
@@ -664,6 +674,167 @@ function EditTaskDialog({ task, categories, onClose, onSaved }: {
             <Button type="submit" disabled={submitting || !title.trim()}>{submitting ? '…' : 'Save'}</Button>
           </DialogFooter>
         </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/* ─── Category Manager Dialog ─── */
+
+const PRESET_COLORS = [
+  '#6366f1', '#8b5cf6', '#ec4899', '#f43f5e', '#ef4444',
+  '#f97316', '#eab308', '#22c55e', '#14b8a6', '#06b6d4',
+  '#3b82f6', '#6b7280',
+];
+
+function CategoryManagerDialog({ open, onOpenChange, categories, onSaved }: {
+  open: boolean; onOpenChange: (o: boolean) => void; categories: Category[]; onSaved: () => void;
+}) {
+  const [editingCat, setEditingCat] = useState<Category | null>(null);
+  const [newName, setNewName] = useState('');
+  const [newColor, setNewColor] = useState(PRESET_COLORS[0]);
+  const [editName, setEditName] = useState('');
+  const [editColor, setEditColor] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+
+  function resetNew() { setNewName(''); setNewColor(PRESET_COLORS[0]); }
+  function startEdit(cat: Category) { setEditingCat(cat); setEditName(cat.name); setEditColor(cat.color); }
+  function cancelEdit() { setEditingCat(null); setEditName(''); setEditColor(''); }
+
+  async function createCategory() {
+    if (!newName.trim()) return;
+    setBusy(true);
+    try {
+      await apiFetch('/api/categories', {
+        method: 'POST',
+        body: JSON.stringify({ name: newName.trim(), color: newColor }),
+      });
+      toast.success('Category created');
+      resetNew();
+      onSaved();
+    } catch (e) { toast.error((e as Error).message); }
+    finally { setBusy(false); }
+  }
+
+  async function updateCategory() {
+    if (!editingCat || !editName.trim()) return;
+    setBusy(true);
+    try {
+      await apiFetch(`/api/categories/${editingCat.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ name: editName.trim(), color: editColor }),
+      });
+      toast.success('Category updated');
+      cancelEdit();
+      onSaved();
+    } catch (e) { toast.error((e as Error).message); }
+    finally { setBusy(false); }
+  }
+
+  async function deleteCategory(id: string) {
+    setBusy(true);
+    try {
+      await apiFetch(`/api/categories/${id}`, { method: 'DELETE' });
+      toast.success('Category deleted');
+      setConfirmDelete(null);
+      onSaved();
+    } catch (e) { toast.error((e as Error).message); }
+    finally { setBusy(false); }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={o => { if (!o) { cancelEdit(); setConfirmDelete(null); } onOpenChange(o); }}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Manage categories</DialogTitle>
+          <DialogDescription>Create, edit, or delete task categories.</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4 py-2">
+          {/* Existing categories */}
+          <div className="space-y-2 max-h-60 overflow-y-auto">
+            {categories.length === 0 && (
+              <p className="text-xs text-muted-foreground text-center py-4">No categories yet. Create one below.</p>
+            )}
+            {categories.map(cat => (
+              <div key={cat.id}>
+                {editingCat?.id === cat.id ? (
+                  <div className="flex items-center gap-2 rounded-md border p-2">
+                    <div className="flex gap-1 flex-wrap">
+                      {PRESET_COLORS.map(c => (
+                        <button key={c} type="button"
+                          className={cn('size-5 rounded-full border-2 transition-all', editColor === c ? 'border-foreground scale-110' : 'border-transparent')}
+                          style={{ backgroundColor: c }}
+                          onClick={() => setEditColor(c)}
+                        />
+                      ))}
+                    </div>
+                    <Input value={editName} onChange={e => setEditName(e.target.value)}
+                      className="h-7 text-xs flex-1" autoFocus
+                      onKeyDown={e => { if (e.key === 'Enter') updateCategory(); if (e.key === 'Escape') cancelEdit(); }}
+                    />
+                    <Button size="icon" variant="ghost" className="size-7" disabled={busy || !editName.trim()} onClick={updateCategory}>
+                      <CheckCircle2 className="size-3.5 text-emerald-600" />
+                    </Button>
+                    <Button size="icon" variant="ghost" className="size-7" onClick={cancelEdit}>
+                      <Archive className="size-3.5" />
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 rounded-md border px-3 py-2 group hover:bg-muted/30">
+                    <span className="size-3 rounded-full shrink-0" style={{ backgroundColor: cat.color }} />
+                    <span className="text-sm flex-1 truncate">{cat.name}</span>
+                    {confirmDelete === cat.id ? (
+                      <div className="flex items-center gap-1">
+                        <Button size="sm" variant="destructive" className="h-6 text-[10px] px-2" disabled={busy}
+                          onClick={() => deleteCategory(cat.id)}>
+                          Confirm
+                        </Button>
+                        <Button size="sm" variant="ghost" className="h-6 text-[10px] px-2"
+                          onClick={() => setConfirmDelete(null)}>
+                          Cancel
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Button size="icon" variant="ghost" className="size-6" onClick={() => startEdit(cat)}>
+                          <Pencil className="size-3" />
+                        </Button>
+                        <Button size="icon" variant="ghost" className="size-6 text-destructive hover:text-destructive"
+                          onClick={() => setConfirmDelete(cat.id)}>
+                          <Trash2 className="size-3" />
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+
+          {/* Create new */}
+          <div className="border-t pt-3 space-y-2">
+            <p className="text-xs font-medium text-muted-foreground">New category</p>
+            <div className="flex gap-1 flex-wrap">
+              {PRESET_COLORS.map(c => (
+                <button key={c} type="button"
+                  className={cn('size-5 rounded-full border-2 transition-all', newColor === c ? 'border-foreground scale-110' : 'border-transparent')}
+                  style={{ backgroundColor: c }}
+                  onClick={() => setNewColor(c)}
+                />
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <Input placeholder="Category name" value={newName} onChange={e => setNewName(e.target.value)}
+                className="h-8 text-sm"
+                onKeyDown={e => { if (e.key === 'Enter') createCategory(); }}
+              />
+              <Button size="sm" className="h-8" disabled={busy || !newName.trim()} onClick={createCategory}>
+                <Plus className="size-3.5 mr-1" /> Add
+              </Button>
+            </div>
+          </div>
+        </div>
       </DialogContent>
     </Dialog>
   );
