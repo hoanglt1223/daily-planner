@@ -13,6 +13,7 @@ import { DailyTimeline } from '@/components/dashboard/daily-timeline';
 import { DailyNotes } from '@/components/dashboard/daily-notes';
 import { DailyFocus } from '@/components/dashboard/daily-focus';
 import { DailyReview } from '@/components/dashboard/daily-review';
+import { StreakCalendar } from '@/components/dashboard/streak-calendar';
 import { TimeAllocation } from '@/components/dashboard/time-allocation';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -68,6 +69,7 @@ export function DashboardPage() {
         <div className="lg:col-span-2 space-y-4">
           {weekBlocks.length > 0 && <WeeklyChart blocks={weekBlocks} />}
           <TimeAllocation />
+          <StreakCalendar />
         </div>
         <div className="space-y-4">
           <DailyFocus />
