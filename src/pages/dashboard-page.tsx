@@ -15,6 +15,7 @@ import { DailyFocus } from '@/components/dashboard/daily-focus';
 import { DailyReview } from '@/components/dashboard/daily-review';
 import { StreakCalendar } from '@/components/dashboard/streak-calendar';
 import { TimeAllocation } from '@/components/dashboard/time-allocation';
+import { PomodoroTimer } from '@/components/dashboard/pomodoro-timer';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { addDays, startOfWeek } from '@/lib/time-utils';
@@ -72,6 +73,7 @@ export function DashboardPage() {
           <StreakCalendar />
         </div>
         <div className="space-y-4">
+          <PomodoroTimer />
           <DailyFocus />
           <DailyReview />
         </div>
