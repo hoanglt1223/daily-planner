@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   AlertTriangle, Archive, ArrowUpDown, CheckCircle2, ChevronDown, ChevronRight,
-  Clock, Edit3, Palette, Pencil, PlayCircle, Plus, Search, Tag, Trash2,
+  Clock, Copy, Edit3, Palette, Pencil, PlayCircle, Plus, Search, Tag, Trash2,
 } from 'lucide-react';
 import { apiFetch } from '@/lib/api-client';
 import { Card, CardContent } from '@/components/ui/card';
@@ -144,6 +144,27 @@ export function TasksPage() {
     finally { setBusyId(null); }
   }
 
+  async function duplicateTask(task: Task) {
+    setBusyId(task.id);
+    try {
+      await apiFetch('/api/tasks', {
+        method: 'POST',
+        body: JSON.stringify({
+          title: `${task.title} (copy)`,
+          description: task.description,
+          estimatedMinutes: task.estimatedMinutes,
+          priority: task.priority,
+          categoryId: task.categoryId,
+          dueDate: task.dueDate,
+          status: 'todo',
+        }),
+      });
+      toast.success('Task duplicated');
+      load();
+    } catch (e) { toast.error((e as Error).message); }
+    finally { setBusyId(null); }
+  }
+
   const counts = useMemo(() => {
     const c = { backlog: 0, todo: 0, doing: 0, done: 0, archived: 0 };
     tasks.forEach(t => c[t.status]++);
@@ -272,6 +293,7 @@ export function TasksPage() {
               onStatusChange={(status) => updateTask(task.id, { status })}
               onEdit={() => setEditTask(task)}
               onDelete={() => deleteTask(task.id)}
+              onDuplicate={() => duplicateTask(task)}
               onPin={() => updateTask(task.id, { isPinned: !task.isPinned })}
             />
           ))}
@@ -304,9 +326,9 @@ export function TasksPage() {
 
 /* ─── Task Row ─── */
 
-function TaskRow({ task, category, busy, onStatusChange, onEdit, onDelete, onPin }: {
+function TaskRow({ task, category, busy, onStatusChange, onEdit, onDelete, onDuplicate, onPin }: {
   task: Task; category?: Category; busy: boolean;
-  onStatusChange: (s: TaskStatus) => void; onEdit: () => void; onDelete: () => void; onPin: () => void;
+  onStatusChange: (s: TaskStatus) => void; onEdit: () => void; onDelete: () => void; onDuplicate: () => void; onPin: () => void;
 }) {
   const [expanded, setExpanded] = useState(false);
   const prio = PRIORITY_LABEL[task.priority] ?? PRIORITY_LABEL[3];
@@ -398,6 +420,10 @@ function TaskRow({ task, category, busy, onStatusChange, onEdit, onDelete, onPin
           <Button size="icon" variant="ghost" className="size-7" title="Edit"
             disabled={busy} onClick={onEdit}>
             <Edit3 className="size-3.5" />
+          </Button>
+          <Button size="icon" variant="ghost" className="size-7" title="Duplicate"
+            disabled={busy} onClick={onDuplicate}>
+            <Copy className="size-3.5" />
           </Button>
           <Button size="icon" variant="ghost" className="size-7" title={task.isPinned ? 'Unpin' : 'Pin'}
             disabled={busy} onClick={onPin}>
