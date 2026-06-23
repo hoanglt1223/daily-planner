@@ -1,12 +1,15 @@
 import { useCallback, useEffect, useState } from 'react';
 import { apiFetch } from '@/lib/api-client';
 
+export type Subtask = { id: string; title: string; done: boolean };
+
 export type Task = {
   id: string; title: string; description: string | null;
   status: 'backlog' | 'todo' | 'doing' | 'done' | 'archived';
   priority: number; estimatedMinutes: number;
   recurringRule: unknown | null; categoryId: string | null;
   dueDate: string | null; isPinned: boolean;
+  subtasks: Subtask[];
 };
 
 export type Category = {
@@ -87,7 +90,7 @@ export function usePlannerData(from: Date, to: Date) {
     return created;
   }, []);
 
-  const updateTask = useCallback(async (id: string, patch: Partial<Pick<Task, 'status' | 'priority' | 'title' | 'description' | 'estimatedMinutes' | 'categoryId' | 'dueDate' | 'isPinned'>>) => {
+  const updateTask = useCallback(async (id: string, patch: Partial<Pick<Task, 'status' | 'priority' | 'title' | 'description' | 'estimatedMinutes' | 'categoryId' | 'dueDate' | 'isPinned' | 'subtasks'>>) => {
     const updated = await apiFetch<Task>(`/api/tasks/${id}`, {
       method: 'PATCH', body: JSON.stringify(patch),
     });

@@ -55,6 +55,7 @@ export const tasks = pgTable('tasks', {
   } | null>(),
   dueDate: timestamp('due_date', { withTimezone: true }),
   isPinned: boolean('is_pinned').notNull().default(false),
+  subtasks: jsonb('subtasks').$type<Array<{ id: string; title: string; done: boolean }>>().default([]),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 }, (t) => [

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   AlertTriangle, Archive, ArrowUpDown, CheckCircle2, ChevronDown, ChevronRight,
-  Clock, Copy, Edit3, Palette, Pencil, PlayCircle, Plus, Search, Tag, Trash2,
+  Clock, Copy, Edit3, ListChecks, Palette, Pencil, PlayCircle, Plus, Search, Tag, Trash2, X,
 } from 'lucide-react';
 import { apiFetch } from '@/lib/api-client';
 import { Card, CardContent } from '@/components/ui/card';
@@ -19,10 +19,13 @@ import { toast } from 'sonner';
 
 type TaskStatus = 'backlog' | 'todo' | 'doing' | 'done' | 'archived';
 
+interface Subtask { id: string; title: string; done: boolean }
+
 interface Task {
   id: string; title: string; description: string | null;
   status: TaskStatus; priority: number; estimatedMinutes: number;
   dueDate: string | null; categoryId: string | null; isPinned: boolean;
+  subtasks: Subtask[];
   createdAt: string; updatedAt: string;
 }
 
@@ -400,6 +403,12 @@ function TaskRow({ task, category, busy, onStatusChange, onEdit, onDelete, onDup
                 {category.name}
               </span>
             )}
+            {task.subtasks && task.subtasks.length > 0 && (
+              <span className="flex items-center gap-0.5 text-[10px] text-violet-600 font-medium">
+                <ListChecks className="size-3" />
+                {task.subtasks.filter(s => s.done).length}/{task.subtasks.length}
+              </span>
+            )}
           </div>
         </div>
 
@@ -441,6 +450,22 @@ function TaskRow({ task, category, busy, onStatusChange, onEdit, onDelete, onDup
         <div className="border-t px-4 py-3 pl-14 space-y-2 text-sm">
           {task.description && (
             <p className="text-muted-foreground whitespace-pre-wrap">{task.description}</p>
+          )}
+          {/* Subtasks checklist */}
+          {task.subtasks && task.subtasks.length > 0 && (
+            <div className="space-y-1">
+              {task.subtasks.map(s => (
+                <div key={s.id} className="flex items-center gap-2">
+                  <span className={cn(
+                    'size-3.5 rounded border flex items-center justify-center shrink-0',
+                    s.done ? 'bg-primary border-primary text-primary-foreground' : 'border-muted-foreground/30',
+                  )}>
+                    {s.done && <CheckCircle2 className="size-2.5" />}
+                  </span>
+                  <span className={cn('text-xs', s.done && 'line-through text-muted-foreground')}>{s.title}</span>
+                </div>
+              ))}
+            </div>
           )}
           <div className="flex items-center gap-4 text-xs text-muted-foreground">
             <span>Status: <strong className="text-foreground">{meta.label}</strong></span>
@@ -591,7 +616,24 @@ function EditTaskDialog({ task, categories, onClose, onSaved }: {
   const [status, setStatus] = useState<TaskStatus>(task.status);
   const [categoryId, setCategoryId] = useState<string | null>(task.categoryId);
   const [dueDate, setDueDate] = useState(task.dueDate ? task.dueDate.slice(0, 10) : '');
+  const [subtasks, setSubtasks] = useState<Subtask[]>(task.subtasks ?? []);
+  const [newSubtask, setNewSubtask] = useState('');
   const [submitting, setSubmitting] = useState(false);
+
+  function addSubtask() {
+    const t = newSubtask.trim();
+    if (!t) return;
+    setSubtasks(prev => [...prev, { id: crypto.randomUUID().slice(0, 8), title: t, done: false }]);
+    setNewSubtask('');
+  }
+
+  function toggleSubtask(id: string) {
+    setSubtasks(prev => prev.map(s => s.id === id ? { ...s, done: !s.done } : s));
+  }
+
+  function removeSubtask(id: string) {
+    setSubtasks(prev => prev.filter(s => s.id !== id));
+  }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -603,7 +645,7 @@ function EditTaskDialog({ task, categories, onClose, onSaved }: {
         body: JSON.stringify({
           title: title.trim(), description: description || null,
           estimatedMinutes: minutes, priority, status, categoryId,
-          dueDate: dueDate || null,
+          dueDate: dueDate || null, subtasks,
         }),
       });
       toast.success('Task updated!');
@@ -693,6 +735,38 @@ function EditTaskDialog({ task, categories, onClose, onSaved }: {
             <div className="space-y-1">
               <Label htmlFor="et-due">Due date</Label>
               <Input id="et-due" type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} />
+            </div>
+            {/* Subtasks */}
+            <div className="space-y-1.5">
+              <Label>Subtasks {subtasks.length > 0 && `(${subtasks.filter(s => s.done).length}/${subtasks.length})`}</Label>
+              <div className="space-y-1 max-h-40 overflow-y-auto">
+                {subtasks.map(s => (
+                  <div key={s.id} className="flex items-center gap-2 group/sub">
+                    <button type="button" onClick={() => toggleSubtask(s.id)}
+                      className={cn(
+                        'size-4 rounded border flex items-center justify-center shrink-0 transition-colors',
+                        s.done ? 'bg-primary border-primary text-primary-foreground' : 'border-muted-foreground/30 hover:border-foreground/50',
+                      )}>
+                      {s.done && <CheckCircle2 className="size-3" />}
+                    </button>
+                    <span className={cn('text-sm flex-1', s.done && 'line-through text-muted-foreground')}>{s.title}</span>
+                    <button type="button" onClick={() => removeSubtask(s.id)}
+                      className="opacity-0 group-hover/sub:opacity-100 text-muted-foreground hover:text-destructive transition-opacity">
+                      <X className="size-3" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <div className="flex gap-1.5">
+                <Input placeholder="Add subtask…" value={newSubtask}
+                  onChange={e => setNewSubtask(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addSubtask(); } }}
+                  className="h-7 text-xs" />
+                <Button type="button" size="sm" variant="outline" className="h-7 px-2 text-xs"
+                  onClick={addSubtask} disabled={!newSubtask.trim()}>
+                  <Plus className="size-3" />
+                </Button>
+              </div>
             </div>
           </div>
           <DialogFooter>

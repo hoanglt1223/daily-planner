@@ -27,13 +27,14 @@ export default async function handler(req: AuthedRequest, res: VercelResponse) {
         estimatedMinutes: body.estimatedMinutes ?? 60,
         recurringRule: body.recurringRule ?? null,
         dueDate: body.dueDate ? new Date(body.dueDate) : null,
+        subtasks: body.subtasks ?? [],
       }).returning();
       return res.status(201).json(row);
     }
     if (req.method === 'PATCH' && id) {
       const body = req.body ?? {};
       const patch: Record<string, unknown> = { updatedAt: new Date() };
-      for (const key of ['title', 'description', 'status', 'priority', 'estimatedMinutes', 'categoryId', 'recurringRule', 'isPinned']) {
+      for (const key of ['title', 'description', 'status', 'priority', 'estimatedMinutes', 'categoryId', 'recurringRule', 'isPinned', 'subtasks']) {
         if (key in body) patch[key] = body[key];
       }
       if ('dueDate' in body) patch.dueDate = body.dueDate ? new Date(body.dueDate) : null;

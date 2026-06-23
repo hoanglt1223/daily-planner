@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { useDraggable } from '@dnd-kit/core';
-import { Check, ChevronUp, Circle, Clock, Loader2, Pencil, Pin, PinOff, Plus, Trash2 } from 'lucide-react';
+import { Check, ChevronUp, Circle, Clock, Loader2, Pencil, Pin, PinOff, Plus, Trash2, ListChecks, X } from 'lucide-react';
 import { toast } from 'sonner';
-import type { Task, Category } from './use-planner-data';
+import type { Task, Category, Subtask } from './use-planner-data';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -37,7 +37,7 @@ export function DraggableTaskCard({ task, category, categories, onUpdate, onDele
   task: Task;
   category?: Category;
   categories?: Category[];
-  onUpdate: (id: string, patch: Partial<Pick<Task, 'status' | 'priority' | 'title' | 'description' | 'estimatedMinutes' | 'categoryId' | 'dueDate' | 'isPinned'>>) => Promise<void>;
+  onUpdate: (id: string, patch: Partial<Pick<Task, 'status' | 'priority' | 'title' | 'description' | 'estimatedMinutes' | 'categoryId' | 'dueDate' | 'isPinned' | 'subtasks'>>) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
 }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
@@ -125,6 +125,12 @@ export function DraggableTaskCard({ task, category, categories, onUpdate, onDele
           </span>
         )}
         <DueDateBadge dueDate={task.dueDate} status={task.status} />
+        {task.subtasks && task.subtasks.length > 0 && (
+          <span className="inline-flex items-center gap-0.5 rounded px-1 py-0.5 text-[10px] font-medium bg-violet-100 text-violet-700">
+            <ListChecks className="size-2.5" />
+            {task.subtasks.filter(s => s.done).length}/{task.subtasks.length}
+          </span>
+        )}
         <span className="text-[10px] text-muted-foreground ml-auto">{task.estimatedMinutes}m</span>
       </div>
       {task.description && (
@@ -239,7 +245,7 @@ export function TaskEditDialog({ task, categories, open, onOpenChange, onSave }:
   categories: Category[];
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSave: (patch: Partial<Pick<Task, 'title' | 'description' | 'estimatedMinutes' | 'priority' | 'categoryId' | 'dueDate' | 'isPinned'>>) => Promise<void>;
+  onSave: (patch: Partial<Pick<Task, 'title' | 'description' | 'estimatedMinutes' | 'priority' | 'categoryId' | 'dueDate' | 'isPinned' | 'subtasks'>>) => Promise<void>;
 }) {
   const [title, setTitle] = useState(task.title);
   const [description, setDescription] = useState(task.description ?? '');
@@ -247,7 +253,9 @@ export function TaskEditDialog({ task, categories, open, onOpenChange, onSave }:
   const [priority, setPriority] = useState(task.priority);
   const [categoryId, setCategoryId] = useState<string | null>(task.categoryId);
   const [dueDate, setDueDate] = useState(task.dueDate ? task.dueDate.slice(0, 10) : '');
+  const [subtasks, setSubtasks] = useState<Subtask[]>(task.subtasks ?? []);
   const [saving, setSaving] = useState(false);
+  const [newSubtask, setNewSubtask] = useState('');
 
   function reset() {
     setTitle(task.title);
@@ -256,6 +264,23 @@ export function TaskEditDialog({ task, categories, open, onOpenChange, onSave }:
     setPriority(task.priority);
     setCategoryId(task.categoryId);
     setDueDate(task.dueDate ? task.dueDate.slice(0, 10) : '');
+    setSubtasks(task.subtasks ?? []);
+    setNewSubtask('');
+  }
+
+  function addSubtask() {
+    const t = newSubtask.trim();
+    if (!t) return;
+    setSubtasks(prev => [...prev, { id: crypto.randomUUID().slice(0, 8), title: t, done: false }]);
+    setNewSubtask('');
+  }
+
+  function toggleSubtask(id: string) {
+    setSubtasks(prev => prev.map(s => s.id === id ? { ...s, done: !s.done } : s));
+  }
+
+  function removeSubtask(id: string) {
+    setSubtasks(prev => prev.filter(s => s.id !== id));
   }
 
   async function submit(e: React.FormEvent) {
@@ -270,6 +295,7 @@ export function TaskEditDialog({ task, categories, open, onOpenChange, onSave }:
         priority,
         categoryId,
         dueDate: dueDate || null,
+        subtasks,
       });
       onOpenChange(false);
     } finally { setSaving(false); }
@@ -346,6 +372,38 @@ export function TaskEditDialog({ task, categories, open, onOpenChange, onSave }:
               <Label htmlFor="te-due">Due date</Label>
               <Input id="te-due" type="date"
                 value={dueDate} onChange={e => setDueDate(e.target.value)} />
+            </div>
+            {/* Subtasks */}
+            <div className="space-y-1.5">
+              <Label>Subtasks {subtasks.length > 0 && `(${subtasks.filter(s => s.done).length}/${subtasks.length})`}</Label>
+              <div className="space-y-1 max-h-40 overflow-y-auto">
+                {subtasks.map(s => (
+                  <div key={s.id} className="flex items-center gap-2 group/sub">
+                    <button type="button" onClick={() => toggleSubtask(s.id)}
+                      className={cn(
+                        'size-4 rounded border flex items-center justify-center shrink-0 transition-colors',
+                        s.done ? 'bg-primary border-primary text-primary-foreground' : 'border-muted-foreground/30 hover:border-foreground/50',
+                      )}>
+                      {s.done && <Check className="size-3" />}
+                    </button>
+                    <span className={cn('text-sm flex-1', s.done && 'line-through text-muted-foreground')}>{s.title}</span>
+                    <button type="button" onClick={() => removeSubtask(s.id)}
+                      className="opacity-0 group-hover/sub:opacity-100 text-muted-foreground hover:text-destructive transition-opacity">
+                      <X className="size-3" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <div className="flex gap-1.5">
+                <Input placeholder="Add subtask…" value={newSubtask}
+                  onChange={e => setNewSubtask(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addSubtask(); } }}
+                  className="h-7 text-xs" />
+                <Button type="button" size="sm" variant="outline" className="h-7 px-2 text-xs"
+                  onClick={addSubtask} disabled={!newSubtask.trim()}>
+                  <Plus className="size-3" />
+                </Button>
+              </div>
             </div>
           </div>
           <DialogFooter>
