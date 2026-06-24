@@ -7,6 +7,7 @@ import { PlannerPage } from '@/pages/planner-page';
 import { AdminPage } from '@/pages/admin-page';
 import { ManagerPage } from '@/pages/manager-page';
 import { TasksPage } from '@/pages/tasks-page';
+import { SettingsPage } from '@/pages/settings-page';
 import { ShareViewPage } from '@/pages/share-view-page';
 import { BookSlotPage } from '@/pages/book-slot-page';
 import { AppLayout } from '@/components/app-layout';
@@ -23,6 +24,7 @@ export const router = createBrowserRouter([
       { path: '/dashboard', element: <DashboardPage /> },
       { path: '/tasks', element: <TasksPage /> },
       { path: '/planner', element: <PlannerPage /> },
+      { path: '/settings', element: <SettingsPage /> },
       { path: '/manager', element: <ManagerPage /> },
       { path: '/admin', element: <AdminPage /> },
     ],

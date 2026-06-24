@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { eq } from 'drizzle-orm';
+import { nanoid } from 'nanoid';
 import { db } from '../server/lib/db/client.js';
 import { users } from '../server/lib/db/schema.js';
 import { hashPassword, verifyPassword, signToken } from '../server/lib/auth.js';
@@ -11,6 +12,9 @@ export default async function handler(req: AuthedRequest, res: VercelResponse) {
     if (action === 'register' && req.method === 'POST') return register(req, res);
     if (action === 'login' && req.method === 'POST') return login(req, res);
     if (action === 'me' && req.method === 'GET') return me(req, res);
+    if (action === 'update' && req.method === 'PATCH') return updateProfile(req, res);
+    if (action === 'change-password' && req.method === 'POST') return changePassword(req, res);
+    if (action === 'regenerate-token' && req.method === 'POST') return regenerateShareToken(req, res);
     return res.status(404).json({ error: 'not_found' });
   } catch (e) {
     console.error(e);
@@ -70,4 +74,61 @@ function publicUser(u: typeof users.$inferSelect) {
     privacy: u.privacy, timezone: u.timezone,
     shareToken: u.shareToken,
   };
+}
+
+async function updateProfile(req: AuthedRequest, res: VercelResponse) {
+  const authed = requireAuth(req, res);
+  if (!authed) return;
+
+  const { name, timezone, privacy } = req.body ?? {};
+  const patch: Record<string, unknown> = {};
+
+  if (typeof name === 'string' && name.trim().length >= 1 && name.trim().length <= 100) {
+    patch.name = name.trim();
+  }
+  if (typeof timezone === 'string' && timezone.length <= 60) {
+    patch.timezone = timezone;
+  }
+  const validPrivacy = ['details_to_managers', 'busy_only_to_managers', 'private'];
+  if (typeof privacy === 'string' && validPrivacy.includes(privacy)) {
+    patch.privacy = privacy;
+  }
+
+  if (Object.keys(patch).length === 0) {
+    return res.status(400).json({ error: 'nothing_to_update' });
+  }
+
+  const [updated] = await db.update(users).set(patch).where(eq(users.id, authed.sub)).returning();
+  if (!updated) return res.status(404).json({ error: 'not_found' });
+  return res.status(200).json(publicUser(updated));
+}
+
+async function changePassword(req: AuthedRequest, res: VercelResponse) {
+  const authed = requireAuth(req, res);
+  if (!authed) return;
+
+  const { currentPassword, newPassword } = req.body ?? {};
+  if (!currentPassword || !newPassword || newPassword.length < 8) {
+    return res.status(400).json({ error: 'invalid_input' });
+  }
+
+  const [u] = await db.select().from(users).where(eq(users.id, authed.sub)).limit(1);
+  if (!u) return res.status(404).json({ error: 'not_found' });
+
+  if (!verifyPassword(currentPassword, u.passwordHash)) {
+    return res.status(401).json({ error: 'wrong_password' });
+  }
+
+  await db.update(users).set({ passwordHash: hashPassword(newPassword) }).where(eq(users.id, authed.sub));
+  return res.status(200).json({ ok: true });
+}
+
+async function regenerateShareToken(req: AuthedRequest, res: VercelResponse) {
+  const authed = requireAuth(req, res);
+  if (!authed) return;
+
+  const newToken = nanoid(16);
+  const [updated] = await db.update(users).set({ shareToken: newToken }).where(eq(users.id, authed.sub)).returning();
+  if (!updated) return res.status(404).json({ error: 'not_found' });
+  return res.status(200).json({ shareToken: newToken });
 }

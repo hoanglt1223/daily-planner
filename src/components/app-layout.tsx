@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { CalendarDays, LayoutDashboard, ListTodo, LogOut, Moon, ShieldCheck, Sun, Users } from 'lucide-react';
+import { CalendarDays, LayoutDashboard, ListTodo, LogOut, Moon, Settings, ShieldCheck, Sun, Users } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { apiFetch, clearAuthToken, getAuthToken } from '@/lib/api-client';
 import { useGlobalShortcuts } from '@/lib/use-global-keyboard-shortcuts';
@@ -88,6 +88,11 @@ export function AppLayout() {
                   <p className="text-sm leading-tight">{me.name}</p>
                   <Badge variant="secondary" className="text-[9px] py-0">{me.role}</Badge>
                 </div>
+                <Button variant="ghost" size="icon" className="size-8" asChild title="Settings">
+                  <Link to="/settings">
+                    <Settings className="size-3.5" />
+                  </Link>
+                </Button>
                 <Button variant="ghost" size="sm" onClick={logout}>
                   <LogOut className="size-3.5" />
                 </Button>
