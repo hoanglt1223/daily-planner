@@ -131,7 +131,7 @@ export function PlannerGrid({ initialView = 'week' as View }) {
             onCreateCategory={createCategory}
             onUpdateCategory={updateCategory}
             onDeleteCategory={deleteCategory} />
-          <div className="relative flex flex-1 overflow-auto rounded-lg border bg-card shadow-sm">
+          <div className="relative flex flex-1 overflow-auto rounded-lg bg-card shadow-soft">
             <HourRail />
             {dayList.map(d => {
               const dow = d.getDay();

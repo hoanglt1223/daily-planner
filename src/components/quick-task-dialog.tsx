@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Kbd } from '@/components/ui/kbd';
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter,
   DialogHeader, DialogTitle,
@@ -39,15 +40,6 @@ export function QuickTaskDialog() {
     document.addEventListener('shortcut:quick-task', onOpen);
     return () => document.removeEventListener('shortcut:quick-task', onOpen);
   }, []);
-
-  // Also listen for Escape to close
-  useEffect(() => {
-    function onClose() { setOpen(false); }
-    if (open) {
-      document.addEventListener('shortcut:close-dialogs', onClose);
-      return () => document.removeEventListener('shortcut:close-dialogs', onClose);
-    }
-  }, [open]);
 
   const reset = useCallback(() => {
     setTitle('');
@@ -101,7 +93,7 @@ export function QuickTaskDialog() {
             <DialogHeader>
               <DialogTitle>Quick capture</DialogTitle>
               <DialogDescription>
-                Add a task to your backlog instantly. Use <kbd className="mx-0.5 rounded border border-border bg-muted px-1 py-0.5 text-[10px] font-mono">n</kbd> from anywhere.
+                Add a task to your backlog instantly. Use <Kbd>n</Kbd> from anywhere.
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-3 py-3">

@@ -16,15 +16,32 @@ export function getOwnerToken() {
 
 export async function apiFetch<T = unknown>(path: string, init: RequestInit = {}): Promise<T> {
   const headers = new Headers(init.headers);
-  headers.set('Content-Type', 'application/json');
+  // Only set Content-Type for string bodies (not FormData/Blob/etc.)
+  if (init.body && typeof init.body === 'string') {
+    headers.set('Content-Type', 'application/json');
+  }
   const jwt = getAuthToken();
   if (jwt) headers.set('Authorization', `Bearer ${jwt}`);
   headers.set('x-owner-token', getOwnerToken());
 
-  const res = await fetch(path, { ...init, headers });
+  let res: Response;
+  try {
+    res = await fetch(path, { ...init, headers });
+  } catch {
+    throw new Error('Network error. Check your connection and try again.');
+  }
+
   if (!res.ok) {
-    const body = await res.text();
-    throw new Error(`${res.status}: ${body}`);
+    let message: string;
+    try {
+      const json = await res.json() as Record<string, unknown>;
+      message = (typeof json.error === 'string' ? json.error : null)
+        ?? (typeof json.message === 'string' ? json.message : null)
+        ?? JSON.stringify(json);
+    } catch {
+      message = await res.text().catch(() => res.statusText);
+    }
+    throw new Error(message);
   }
   return res.json() as Promise<T>;
 }

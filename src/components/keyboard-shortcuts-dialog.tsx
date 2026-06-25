@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
 } from '@/components/ui/dialog';
+import { Kbd } from '@/components/ui/kbd';
 
 type ShortcutRow = { keys: string; description: string };
 
@@ -35,26 +36,13 @@ const GLOBAL_ITEMS: ShortcutRow[] = [
   { keys: 'Escape', description: 'Close any dialog' },
 ];
 
-function Kbd({ children }: { children: React.ReactNode }) {
-  return (
-    <kbd className="inline-flex items-center rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[11px] font-medium text-foreground">
-      {children}
-    </kbd>
-  );
-}
-
 export function KeyboardShortcutsDialog() {
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
     function onHelp() { setOpen(o => !o); }
-    function onClose() { setOpen(false); }
     document.addEventListener('shortcut:help', onHelp);
-    document.addEventListener('shortcut:close-dialogs', onClose);
-    return () => {
-      document.removeEventListener('shortcut:help', onHelp);
-      document.removeEventListener('shortcut:close-dialogs', onClose);
-    };
+    return () => { document.removeEventListener('shortcut:help', onHelp); };
   }, []);
 
   return (
@@ -87,7 +75,7 @@ export function KeyboardShortcutsDialog() {
               </div>
             </div>
           ))}
-          <div className="border-t pt-3">
+          <div className="divider-t pt-3">
             <div className="space-y-1.5">
               {GLOBAL_ITEMS.map(item => (
                 <div key={item.keys} className="flex items-center justify-between text-sm">

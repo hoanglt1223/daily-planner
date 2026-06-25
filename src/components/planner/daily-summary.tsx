@@ -107,7 +107,7 @@ function StatChip({ icon: Icon, label, value, sub, tone }: {
   }[tone];
 
   return (
-    <div className={cn('rounded-lg border p-3 ring-1', tones.ring)}>
+    <div className={cn('rounded-lg p-3 ring-1', tones.ring)}>
       <div className="flex items-center gap-1.5 mb-1">
         <div className={cn('rounded p-1', tones.bg)}>
           <Icon className={cn('size-3', tones.icon)} />

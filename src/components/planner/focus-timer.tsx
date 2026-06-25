@@ -15,18 +15,23 @@ export function FocusTimer({ block, onComplete, onStop }: {
   const endAt = new Date(block.endAt).getTime();
   const [now, setNow] = useState(Date.now());
   const [paused, setPaused] = useState(false);
-  const [pauseRemaining, setPauseRemaining] = useState<number | null>(null);
+  // Total accumulated pause duration in ms (mirrors pomodoro-timer approach)
+  const [pausedMs, setPausedMs] = useState(0);
+  // Wall-clock time when last pause started
+  const [pausedAt, setPausedAt] = useState<number | null>(null);
 
-  // Tick every second
+  // Tick every second when not paused
   useEffect(() => {
     if (paused) return;
     const id = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(id);
   }, [paused]);
 
-  const remaining = paused && pauseRemaining !== null
-    ? pauseRemaining
-    : Math.max(0, endAt - now);
+  // Effective remaining: shift end time forward by total pause duration
+  const effectiveEndAt = endAt + pausedMs;
+  const remaining = paused && pausedAt !== null
+    ? Math.max(0, effectiveEndAt - pausedAt)
+    : Math.max(0, effectiveEndAt - now);
   const totalMs = endAt - new Date(block.startAt).getTime();
   const elapsed = totalMs - remaining;
   const pct = totalMs > 0 ? Math.min(100, Math.round((elapsed / totalMs) * 100)) : 0;
@@ -35,17 +40,19 @@ export function FocusTimer({ block, onComplete, onStop }: {
 
   const minutes = Math.floor(remaining / 60_000);
   const seconds = Math.floor((remaining % 60_000) / 1000);
-  const overtimeSec = isOvertime ? Math.floor((now - endAt) / 1000) : 0;
+  // Overtime counts from the adjusted end, not the raw endAt
+  const overtimeSec = isOvertime ? Math.floor((now - effectiveEndAt) / 1000) : 0;
   const otMin = Math.floor(overtimeSec / 60);
   const otSec = overtimeSec % 60;
 
   function togglePause() {
-    if (paused) {
-      // Resume: adjust endAt by the paused duration
+    if (paused && pausedAt !== null) {
+      // Resume: accumulate the pause duration so the countdown is not penalised
+      setPausedMs(ms => ms + (Date.now() - pausedAt));
+      setPausedAt(null);
       setPaused(false);
-      setPauseRemaining(null);
     } else {
-      setPauseRemaining(remaining);
+      setPausedAt(Date.now());
       setPaused(true);
     }
   }

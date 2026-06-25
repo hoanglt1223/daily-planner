@@ -52,7 +52,7 @@ export function AppLayout() {
 
   return (
     <div className="flex h-full flex-col bg-gradient-to-b from-muted/20 to-background">
-      <header className="sticky top-0 z-30 border-b bg-background/80 backdrop-blur">
+      <header className="sticky top-0 z-30 divider-b bg-background/80 backdrop-blur">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-2.5">
           <Link to="/dashboard" className="flex items-center gap-2 font-semibold">
             <span className="grid size-7 place-items-center rounded-md bg-gradient-to-br from-primary to-primary/70 text-primary-foreground text-xs">

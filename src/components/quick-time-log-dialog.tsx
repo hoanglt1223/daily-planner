@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Kbd } from '@/components/ui/kbd';
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter,
   DialogHeader, DialogTitle,
@@ -47,15 +48,6 @@ export function QuickTimeLogDialog() {
     document.addEventListener('shortcut:quick-time-log', onOpen);
     return () => document.removeEventListener('shortcut:quick-time-log', onOpen);
   }, []);
-
-  // Listen for Escape to close
-  useEffect(() => {
-    function onClose() { setOpen(false); }
-    if (open) {
-      document.addEventListener('shortcut:close-dialogs', onClose);
-      return () => document.removeEventListener('shortcut:close-dialogs', onClose);
-    }
-  }, [open]);
 
   // Fetch tasks and categories when dialog opens
   useEffect(() => {
@@ -143,14 +135,14 @@ export function QuickTimeLogDialog() {
               <DialogTitle>Log time</DialogTitle>
               <DialogDescription>
                 Record time you already spent on a task.
-                Use <kbd className="mx-0.5 rounded border border-border bg-muted px-1 py-0.5 text-[10px] font-mono">l</kbd> from anywhere.
+                Use <Kbd>l</Kbd> from anywhere.
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-3">
               {/* Task selector */}
               <div className="space-y-1.5">
                 <Label>Task</Label>
-                <div className="max-h-48 space-y-1.5 overflow-y-auto rounded-md border p-2">
+                <div className="max-h-48 space-y-1.5 overflow-y-auto rounded-md ring-hairline p-2">
                   {sortedTasks.length === 0 && (
                     <p className="text-xs text-muted-foreground py-2 text-center">No active tasks.</p>
                   )}

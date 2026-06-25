@@ -102,7 +102,7 @@ export function BlockCard({ block, dayStart, onResize, onClick, onStatusChange }
         opacity: isDragging ? 0.5 : 1,
       }}
       className={cn(
-        'absolute left-1 right-1 z-10 cursor-grab rounded-md border px-1.5 py-1 text-[11px] leading-tight overflow-hidden shadow-sm transition-shadow hover:shadow-md',
+        'absolute left-1 right-1 z-10 cursor-grab rounded-md border px-1.5 py-1 text-[11px] leading-tight overflow-hidden shadow-soft transition-shadow hover:shadow-soft-md',
         color.bg, color.border, color.fg,
         isPending && 'border-dashed opacity-70',
         isDone && 'opacity-50',
