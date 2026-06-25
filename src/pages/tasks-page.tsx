@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  AlertTriangle, Archive, ArrowUpDown, CheckCircle2, ChevronDown, ChevronRight,
-  Clock, Copy, Edit3, ListChecks, Palette, Pencil, Pin, PinOff, PlayCircle, Plus, Search, Tag, Trash2, X,
+  AlertTriangle, Archive, ArrowUpDown, CheckCircle2, CheckSquare, ChevronDown, ChevronRight,
+  Clock, Copy, Edit3, ListChecks, Palette, Pencil, Pin, PinOff, PlayCircle, Plus, Search, Square, Tag, Trash2, X,
 } from 'lucide-react';
 import { apiFetch } from '@/lib/api-client';
 import { Card, CardContent } from '@/components/ui/card';
@@ -76,6 +76,8 @@ export function TasksPage() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [catManagerOpen, setCatManagerOpen] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkBusy, setBulkBusy] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -181,6 +183,68 @@ export function TasksPage() {
     tasks.forEach(t => c[t.status]++);
     return c;
   }, [tasks]);
+
+  const selectedCount = selectedIds.size;
+
+  function toggleSelect(id: string) {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleSelectAll() {
+    if (selectedIds.size === filtered.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filtered.map(t => t.id)));
+    }
+  }
+
+  function clearSelection() { setSelectedIds(new Set()); }
+
+  async function bulkSetStatus(status: TaskStatus) {
+    setBulkBusy(true);
+    const ids = [...selectedIds];
+    try {
+      await Promise.all(ids.map(id =>
+        apiFetch(`/api/tasks/${id}`, { method: 'PATCH', body: JSON.stringify({ status }) })
+      ));
+      setTasks(prev => prev.map(t => ids.includes(t.id) ? { ...t, status } : t));
+      toast.success(`${ids.length} task${ids.length > 1 ? 's' : ''} moved to ${STATUS_META[status].label}`);
+      clearSelection();
+    } catch (e) { toast.error((e as Error).message); }
+    finally { setBulkBusy(false); }
+  }
+
+  async function bulkSetPriority(priority: number) {
+    setBulkBusy(true);
+    const ids = [...selectedIds];
+    try {
+      await Promise.all(ids.map(id =>
+        apiFetch(`/api/tasks/${id}`, { method: 'PATCH', body: JSON.stringify({ priority }) })
+      ));
+      setTasks(prev => prev.map(t => ids.includes(t.id) ? { ...t, priority } : t));
+      toast.success(`${ids.length} task${ids.length > 1 ? 's' : ''} set to ${PRIORITY_LABEL[priority]?.label ?? 'Normal'}`);
+      clearSelection();
+    } catch (e) { toast.error((e as Error).message); }
+    finally { setBulkBusy(false); }
+  }
+
+  async function bulkDelete() {
+    setBulkBusy(true);
+    const ids = [...selectedIds];
+    try {
+      await Promise.all(ids.map(id =>
+        apiFetch(`/api/tasks/${id}`, { method: 'DELETE' })
+      ));
+      setTasks(prev => prev.filter(t => !ids.includes(t.id)));
+      toast.success(`${ids.length} task${ids.length > 1 ? 's' : ''} deleted`);
+      clearSelection();
+    } catch (e) { toast.error((e as Error).message); }
+    finally { setBulkBusy(false); }
+  }
 
   if (loading) {
     return (
@@ -301,6 +365,44 @@ export function TasksPage() {
         </Select>
       </div>
 
+      {/* Bulk action bar */}
+      {selectedCount > 0 && (
+        <div className="flex items-center gap-3 rounded-lg bg-primary/5 border border-primary/20 px-4 py-2.5">
+          <button onClick={clearSelection} className="text-muted-foreground hover:text-foreground transition-colors">
+            <X className="size-4" />
+          </button>
+          <span className="text-sm font-medium">{selectedCount} selected</span>
+          <div className="flex items-center gap-1.5 ml-auto">
+            {/* Bulk status */}
+            <Select onValueChange={v => bulkSetStatus(v as TaskStatus)} disabled={bulkBusy}>
+              <SelectTrigger className="h-7 w-auto text-xs">
+                <SelectValue placeholder="Set status…" />
+              </SelectTrigger>
+              <SelectContent>
+                {STATUS_OPTIONS.map(s => (
+                  <SelectItem key={s} value={s}>{STATUS_META[s].label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {/* Bulk priority */}
+            <Select onValueChange={v => bulkSetPriority(Number(v))} disabled={bulkBusy}>
+              <SelectTrigger className="h-7 w-auto text-xs">
+                <SelectValue placeholder="Set priority…" />
+              </SelectTrigger>
+              <SelectContent>
+                {Object.entries(PRIORITY_LABEL).map(([v, { label }]) => (
+                  <SelectItem key={v} value={v}>{label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {/* Bulk delete */}
+            <Button size="sm" variant="destructive" className="h-7 text-xs gap-1" disabled={bulkBusy} onClick={bulkDelete}>
+              <Trash2 className="size-3" /> Delete
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* Task list */}
       {filtered.length === 0 ? (
         <Card>
@@ -316,12 +418,29 @@ export function TasksPage() {
         </Card>
       ) : (
         <div className="space-y-1.5">
+          {/* Select all header */}
+          <div className="flex items-center gap-2 px-2 py-1">
+            <button
+              onClick={toggleSelectAll}
+              className="text-muted-foreground hover:text-foreground transition-colors"
+              aria-label={selectedIds.size === filtered.length ? 'Deselect all' : 'Select all'}
+            >
+              {selectedIds.size === filtered.length && filtered.length > 0
+                ? <CheckSquare className="size-4" />
+                : <Square className="size-4" />}
+            </button>
+            <span className="text-xs text-muted-foreground">
+              {selectedCount > 0 ? `${selectedCount} of ${filtered.length} selected` : `${filtered.length} task${filtered.length !== 1 ? 's' : ''}`}
+            </span>
+          </div>
           {filtered.map(task => (
             <TaskRow
               key={task.id}
               task={task}
               category={task.categoryId ? catMap.get(task.categoryId) : undefined}
               busy={busyId === task.id}
+              selected={selectedIds.has(task.id)}
+              onToggleSelect={() => toggleSelect(task.id)}
               onStatusChange={(status) => updateTask(task.id, { status })}
               onEdit={() => setEditTask(task)}
               onDelete={() => deleteTask(task.id)}
@@ -358,8 +477,9 @@ export function TasksPage() {
 
 /* ─── Task Row ─── */
 
-function TaskRow({ task, category, busy, onStatusChange, onEdit, onDelete, onDuplicate, onPin }: {
-  task: Task; category?: Category; busy: boolean;
+function TaskRow({ task, category, busy, selected, onToggleSelect, onStatusChange, onEdit, onDelete, onDuplicate, onPin }: {
+  task: Task; category?: Category; busy: boolean; selected: boolean;
+  onToggleSelect: () => void;
   onStatusChange: (s: TaskStatus) => void; onEdit: () => void; onDelete: () => void; onDuplicate: () => void; onPin: () => void;
 }) {
   const [expanded, setExpanded] = useState(false);
@@ -383,6 +503,17 @@ function TaskRow({ task, category, busy, onStatusChange, onEdit, onDelete, onDup
         {/* Expand toggle */}
         <button onClick={() => setExpanded(!expanded)} className="text-muted-foreground hover:text-foreground shrink-0">
           {expanded ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}
+        </button>
+
+        {/* Selection checkbox */}
+        <button
+          onClick={onToggleSelect}
+          className="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
+          aria-label={selected ? 'Deselect task' : 'Select task'}
+        >
+          {selected
+            ? <CheckSquare className="size-4 text-primary" />
+            : <Square className="size-4" />}
         </button>
 
         {/* Status icon */}
