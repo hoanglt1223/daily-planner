@@ -1,10 +1,10 @@
 import type { TimeBlock } from './use-planner-data';
-import { WORKDAY_END_HOUR, WORKDAY_START_HOUR } from '@/lib/time-utils';
+import { WORKDAY_HOURS } from '@/lib/time-utils';
 import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 
 export function CapacitySummary({ blocks, days }: { blocks: TimeBlock[]; days: number }) {
-  const workMinPerDay = (WORKDAY_END_HOUR - WORKDAY_START_HOUR) * 60;
+  const workMinPerDay = WORKDAY_HOURS * 60;
   const total = workMinPerDay * days;
   const booked = blocks.reduce((s, b) =>
     s + Math.round((new Date(b.endAt).getTime() - new Date(b.startAt).getTime()) / 60_000), 0);

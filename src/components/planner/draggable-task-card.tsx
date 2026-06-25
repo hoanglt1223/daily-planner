@@ -33,6 +33,14 @@ const PRIORITY_COLORS: Record<number, string> = {
   4: 'bg-slate-50 text-slate-400',
 };
 
+/** Priority display labels matching the Tasks list (1=Urgent … 4=Low) */
+const PRIORITY_LABELS: Record<number, string> = {
+  1: 'Urgent',
+  2: 'High',
+  3: 'Normal',
+  4: 'Low',
+};
+
 export function DraggableTaskCard({ task, category, categories, onUpdate, onDelete }: {
   task: Task;
   category?: Category;
@@ -115,7 +123,7 @@ export function DraggableTaskCard({ task, category, categories, onUpdate, onDele
       </div>
       <div className="mt-1 flex items-center gap-1.5">
         <span className={`inline-flex items-center rounded px-1 py-0.5 text-[10px] font-semibold ${PRIORITY_COLORS[task.priority] ?? PRIORITY_COLORS[3]}`}>
-          P{task.priority}
+          {PRIORITY_LABELS[task.priority] ?? 'Normal'}
         </span>
         <span className={`text-[10px] ${meta.fg}`}>{meta.label}</span>
         {category && (

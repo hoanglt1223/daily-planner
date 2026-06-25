@@ -7,7 +7,7 @@ const PALETTE = [
   { bg: 'bg-violet-100',  border: 'border-violet-400',  fg: 'text-violet-900',  accent: 'bg-violet-500' },
   { bg: 'bg-emerald-100', border: 'border-emerald-400', fg: 'text-emerald-900', accent: 'bg-emerald-500' },
   { bg: 'bg-amber-100',   border: 'border-amber-400',   fg: 'text-amber-900',   accent: 'bg-amber-500' },
-  { bg: 'bg-rose-100',    border: 'border-rose-400',    fg: 'text-rose-900',    accent: 'bg-rose-500' },
+  { bg: 'bg-cyan-100',    border: 'border-cyan-400',    fg: 'text-cyan-900',    accent: 'bg-cyan-500' },
   { bg: 'bg-indigo-100',  border: 'border-indigo-400',  fg: 'text-indigo-900',  accent: 'bg-indigo-500' },
   { bg: 'bg-teal-100',    border: 'border-teal-400',    fg: 'text-teal-900',    accent: 'bg-teal-500' },
   { bg: 'bg-fuchsia-100', border: 'border-fuchsia-400', fg: 'text-fuchsia-900', accent: 'bg-fuchsia-500' },

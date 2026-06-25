@@ -114,8 +114,14 @@ export function PlannerGrid({ initialView = 'week' as View }) {
           <div className="flex items-center gap-2">
             <ToggleGroup type="single" value={view} variant="outline" size="sm"
               onValueChange={v => v && setView(v as View)}>
-              <ToggleGroupItem value="day">Day</ToggleGroupItem>
-              <ToggleGroupItem value="week">Week</ToggleGroupItem>
+              <ToggleGroupItem value="day"
+                className="data-[state=on]:bg-primary data-[state=on]:text-primary-foreground data-[state=on]:border-primary">
+                Day
+              </ToggleGroupItem>
+              <ToggleGroupItem value="week"
+                className="data-[state=on]:bg-primary data-[state=on]:text-primary-foreground data-[state=on]:border-primary">
+                Week
+              </ToggleGroupItem>
             </ToggleGroup>
             <Button
               size="sm"
