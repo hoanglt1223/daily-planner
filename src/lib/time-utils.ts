@@ -65,3 +65,6 @@ export function diffMinutes(a: Date, b: Date): number {
 export const WORKDAY_START_HOUR = 6;
 export const WORKDAY_END_HOUR = 22;
 export const SLOT_MINUTES = 30;
+
+// Capacity baseline for "free time" math; distinct from the planner's display hour range.
+export const WORKDAY_HOURS = 8;

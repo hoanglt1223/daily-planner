@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { blockColor } from '@/lib/block-color';
-import { fmtHour, startOfDay, addDays } from '@/lib/time-utils';
+import { fmtHour, startOfDay, addDays, WORKDAY_HOURS } from '@/lib/time-utils';
 
 type Block = {
   id: string;
@@ -201,7 +201,7 @@ function computeFocus(blocks: Block[], tasks: Task[]): FocusData {
     .filter(b => b.status === 'completed')
     .reduce((s, b) => s + Math.round((new Date(b.endAt).getTime() - new Date(b.startAt).getTime()) / 60_000), 0);
   const totalMin = blocks.reduce((s, b) => s + Math.round((new Date(b.endAt).getTime() - new Date(b.startAt).getTime()) / 60_000), 0);
-  const freeMin = Math.max(0, 16 * 60 - totalMin);
+  const freeMin = Math.max(0, WORKDAY_HOURS * 60 - totalMin);
 
   let capacityMsg: string;
   if (blocks.length === 0) {

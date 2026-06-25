@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Sparkles } from 'lucide-react';
+import { Eye, EyeOff, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import { apiFetch, setAuthToken } from '@/lib/api-client';
 import { Button } from '@/components/ui/button';
@@ -13,6 +13,7 @@ export function RegisterPage() {
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -63,8 +64,19 @@ export function RegisterPage() {
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="password">Password (min 8)</Label>
-              <Input id="password" type="password" minLength={8} required autoComplete="new-password"
-                value={password} onChange={e => setPassword(e.target.value)} />
+              <div className="relative">
+                <Input id="password" type={showPassword ? 'text' : 'password'} minLength={8} required
+                  autoComplete="new-password" className="pr-10"
+                  value={password} onChange={e => setPassword(e.target.value)} />
+                <button
+                  type="button"
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  onClick={() => setShowPassword(v => !v)}
+                  className="absolute inset-y-0 right-0 flex items-center px-3 text-muted-foreground hover:text-foreground"
+                >
+                  {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                </button>
+              </div>
             </div>
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? 'Creating…' : 'Create account'}

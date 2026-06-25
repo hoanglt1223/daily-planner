@@ -18,7 +18,7 @@ import { TimeAllocation } from '@/components/dashboard/time-allocation';
 import { PomodoroTimer } from '@/components/dashboard/pomodoro-timer';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { addDays, startOfWeek } from '@/lib/time-utils';
+import { addDays, startOfWeek, WORKDAY_HOURS } from '@/lib/time-utils';
 import { cn } from '@/lib/utils';
 
 type Block = { startAt: string; endAt: string };
@@ -43,7 +43,7 @@ export function DashboardPage() {
     }).catch(() => undefined);
   }, []);
 
-  const workDayMin = 16 * 60;
+  const workDayMin = WORKDAY_HOURS * 60;
   const workWeekMin = workDayMin * 7;
   const todayFree = todayMin === null ? null : Math.max(0, workDayMin - todayMin);
   const weekLoadPct = weekMin === null ? null : Math.min(100, Math.round((weekMin / workWeekMin) * 100));
