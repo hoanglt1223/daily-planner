@@ -8,5 +8,12 @@ export default defineConfig({
   resolve: {
     alias: { '@': path.resolve(__dirname, './src') },
   },
-  server: { port: 5173 },
+  server: {
+    port: 5173,
+    // Local dev only: forward API calls to `vercel dev` (serverless functions).
+    // No effect on the production build, where Vercel handles /api routing.
+    proxy: {
+      '/api': 'http://localhost:3000',
+    },
+  },
 });
