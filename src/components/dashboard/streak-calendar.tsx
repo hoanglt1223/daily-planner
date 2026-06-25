@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Calendar } from 'lucide-react';
 import { apiFetch } from '@/lib/api-client';
 import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { addDays, startOfDay, fmtIsoDate } from '@/lib/time-utils';
@@ -36,16 +37,21 @@ interface DayData {
 export function StreakCalendar() {
   const [blocks, setBlocks] = useState<Block[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
-  useEffect(() => {
+  function load() {
+    setError(false);
+    setLoading(true);
     const now = new Date();
     const from = addDays(startOfDay(now), -TOTAL_DAYS + 1);
     const to = addDays(startOfDay(now), 1);
     apiFetch<Block[]>(`/api/time-blocks?from=${from.toISOString()}&to=${to.toISOString()}`)
-      .then(setBlocks)
-      .catch(() => undefined)
+      .then(b => setBlocks(b))
+      .catch(() => setError(true))
       .finally(() => setLoading(false));
-  }, []);
+  }
+
+  useEffect(() => { load(); }, []);
 
   const { grid, totalMinutes, activeDays, monthLabels } = useMemo(() => {
     const now = new Date();
@@ -108,6 +114,17 @@ export function StreakCalendar() {
         <CardContent className="p-5 space-y-3">
           <Skeleton className="h-4 w-36" />
           <Skeleton className="h-24 w-full" />
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (error) {
+    return (
+      <Card>
+        <CardContent className="p-5 text-center space-y-2">
+          <p className="text-sm text-destructive">Failed to load activity data.</p>
+          <Button size="sm" variant="outline" onClick={load}>Retry</Button>
         </CardContent>
       </Card>
     );

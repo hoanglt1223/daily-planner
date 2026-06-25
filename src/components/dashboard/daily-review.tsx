@@ -282,7 +282,7 @@ function MetricPill({ icon: Icon, label, value, sub, tone }: {
   }[tone];
 
   return (
-    <div className={cn('rounded-lg border p-2.5 ring-1 text-center', tones.ring, tones.bg)}>
+    <div className={cn('rounded-lg p-2.5 ring-1 text-center', tones.ring, tones.bg)}>
       <Icon className={cn('size-3.5 mx-auto mb-1', tones.icon)} />
       <p className="text-lg font-semibold tabular-nums leading-tight">{value}</p>
       <p className="text-[9px] text-muted-foreground leading-tight">{label}</p>

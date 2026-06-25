@@ -18,6 +18,8 @@ type Booking = {
 
 export function BookingsInbox() {
   const [bookings, setBookings] = useState<Booking[] | null>(null);
+  // Track busy state per booking id to prevent duplicate POSTs
+  const [busyIds, setBusyIds] = useState<Set<string>>(new Set());
 
   const load = useCallback(() => {
     apiFetch<Booking[]>('/api/bookings?action=mine')
@@ -27,11 +29,17 @@ export function BookingsInbox() {
   useEffect(load, [load]);
 
   async function act(id: string, action: 'approve' | 'reject') {
+    if (busyIds.has(id)) return;
+    setBusyIds(prev => new Set(prev).add(id));
     try {
       await apiFetch(`/api/bookings/${action}/${id}`, { method: 'POST' });
       toast.success(action === 'approve' ? 'Booking approved' : 'Booking rejected');
       load();
-    } catch (e) { toast.error((e as Error).message); }
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setBusyIds(prev => { const s = new Set(prev); s.delete(id); return s; });
+    }
   }
 
   const pending = bookings?.filter(b => b.status === 'pending') ?? [];
@@ -56,20 +64,27 @@ export function BookingsInbox() {
           <p className="text-xs text-muted-foreground">No pending requests.</p>
         ) : (
           <ul className="space-y-2">
-            {pending.map(b => (
-              <li key={b.id} className="rounded-md border p-2 text-sm">
-                <p className="font-medium">{b.title}</p>
-                <p className="text-xs text-muted-foreground">
-                  {fmtDay(new Date(b.startAt))} {fmtHour(new Date(b.startAt))}–{fmtHour(new Date(b.endAt))}
-                </p>
-                <p className="text-xs">From {b.visitorName} &lt;{b.visitorEmail}&gt;</p>
-                {b.note && <p className="mt-1 text-xs italic text-muted-foreground">"{b.note}"</p>}
-                <div className="mt-2 flex gap-2">
-                  <Button size="sm" onClick={() => act(b.id, 'approve')}>Approve</Button>
-                  <Button size="sm" variant="outline" onClick={() => act(b.id, 'reject')}>Reject</Button>
-                </div>
-              </li>
-            ))}
+            {pending.map(b => {
+              const busy = busyIds.has(b.id);
+              return (
+                <li key={b.id} className="rounded-md ring-hairline p-2 text-sm">
+                  <p className="font-medium">{b.title}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {fmtDay(new Date(b.startAt))} {fmtHour(new Date(b.startAt))}–{fmtHour(new Date(b.endAt))}
+                  </p>
+                  <p className="text-xs">From {b.visitorName} &lt;{b.visitorEmail}&gt;</p>
+                  {b.note && <p className="mt-1 text-xs italic text-muted-foreground">"{b.note}"</p>}
+                  <div className="mt-2 flex gap-2">
+                    <Button size="sm" disabled={busy} onClick={() => act(b.id, 'approve')}>
+                      {busy ? 'Saving…' : 'Approve'}
+                    </Button>
+                    <Button size="sm" variant="outline" disabled={busy} onClick={() => act(b.id, 'reject')}>
+                      Reject
+                    </Button>
+                  </div>
+                </li>
+              );
+            })}
           </ul>
         )}
 

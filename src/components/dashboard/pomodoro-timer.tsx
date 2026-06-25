@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Play, Pause, Square, CheckCircle2, Timer, ChevronDown, Coffee,
 } from 'lucide-react';
@@ -52,7 +52,6 @@ export function PomodoroTimer() {
   const [expanded, setExpanded] = useState(false);
   const [state, setState] = useState<PomodoroState | null>(() => loadState());
   const [now, setNow] = useState(Date.now());
-  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   // Load tasks
   useEffect(() => {
@@ -261,15 +260,15 @@ export function PomodoroTimer() {
               <>
                 <button
                   onClick={() => setExpanded(!expanded)}
-                  className="flex items-center justify-between w-full rounded-md border px-3 py-2 text-sm hover:bg-muted/50 transition-colors"
+                  className="flex items-center justify-between w-full rounded-md field-shadow px-3 py-2 text-sm hover:bg-muted/50 transition-colors"
                 >
                   <span className="text-muted-foreground">Select a task…</span>
                   <ChevronDown className={cn('size-4 text-muted-foreground transition-transform', expanded && 'rotate-180')} />
                 </button>
 
                 {expanded && (
-                  <div className="max-h-48 overflow-y-auto space-y-1 rounded-md border p-1.5">
-                    {tasks
+                  <div className="max-h-48 overflow-y-auto space-y-1 rounded-md ring-hairline p-1.5">
+                    {[...tasks]
                       .sort((a, b) => a.priority - b.priority)
                       .map(task => (
                         <div key={task.id} className="flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-muted/50 group">
@@ -304,10 +303,6 @@ export function PomodoroTimer() {
           </div>
         )}
 
-        {/* Hidden audio element for alarm */}
-        <audio ref={audioRef} preload="auto">
-          <source src="data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdH2DgYF8eHx/goODg4J+eHR1eoCEhYOBfnp2dXl+g4WEg4B8eHV2en+Dg4OCf3t4dnd7gIKCgoB9enh3eXyAgYKBf3x5eHh6fICBgYF/fHp4eXp8f4GBgX99e3l5ent+gICBf317eXl6e31/gICAfnx6eXl6e31/gIB+fXt5eXp7fX+AgH59e3l5ent9f4CAfn17eXl6e31/gIB+fXt5eXp7fX+AgH59e3l5ent9f4B/fn17eXl6e31/gH9+fXt5eXp7fX+Af359e3l5ent9f4B/fn17eXl6e31/gH9+fXt5eXp7fX+Af359e3l5ent9f39/fn17eXl6e31/f39+fXt5eXp7fX9/f359e3l5ent9f39/fn17eXl6e31/f39+fXt5eXp7fX9/f359e3l5ent9f35+fXt5eXp7fX5+fXt5eXp7fX5+fXt5eXp7fX1+fXt5eXp7fX19fX17eXl6e319fX19e3l5ent9fX19fXt5eXp7fX19fX19e3l5ent9fX19fX17eXl6e319fX19fX17eXl6e319fH19fX17eXl6e318fH19fX17eXl6e3x8fH19fX17eXl6e3x8fH19fX17eXl6e3x8fH19fX17eXl6e3x8fH19fX17eXl6e3x8e319fX17eXl6e3x7e319fX17eXl6e3t7e319fX17eXl6e3t7e319fX17eXl6e3t7e319fX17eXl6e3t7e319fX17eXl6e3t7e319fX17eXl6e3p7ent9fX17eXl6e3p6ent9fX17eXl6enp6enp7fX17eXl6enp6enp6e317eXl6enp6enp6ent9e3l5enp6enp6ent7fXt5eXp6enp6ent7e317eXl6enp6ent7e317eXl6enp6ent7e317eXl6enp6ent7e317eXl6enp6ent7e3t9fX17eXl6enp6ent7fX19fX17eXl6enp6e319fX19fX17eXl6enp7fX19fX19e3l5enp7fX19fX19e3l5ent9fX19fX17eXl6e319fX19fX17eXl6e319fH19fX17eXl6e318fH19fX17eXl6e3x8fH19fX17eXl6e3x8fH19fX17eXl6e3x8fH19fX17eXl6e3x8fH19fX17eXl6e3x8e319fX17eXl6e3x7e319fX17eXl6e3t7e319fX17eXl6e3t7e319fX17eXl6e3t7e319fX17eXl6e3t7e319fX17eXl6e3t7e319fX17eXl6e3p7ent9fX17eXl6e3p6ent9fX17eXl6enp6enp7fX17eXl6enp6enp6e317eXl6enp6enp6ent9e3l5enp6enp6ent7fXt5eXp6enp6ent7e317eXl6enp6ent7e317eXl6enp6ent7e317eXl6enp6ent7e3t9fX17eXl6enp6ent7fX19fX17eXl6enp6e319fX19fX17eXl6enp7fX19fX19e3l5enp7fX19fX19e3l5ent9fX19fX17eXl6e319" type="audio/wav" />
-        </audio>
       </CardContent>
     </Card>
   );

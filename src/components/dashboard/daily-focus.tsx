@@ -184,8 +184,8 @@ function computeFocus(blocks: Block[], tasks: Task[]): FocusData {
   const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
   const incomplete = tasks.filter(t => t.status !== 'done' && t.status !== 'archived');
   const overdue = incomplete.filter(t => t.dueDate && new Date(t.dueDate) < todayStart);
-  const sortedOverdue = overdue.sort((a, b) => a.priority - b.priority);
-  const sortedByPriority = incomplete.sort((a, b) => a.priority - b.priority);
+  const sortedOverdue = [...overdue].sort((a, b) => a.priority - b.priority);
+  const sortedByPriority = [...incomplete].sort((a, b) => a.priority - b.priority);
 
   let attention: Task | null = null;
   let attentionType: 'overdue' | 'priority' = 'priority';

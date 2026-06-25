@@ -51,7 +51,7 @@ export function ProductivityInsights() {
         <div className="grid grid-cols-2 gap-3">
           {/* Streak */}
           <div className={cn(
-            'rounded-lg border p-3 ring-1',
+            'rounded-lg p-3 ring-1',
             streakTone === 'amber' ? 'ring-amber-200 bg-amber-50/50'
               : streakTone === 'emerald' ? 'ring-emerald-200 bg-emerald-50/50'
                 : 'ring-slate-200 bg-slate-50/50',
@@ -68,7 +68,7 @@ export function ProductivityInsights() {
           </div>
 
           {/* Today focus */}
-          <div className="rounded-lg border p-3 ring-1 ring-sky-200 bg-sky-50/50">
+          <div className="rounded-lg p-3 ring-1 ring-sky-200 bg-sky-50/50">
             <div className="flex items-center gap-1.5 mb-1">
               <Target className="size-3.5 text-sky-500" />
               <span className="text-[10px] text-muted-foreground">Today</span>

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Download, FileSpreadsheet, Loader2, Calendar } from 'lucide-react';
 import { formatInTimeZone } from 'date-fns-tz';
+import { toast } from 'sonner';
 import { apiFetch } from '@/lib/api-client';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -51,8 +52,9 @@ export function TimesheetExport() {
       setBlocks(b);
       setCategories(c);
       setTasks(t);
-    } catch { /* silent */ }
-    finally { setLoading(false); }
+    } catch (e) {
+      toast.error((e as Error).message ?? 'Failed to load timesheet data.');
+    } finally { setLoading(false); }
   }, [from, to]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
@@ -157,7 +159,7 @@ export function TimesheetExport() {
         ) : (
           <>
             {/* Preview summary */}
-            <div className="rounded-md border p-3 text-xs space-y-1">
+            <div className="rounded-md ring-hairline p-3 text-xs space-y-1">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Blocks</span>
                 <span className="font-medium">{rows.length}</span>
@@ -175,7 +177,7 @@ export function TimesheetExport() {
             </div>
 
             {/* Mini preview table */}
-            <div className="max-h-40 overflow-auto rounded-md border text-xs">
+            <div className="max-h-40 overflow-auto rounded-md ring-hairline text-xs">
               <table className="w-full">
                 <thead className="sticky top-0 bg-muted/50">
                   <tr className="text-left text-muted-foreground">

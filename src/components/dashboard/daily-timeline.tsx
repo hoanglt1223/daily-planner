@@ -3,6 +3,7 @@ import { CalendarClock, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { apiFetch } from '@/lib/api-client';
 import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { blockColor } from '@/lib/block-color';
 import {
@@ -29,19 +30,24 @@ const HOUR_PX = 48; // pixels per hour
 export function DailyTimeline() {
   const [blocks, setBlocks] = useState<Block[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [now, setNow] = useState(() => new Date());
   const navigate = useNavigate();
 
-  useEffect(() => {
+  function load() {
+    setError(false);
+    setLoading(true);
     const todayStart = startOfDay(new Date());
     const todayEnd = addDays(todayStart, 1);
     apiFetch<Block[]>(
       `/api/time-blocks?from=${todayStart.toISOString()}&to=${todayEnd.toISOString()}`,
     )
-      .then(setBlocks)
-      .catch(() => undefined)
+      .then(b => { setBlocks(b); })
+      .catch(() => setError(true))
       .finally(() => setLoading(false));
-  }, []);
+  }
+
+  useEffect(() => { load(); }, []);
 
   // Tick every minute to keep "now" line accurate
   useEffect(() => {
@@ -83,10 +89,21 @@ export function DailyTimeline() {
     );
   }
 
+  if (error) {
+    return (
+      <Card>
+        <CardContent className="p-5 text-center space-y-2">
+          <p className="text-sm text-destructive">Failed to load timeline.</p>
+          <Button size="sm" variant="outline" onClick={load}>Retry</Button>
+        </CardContent>
+      </Card>
+    );
+  }
+
   const hours = Array.from({ length: TOTAL_HOURS }, (_, i) => WORKDAY_START_HOUR + i);
 
   return (
-    <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate('/planner')}>
+    <Card className="cursor-pointer hover:shadow-soft-md transition-shadow" onClick={() => navigate('/planner')}>
       <CardContent className="p-5 space-y-3">
         <div className="flex items-center gap-1.5">
           <CalendarClock className="size-3.5 text-muted-foreground" />

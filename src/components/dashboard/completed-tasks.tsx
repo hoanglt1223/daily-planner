@@ -6,49 +6,42 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { Category, PRIORITY_LABEL, fmtEst } from './task-row-shared';
 
-type Task = {
+type CompletedTask = {
   id: string; title: string;
   status: 'backlog' | 'todo' | 'doing' | 'done' | 'archived';
   priority: number; estimatedMinutes: number;
   updatedAt: string; categoryId: string | null;
 };
 
-type Category = { id: string; name: string; color: string };
-
-const PRIORITY_LABEL: Record<number, { label: string; cls: string }> = {
-  1: { label: 'Urgent', cls: 'bg-red-100 text-red-700' },
-  2: { label: 'High', cls: 'bg-orange-100 text-orange-700' },
-  3: { label: 'Normal', cls: 'bg-muted text-muted-foreground' },
-  4: { label: 'Low', cls: 'bg-sky-100 text-sky-700' },
-  5: { label: 'Someday', cls: 'bg-muted text-muted-foreground' },
-};
-
 const SHORT_DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 /** Shows tasks completed in the last 7 days, grouped by day, with ability to reopen. */
 export function CompletedTasks() {
-  const [tasks, setTasks] = useState<Task[]>([]);
+  const [tasks, setTasks] = useState<CompletedTask[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
+    setError(false);
     try {
       const [allTasks, cats] = await Promise.all([
-        apiFetch<Task[]>('/api/tasks'),
+        apiFetch<CompletedTask[]>('/api/tasks'),
         apiFetch<Category[]>('/api/categories'),
       ]);
       setCategories(cats);
-      // Filter to done tasks updated within last 7 days
       const cutoff = new Date();
       cutoff.setDate(cutoff.getDate() - 7);
       setTasks(allTasks.filter(t =>
         t.status === 'done' && new Date(t.updatedAt) >= cutoff
       ));
-    } catch { /* silent */ }
-    finally { setLoading(false); }
+    } catch {
+      setError(true);
+    } finally { setLoading(false); }
   }, []);
 
   useEffect(() => { load(); }, [load]);
@@ -60,7 +53,7 @@ export function CompletedTasks() {
   }, [categories]);
 
   const grouped = useMemo(() => {
-    const map = new Map<string, Task[]>();
+    const map = new Map<string, CompletedTask[]>();
     const sorted = [...tasks].sort((a, b) =>
       new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
     );
@@ -93,6 +86,17 @@ export function CompletedTasks() {
       <Card>
         <CardContent className="flex items-center gap-2 p-5 text-sm text-muted-foreground">
           <Loader2 className="size-4 animate-spin" /> Loading completed…
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (error) {
+    return (
+      <Card>
+        <CardContent className="p-5 text-center space-y-2">
+          <p className="text-sm text-destructive">Failed to load completed tasks.</p>
+          <Button size="sm" variant="outline" onClick={load}>Retry</Button>
         </CardContent>
       </Card>
     );
@@ -151,15 +155,12 @@ export function CompletedTasks() {
 }
 
 function CompletedRow({ task, category, busy, onReopen }: {
-  task: Task; category?: Category; busy: boolean; onReopen: () => void;
+  task: CompletedTask; category?: Category; busy: boolean; onReopen: () => void;
 }) {
   const prio = PRIORITY_LABEL[task.priority] ?? PRIORITY_LABEL[3];
-  const estH = Math.floor(task.estimatedMinutes / 60);
-  const estM = task.estimatedMinutes % 60;
-  const estStr = estH > 0 ? (estM ? `${estH}h${estM}m` : `${estH}h`) : `${estM}m`;
 
   return (
-    <div className="flex items-center gap-2 rounded-md border bg-card px-3 py-2 transition-colors opacity-80 hover:opacity-100">
+    <div className="flex items-center gap-2 rounded-md ring-hairline bg-card px-3 py-2 transition-colors opacity-80 hover:opacity-100">
       <CheckCircle2 className="size-4 shrink-0 text-emerald-500" />
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5">
@@ -172,7 +173,7 @@ function CompletedRow({ task, category, busy, onReopen }: {
           <Badge variant="secondary" className={cn('text-[10px] px-1.5 py-0', prio.cls)}>
             {prio.label}
           </Badge>
-          <span className="text-[10px] text-muted-foreground">{estStr}</span>
+          <span className="text-[10px] text-muted-foreground">{fmtEst(task.estimatedMinutes)}</span>
         </div>
       </div>
       <Button

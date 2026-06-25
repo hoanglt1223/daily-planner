@@ -20,8 +20,12 @@ export function SharePanel() {
   const [me, setMe] = useState<Me | null>(null);
   const [saving, setSaving] = useState(false);
 
+  const [loadError, setLoadError] = useState(false);
+
   useEffect(() => {
-    apiFetch<Me>('/api/auth/me').then(setMe).catch(() => undefined);
+    apiFetch<Me>('/api/auth/me')
+      .then(setMe)
+      .catch(() => setLoadError(true));
   }, []);
 
   async function enable() {
@@ -54,8 +58,22 @@ export function SharePanel() {
     }
   }
   async function copy(url: string) {
-    await navigator.clipboard.writeText(url);
-    toast.success('Link copied');
+    try {
+      await navigator.clipboard.writeText(url);
+      toast.success('Link copied');
+    } catch {
+      toast.error('Could not copy to clipboard. Copy the link manually.');
+    }
+  }
+
+  if (!me && loadError) {
+    return (
+      <Card>
+        <CardContent className="p-5 text-center space-y-2">
+          <p className="text-sm text-destructive">Failed to load share settings.</p>
+        </CardContent>
+      </Card>
+    );
   }
 
   if (!me) return <SharePanelSkeleton />;
