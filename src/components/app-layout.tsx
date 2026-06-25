@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { CalendarDays, LayoutDashboard, ListTodo, LogOut, Moon, Settings, ShieldCheck, Sun, Users } from 'lucide-react';
+import { CalendarDays, LayoutDashboard, ListTodo, Loader2, LogOut, Moon, Settings, ShieldCheck, Sun, Users } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { apiFetch, clearAuthToken, getAuthToken } from '@/lib/api-client';
+import { setActiveTimeZone } from '@/lib/time-utils';
 import { useGlobalShortcuts } from '@/lib/use-global-keyboard-shortcuts';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -11,7 +12,7 @@ import { QuickTaskDialog } from '@/components/quick-task-dialog';
 import { QuickTimeLogDialog } from '@/components/quick-time-log-dialog';
 import { cn } from '@/lib/utils';
 
-type Me = { id: string; name: string; role: 'user' | 'manager' | 'admin'; email: string };
+type Me = { id: string; name: string; role: 'user' | 'manager' | 'admin'; email: string; timezone?: string };
 
 const ICONS = {
   '/dashboard': LayoutDashboard,
@@ -33,7 +34,11 @@ export function AppLayout() {
   useEffect(() => {
     if (!getAuthToken()) { nav('/login', { replace: true }); return; }
     apiFetch<Me>('/api/auth/me')
-      .then(data => { setMe(data); setAuthReady(true); })
+      .then(data => {
+        if (data.timezone) setActiveTimeZone(data.timezone);
+        setMe(data);
+        setAuthReady(true);
+      })
       .catch(() => {
         clearAuthToken();
         nav('/login', { replace: true });
@@ -106,7 +111,13 @@ export function AppLayout() {
         </div>
       </header>
       <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6">
-        {authReady && <Outlet />}
+        <Suspense fallback={
+          <div className="grid place-items-center py-20 text-muted-foreground">
+            <Loader2 className="size-5 animate-spin" />
+          </div>
+        }>
+          {authReady && <Outlet />}
+        </Suspense>
       </main>
       <KeyboardShortcutsDialog />
       <QuickTaskDialog />

@@ -3,7 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { format, parseISO } from 'date-fns';
 import { CalendarIcon, ArrowRight } from 'lucide-react';
 import { toast } from 'sonner';
-import { fmtDay, fmtHour, fmtIsoDate } from '@/lib/time-utils';
+import { fmtDay, fmtHour, fmtIsoDate, setActiveTimeZone } from '@/lib/time-utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -49,7 +49,7 @@ export function BookSlotPage() {
         if (!r.ok) return Promise.reject(new Error(`${r.status}`));
         return r.json();
       })
-      .then(d => { if (d) { setOwner(d.owner); setSlots(d.slots); } })
+      .then(d => { if (d) { if (d.owner?.timezone) setActiveTimeZone(d.owner.timezone); setOwner(d.owner); setSlots(d.slots); } })
       .catch(e => toast.error(e.message));
   }, [token, date]);
 

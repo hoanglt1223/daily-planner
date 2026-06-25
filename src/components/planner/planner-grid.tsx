@@ -2,7 +2,7 @@ import { useCallback, useMemo, useRef, useState } from 'react';
 import { DndContext, type DragEndEvent, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { ChevronLeft, ChevronRight, Plus } from 'lucide-react';
 import { toast } from 'sonner';
-import { addDays, fmtIsoDate, startOfDay, startOfWeek, WORKDAY_START_HOUR, fromWallClock, DEFAULT_TZ } from '@/lib/time-utils';
+import { addDays, fmtIsoDate, startOfDay, startOfWeek, WORKDAY_START_HOUR, fromWallClock, getActiveTimeZone } from '@/lib/time-utils';
 import { formatInTimeZone } from 'date-fns-tz';
 import { Button } from '@/components/ui/button';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
@@ -51,7 +51,7 @@ export function PlannerGrid({ initialView = 'week' as View }) {
   /** Opens the create dialog defaulting to the next round hour (or :30 if already on the hour). */
   function openAddBlockDialog() {
     const now = new Date();
-    const nowInTz = formatInTimeZone(now, DEFAULT_TZ, 'yyyy-MM-dd HH:mm');
+    const nowInTz = formatInTimeZone(now, getActiveTimeZone(), 'yyyy-MM-dd HH:mm');
     const [dateIso, hhmm] = nowInTz.split(' ');
     const [h, m] = hhmm.split(':').map(Number);
     // Round up to next 30-min slot

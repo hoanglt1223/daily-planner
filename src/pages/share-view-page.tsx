@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { ArrowRight } from 'lucide-react';
-import { addDays, fmtDay, fmtHour, startOfWeek } from '@/lib/time-utils';
+import { addDays, fmtDay, fmtHour, startOfWeek, setActiveTimeZone } from '@/lib/time-utils';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -33,7 +33,11 @@ export function ShareViewPage() {
     if (!token) return;
     fetch(`/api/share/${token}`)
       .then(r => r.ok ? r.json() : Promise.reject(new Error(`${r.status}`)))
-      .then(setData)
+      .then((d: ShareData) => {
+        // Render the shared schedule in the OWNER's timezone, not the viewer's.
+        if (d.user?.timezone) setActiveTimeZone(d.user.timezone);
+        setData(d);
+      })
       .catch(e => setError(e.message));
   }, [token]);
 

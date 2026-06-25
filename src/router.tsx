@@ -1,24 +1,40 @@
+import { type ReactNode, Suspense, lazy } from 'react';
 import { createBrowserRouter } from 'react-router-dom';
-import { LandingPage } from '@/pages/landing-page';
-import { LoginPage } from '@/pages/login-page';
-import { RegisterPage } from '@/pages/register-page';
-import { DashboardPage } from '@/pages/dashboard-page';
-import { PlannerPage } from '@/pages/planner-page';
-import { AdminPage } from '@/pages/admin-page';
-import { ManagerPage } from '@/pages/manager-page';
-import { TasksPage } from '@/pages/tasks-page';
-import { SettingsPage } from '@/pages/settings-page';
-import { ShareViewPage } from '@/pages/share-view-page';
-import { BookSlotPage } from '@/pages/book-slot-page';
 import { AppLayout } from '@/components/app-layout';
 
+// Route-level code splitting: each page is its own chunk, so the initial bundle
+// only loads what the landing/auth pages need. Heavy deps (charts on the
+// dashboard, dnd-kit on the planner) load lazily when that route is visited.
+const LandingPage = lazy(() => import('@/pages/landing-page').then(m => ({ default: m.LandingPage })));
+const LoginPage = lazy(() => import('@/pages/login-page').then(m => ({ default: m.LoginPage })));
+const RegisterPage = lazy(() => import('@/pages/register-page').then(m => ({ default: m.RegisterPage })));
+const ShareViewPage = lazy(() => import('@/pages/share-view-page').then(m => ({ default: m.ShareViewPage })));
+const BookSlotPage = lazy(() => import('@/pages/book-slot-page').then(m => ({ default: m.BookSlotPage })));
+const DashboardPage = lazy(() => import('@/pages/dashboard-page').then(m => ({ default: m.DashboardPage })));
+const TasksPage = lazy(() => import('@/pages/tasks-page').then(m => ({ default: m.TasksPage })));
+const PlannerPage = lazy(() => import('@/pages/planner-page').then(m => ({ default: m.PlannerPage })));
+const SettingsPage = lazy(() => import('@/pages/settings-page').then(m => ({ default: m.SettingsPage })));
+const ManagerPage = lazy(() => import('@/pages/manager-page').then(m => ({ default: m.ManagerPage })));
+const AdminPage = lazy(() => import('@/pages/admin-page').then(m => ({ default: m.AdminPage })));
+
+/** Suspense wrapper for the standalone (non-AppLayout) routes. */
+function page(node: ReactNode): ReactNode {
+  return (
+    <Suspense fallback={<div className="grid min-h-svh place-items-center text-sm text-muted-foreground">Loading…</div>}>
+      {node}
+    </Suspense>
+  );
+}
+
 export const router = createBrowserRouter([
-  { path: '/', element: <LandingPage /> },
-  { path: '/login', element: <LoginPage /> },
-  { path: '/register', element: <RegisterPage /> },
-  { path: '/u/:token', element: <ShareViewPage /> },
-  { path: '/book/:token', element: <BookSlotPage /> },
+  { path: '/', element: page(<LandingPage />) },
+  { path: '/login', element: page(<LoginPage />) },
+  { path: '/register', element: page(<RegisterPage />) },
+  { path: '/u/:token', element: page(<ShareViewPage />) },
+  { path: '/book/:token', element: page(<BookSlotPage />) },
   {
+    // AppLayout is eager (small) and provides the Suspense boundary for its
+    // lazy child pages via the <Outlet/>.
     element: <AppLayout />,
     children: [
       { path: '/dashboard', element: <DashboardPage /> },

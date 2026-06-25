@@ -1,6 +1,32 @@
 import { formatInTimeZone, fromZonedTime } from 'date-fns-tz';
 
-export const DEFAULT_TZ = 'Asia/Bangkok';
+/** Resolve the browser's IANA timezone, falling back to UTC. */
+function resolveBrowserTz(): string {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+  } catch {
+    return 'UTC';
+  }
+}
+
+/**
+ * Active timezone for all wall-clock math + display. Defaults to the browser's
+ * timezone (correct for almost everyone) and is overridden with the signed-in
+ * user's saved profile timezone once known (see setActiveTimeZone). This avoids
+ * the old bug where a hardcoded 'Asia/Bangkok' default mis-computed day/week
+ * boundaries for users in other timezones.
+ */
+let activeTimeZone = resolveBrowserTz();
+
+/** Override the active timezone (e.g. from the user's saved profile). */
+export function setActiveTimeZone(tz: string): void {
+  if (tz) activeTimeZone = tz;
+}
+
+/** The timezone currently used for day boundaries + display. */
+export function getActiveTimeZone(): string {
+  return activeTimeZone;
+}
 
 /**
  * All "day boundary" helpers below are TZ-aware. They return Date objects whose
@@ -11,13 +37,13 @@ export const DEFAULT_TZ = 'Asia/Bangkok';
  */
 
 /** Midnight (00:00) of the given date, interpreted in `tz`. */
-export function startOfDay(date: Date, tz: string = DEFAULT_TZ): Date {
+export function startOfDay(date: Date, tz: string = getActiveTimeZone()): Date {
   const dateIso = formatInTimeZone(date, tz, 'yyyy-MM-dd');
   return fromZonedTime(`${dateIso}T00:00:00`, tz);
 }
 
 /** Monday 00:00 of the week containing the given date, in `tz`. */
-export function startOfWeek(date: Date, tz: string = DEFAULT_TZ): Date {
+export function startOfWeek(date: Date, tz: string = getActiveTimeZone()): Date {
   // Get the day-of-week as it reads in tz, without relying on Date setters.
   const weekday = formatInTimeZone(date, tz, 'i'); // ISO day 1..7 (Mon..Sun)
   const monOffset = Number(weekday) - 1;
@@ -34,25 +60,25 @@ export function addMinutes(date: Date, n: number): Date {
   return new Date(date.getTime() + n * 60_000);
 }
 
-export function fmtDay(date: Date, tz: string = DEFAULT_TZ): string {
+export function fmtDay(date: Date, tz: string = getActiveTimeZone()): string {
   return formatInTimeZone(date, tz, 'EEE dd/MM');
 }
 
-export function fmtHour(date: Date, tz: string = DEFAULT_TZ): string {
+export function fmtHour(date: Date, tz: string = getActiveTimeZone()): string {
   return formatInTimeZone(date, tz, 'HH:mm');
 }
 
-export function fmtIsoDate(date: Date, tz: string = DEFAULT_TZ): string {
+export function fmtIsoDate(date: Date, tz: string = getActiveTimeZone()): string {
   return formatInTimeZone(date, tz, 'yyyy-MM-dd');
 }
 
 /** Build a Date at user-TZ wall-clock yyyy-MM-dd HH:mm. */
-export function fromWallClock(dateIso: string, hhmm: string, tz: string = DEFAULT_TZ): Date {
+export function fromWallClock(dateIso: string, hhmm: string, tz: string = getActiveTimeZone()): Date {
   return fromZonedTime(`${dateIso}T${hhmm}:00`, tz);
 }
 
 /** Minutes-since-midnight of a Date as it reads in `tz`. */
-export function minutesSinceMidnight(date: Date, tz: string = DEFAULT_TZ): number {
+export function minutesSinceMidnight(date: Date, tz: string = getActiveTimeZone()): number {
   const hhmm = formatInTimeZone(date, tz, 'HH:mm');
   const [h, m] = hhmm.split(':').map(Number);
   return h * 60 + m;

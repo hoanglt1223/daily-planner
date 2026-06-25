@@ -7,16 +7,16 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { fmtDay, fmtIsoDate, fromWallClock, DEFAULT_TZ } from '@/lib/time-utils';
+import { fmtDay, fmtIsoDate, fromWallClock, getActiveTimeZone } from '@/lib/time-utils';
 import { formatInTimeZone } from 'date-fns-tz';
 
 export type BlockEditorState =
   | { mode: 'create'; startAt: Date; endAt: Date }
   | { mode: 'edit'; id: string; title: string; startAt: Date; endAt: Date; note: string | null };
 
-/** Format a Date as "HH:mm" in DEFAULT_TZ for use in <input type="time"> */
+/** Format a Date as "HH:mm" in the active timezone for use in <input type="time"> */
 function toTimeInput(d: Date): string {
-  return formatInTimeZone(d, DEFAULT_TZ, 'HH:mm');
+  return formatInTimeZone(d, getActiveTimeZone(), 'HH:mm');
 }
 
 export function BlockEditorDialog({ state, onClose, onCreate, onUpdate, onDelete }: {

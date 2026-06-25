@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { formatInTimeZone } from 'date-fns-tz';
-import { DEFAULT_TZ, WORKDAY_END_HOUR, WORKDAY_START_HOUR } from '@/lib/time-utils';
+import { getActiveTimeZone, WORKDAY_END_HOUR, WORKDAY_START_HOUR } from '@/lib/time-utils';
 import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 
@@ -78,6 +78,7 @@ interface DayRow {
 }
 
 function computeDays(blocks: DayEntry[]): DayRow[] {
+  const DEFAULT_TZ = getActiveTimeZone();
   // Find the Monday of the current week in user TZ
   const now = new Date();
   const iso = formatInTimeZone(now, DEFAULT_TZ, 'yyyy-MM-dd');

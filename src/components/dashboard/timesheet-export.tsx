@@ -7,7 +7,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { DEFAULT_TZ, addDays, startOfWeek, fmtIsoDate } from '@/lib/time-utils';
+import { getActiveTimeZone, addDays, startOfWeek, fmtIsoDate } from '@/lib/time-utils';
 import { generateIcs, downloadIcs } from '@/lib/ics-export';
 
 type Block = {
@@ -72,6 +72,7 @@ export function TimesheetExport() {
   }, [tasks]);
 
   const rows = useMemo(() => {
+    const DEFAULT_TZ = getActiveTimeZone();
     return blocks
       .map(b => {
         const start = new Date(b.startAt);
