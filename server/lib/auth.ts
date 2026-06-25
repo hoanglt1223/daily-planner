@@ -1,11 +1,21 @@
 import jwt from 'jsonwebtoken';
 import { randomBytes, scryptSync, timingSafeEqual } from 'node:crypto';
 
-// NOTE: insecure fallback retained TEMPORARILY so the app builds + runs while
-// JWT_SECRET is being set in Vercel. The hardened fail-fast version (refuse to
-// run without JWT_SECRET) is ready to re-apply once the secret exists in all
-// Vercel environments. See feedback.md §0a.
-const SECRET = process.env.JWT_SECRET || 'dev-secret-change-me';
+// Fail fast on a missing secret. Returning from a function (instead of a
+// bare top-level guard) gives SECRET a non-undefined `string` type that
+// narrows correctly inside the closures below.
+function requireSecret(): string {
+  const s = process.env.JWT_SECRET;
+  if (!s) {
+    throw new Error(
+      'JWT_SECRET is not set. Refusing to start with an insecure default. ' +
+      'Set JWT_SECRET in the environment (Vercel project settings + .env.local for local dev).'
+    );
+  }
+  return s;
+}
+
+const SECRET = requireSecret();
 const EXPIRES_IN = '7d';
 
 export type JwtPayload = { sub: string; email: string; role: 'user' | 'manager' | 'admin' };
