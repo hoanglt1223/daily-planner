@@ -7,8 +7,10 @@ import { Button } from '@/components/ui/button';
 
 type ManagedUser = { id: string; name: string; email: string; privacy: string };
 type Block = { id: string; title: string; startAt: string; endAt: string };
+type Me = { role: 'user' | 'manager' | 'admin' };
 
 export function ManagerPage() {
+  const [me, setMe] = useState<Me | null>(null);
   const [people, setPeople] = useState<ManagedUser[]>([]);
   const [listLoading, setListLoading] = useState(true);
   const [selected, setSelected] = useState<string | null>(null);
@@ -17,6 +19,7 @@ export function ManagerPage() {
   const [blocksError, setBlocksError] = useState<string | null>(null);
 
   useEffect(() => {
+    apiFetch<Me>('/api/auth/me').then(setMe).catch(() => null);
     apiFetch<ManagedUser[]>('/api/admin/managed-users')
       .then(setPeople)
       .catch(e => setListError((e as Error).message))
@@ -45,7 +48,13 @@ export function ManagerPage() {
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-base">Team</CardTitle>
-          <CardDescription>{listLoading ? 'Loading…' : `${people.length} managed users`}</CardDescription>
+          <CardDescription>
+            {listLoading
+              ? 'Loading…'
+              : me?.role === 'admin'
+                ? `${people.length} users (admin)`
+                : `${people.length} managed users`}
+          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-1">
           {listLoading && (

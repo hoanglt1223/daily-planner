@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { format, parseISO } from 'date-fns';
+import { format, parseISO, isSameDay } from 'date-fns';
 import { CalendarIcon, ArrowRight } from 'lucide-react';
 import { toast } from 'sonner';
-import { fmtDay, fmtHour, fmtIsoDate, setActiveTimeZone } from '@/lib/time-utils';
+import { fmtHour, fmtIsoDate, setActiveTimeZone } from '@/lib/time-utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -36,12 +36,13 @@ export function BookSlotPage() {
   const [picked, setPicked] = useState<Slot | null>(null);
   const [submitted, setSubmitted] = useState(false);
   const [invalidToken, setInvalidToken] = useState(false);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const [form, setForm] = useState({ visitorName: '', visitorEmail: '', title: '', note: '' });
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     if (!token) return;
-    setSlots(null); setPicked(null);
+    setSlots(null); setPicked(null); setFetchError(null);
     const iso = fmtIsoDate(date);
     fetch(`/api/bookings/free-slots?token=${token}&date=${iso}`)
       .then(r => {
@@ -50,7 +51,7 @@ export function BookSlotPage() {
         return r.json();
       })
       .then(d => { if (d) { if (d.owner?.timezone) setActiveTimeZone(d.owner.timezone); setOwner(d.owner); setSlots(d.slots); } })
-      .catch(e => toast.error(e.message));
+      .catch(e => { setFetchError((e as Error).message); toast.error((e as Error).message); });
   }, [token, date]);
 
   async function submit(e: React.FormEvent) {
@@ -80,8 +81,22 @@ export function BookSlotPage() {
       <Card className="shadow-soft">
         <CardContent className="flex flex-col items-center gap-4 p-8 text-center">
           <Logo />
-          <p className="text-muted-foreground">This booking link is invalid or expired.</p>
+          <p className="text-muted-foreground">This booking link is invalid or has expired.</p>
           <Button asChild size="sm" variant="default">
+            <Link to="/">Go to Daily Planner <ArrowRight className="size-3.5" /></Link>
+          </Button>
+        </CardContent>
+      </Card>
+    </Wrap>
+  );
+
+  if (fetchError) return (
+    <Wrap>
+      <Card className="shadow-soft">
+        <CardContent className="flex flex-col items-center gap-4 p-8 text-center">
+          <Logo />
+          <p className="text-muted-foreground">Something went wrong loading this page. Please try again later.</p>
+          <Button asChild size="sm" variant="outline">
             <Link to="/">Go to Daily Planner <ArrowRight className="size-3.5" /></Link>
           </Button>
         </CardContent>
@@ -131,7 +146,7 @@ export function BookSlotPage() {
             </Popover>
           </div>
 
-          <SlotPicker slots={slots} picked={picked} onPick={setPicked} />
+          <SlotPicker slots={slots} picked={picked} onPick={setPicked} selectedDate={date} />
 
           {picked && (
             <form onSubmit={submit} className="flex flex-col gap-3 pt-2">
@@ -166,24 +181,28 @@ export function BookSlotPage() {
   );
 }
 
-function SlotPicker({ slots, picked, onPick }: {
-  slots: Slot[] | null; picked: Slot | null; onPick: (s: Slot) => void;
+function SlotPicker({ slots, picked, onPick, selectedDate }: {
+  slots: Slot[] | null; picked: Slot | null; onPick: (s: Slot) => void; selectedDate: Date;
 }) {
   if (slots === null) return (
     <div className="grid grid-cols-3 gap-2">
       {Array.from({ length: 9 }).map((_, i) => <Skeleton key={i} className="h-8 w-full" />)}
     </div>
   );
-  if (slots.length === 0) return (
-    <p className="text-sm text-muted-foreground">No free slots in next 14 days from this date.</p>
+
+  // Show only slots for the selected date (Calendly-style: one day at a time)
+  const daySlots = slots.filter(s => isSameDay(parseISO(s.startAt), selectedDate));
+
+  if (daySlots.length === 0) return (
+    <p className="text-sm text-muted-foreground">No free slots on this day. Try another date.</p>
   );
   return (
     <div className="grid grid-cols-3 gap-2">
-      {slots.map(s => (
+      {daySlots.map(s => (
         <Button key={s.startAt} type="button"
           variant={picked?.startAt === s.startAt ? 'default' : 'outline'}
           size="sm" onClick={() => onPick(s)}>
-          {fmtDay(parseISO(s.startAt))} {fmtHour(parseISO(s.startAt))}
+          {fmtHour(parseISO(s.startAt))}
         </Button>
       ))}
     </div>

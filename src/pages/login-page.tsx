@@ -34,25 +34,27 @@ export function LoginPage() {
   }
 
   return (
-    <div className="grid min-h-full md:grid-cols-2">
-      <aside className="hero-mesh hidden flex-col justify-between p-10 md:flex">
-        <Link to="/" className="flex items-center gap-2 text-sm font-semibold">
-          <span className="grid size-7 place-items-center rounded-lg bg-gradient-to-br from-violet-500 via-primary to-fuchsia-500 text-white text-xs shadow-sm">DP</span>
+    <div className="grid min-h-svh md:grid-cols-2">
+      {/* Left marketing panel — dark scrim over the light mesh ensures WCAG-AA contrast */}
+      <aside className="hero-mesh relative hidden flex-col justify-between p-10 md:flex">
+        <div className="absolute inset-0 bg-slate-900/55 rounded-[inherit]" aria-hidden="true" />
+        <Link to="/" className="relative z-10 flex items-center gap-2 text-sm font-semibold text-white">
+          <span className="grid size-7 place-items-center rounded-lg bg-gradient-to-br from-violet-400 via-violet-500 to-fuchsia-500 text-white text-xs shadow-sm">DP</span>
           Daily Planner
         </Link>
-        <div>
-          <Sparkles className="mb-3 size-6 text-primary" />
-          <p className="text-2xl font-semibold leading-tight">
+        <div className="relative z-10">
+          <Sparkles className="mb-3 size-6 text-violet-300" />
+          <p className="text-2xl font-semibold leading-tight text-white">
             Plan with clarity.<br />Deliver with confidence.
           </p>
-          <p className="mt-2 text-sm text-muted-foreground">
+          <p className="mt-2 text-sm text-slate-200">
             See workload and capacity instantly — for you and your team.
           </p>
         </div>
       </aside>
 
-      {/* Stable centered column: min-h-full keeps height, flex+items-center never shifts */}
-      <main className="flex min-h-full items-center justify-center p-6">
+      {/* Right form column — vertically and horizontally centered */}
+      <main className="flex min-h-svh items-center justify-center p-6">
         <div className="w-full max-w-sm">
           <div className="space-y-6">
             <div>
@@ -66,7 +68,15 @@ export function LoginPage() {
                   value={email} onChange={e => { setEmail(e.target.value); setFormError(''); }} />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="password">Password</Label>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="password">Password</Label>
+                  <Link
+                    to="/forgot-password"
+                    className="text-xs text-muted-foreground hover:text-primary hover:underline"
+                  >
+                    Forgot password?
+                  </Link>
+                </div>
                 <div className="relative">
                   <Input id="password" type={showPassword ? 'text' : 'password'} required
                     autoComplete="current-password" className="pr-10"

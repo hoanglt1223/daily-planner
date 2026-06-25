@@ -84,6 +84,7 @@ export function QuickTaskDialog() {
         className="fixed bottom-6 left-6 z-40 size-10 rounded-full shadow-lg"
         onClick={() => setOpen(true)}
         title="Quick add task (n)"
+        aria-label="Quick add task"
       >
         <Plus className="size-5" />
       </Button>

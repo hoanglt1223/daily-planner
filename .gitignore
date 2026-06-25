@@ -144,3 +144,6 @@ vite.config.ts.timestamp-*
 .vite/
 .vercel
 .env*.local
+
+# QA screenshot artifacts
+.claude/chrome-devtools/

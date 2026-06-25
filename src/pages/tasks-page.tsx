@@ -7,6 +7,7 @@ import { apiFetch } from '@/lib/api-client';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -594,7 +595,9 @@ function TaskRow({ task, category, busy, selected, onToggleSelect, onStatusChang
             disabled={busy} onClick={onDuplicate}>
             <Copy className="size-3.5" />
           </Button>
-          <Button size="icon" variant="ghost" className="size-7" title={task.isPinned ? 'Unpin' : 'Pin'}
+          <Button size="icon" variant="ghost" className="size-7"
+            title={task.isPinned ? 'Unpin task' : 'Pin task'}
+            aria-label={task.isPinned ? 'Unpin task' : 'Pin task'}
             disabled={busy} onClick={onPin}>
             {task.isPinned ? <PinOff className="size-3.5" /> : <Pin className="size-3.5" />}
           </Button>
@@ -840,7 +843,7 @@ function EditTaskDialog({ task, categories, onClose, onSaved }: {
             </div>
             <div className="space-y-1">
               <Label htmlFor="et-desc">Description</Label>
-              <Input id="et-desc" value={description} onChange={e => setDescription(e.target.value)} placeholder="Optional details…" />
+              <Textarea id="et-desc" rows={3} value={description} onChange={e => setDescription(e.target.value)} placeholder="Optional details…" />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">

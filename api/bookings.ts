@@ -36,7 +36,7 @@ async function getFreeSlots(req: AuthedRequest, res: VercelResponse) {
 
   const from = new Date(date); from.setHours(0, 0, 0, 0);
   const to = new Date(from); to.setDate(to.getDate() + 14);
-  const slots = await freeSlots(owner.id, from, to);
+  const slots = await freeSlots(owner.id, from, to, owner.timezone);
   return res.status(200).json({ owner: { name: owner.name, timezone: owner.timezone }, slots });
 }
 

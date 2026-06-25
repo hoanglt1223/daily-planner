@@ -123,7 +123,8 @@ export function QuickTimeLogDialog() {
         variant="secondary"
         className="fixed bottom-6 left-[4.5rem] z-40 size-10 rounded-full shadow-lg"
         onClick={() => setOpen(true)}
-        title="Quick time log (l)"
+        title="Log time (l)"
+        aria-label="Log time"
       >
         <Clock className="size-5" />
       </Button>

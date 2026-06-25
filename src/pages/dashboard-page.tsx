@@ -168,9 +168,9 @@ function StatCard({ label, value, sub, bar, icon: Icon, tone }: {
             <Icon className={cn('size-4', tones.icon)} />
           </div>
         </div>
-        <p className="mt-2 text-3xl font-semibold tracking-tight">
+        <div className="mt-2 text-3xl font-semibold tracking-tight">
           {value === null ? <Skeleton className="h-9 w-24" /> : value}
-        </p>
+        </div>
         {sub && <p className="text-xs text-muted-foreground">{sub}</p>}
         {bar !== undefined && (
           <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-muted">

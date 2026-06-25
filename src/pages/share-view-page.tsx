@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { cn } from '@/lib/utils';
 
 type ShareData = {
   user: { name: string; timezone: string };
@@ -85,13 +86,22 @@ export function ShareViewPage() {
           </div>
           {busyOnly && <Badge variant="secondary">busy-only</Badge>}
         </CardHeader>
-        <CardContent className="space-y-2">
+        <CardContent className="space-y-1.5">
           {days.map(d => {
             const dayBlocks = data.blocks.filter(b => sameDay(new Date(b.startAt), d));
+            const isFree = dayBlocks.length === 0;
             return (
-              <div key={d.toISOString()} className="rounded-md shadow-soft p-3">
-                <p className="text-sm font-medium">{fmtDay(d)}</p>
-                {dayBlocks.length === 0
+              <div
+                key={d.toISOString()}
+                className={cn(
+                  'rounded-md p-3 transition-colors',
+                  isFree
+                    ? 'opacity-50'
+                    : 'shadow-soft bg-card'
+                )}
+              >
+                <p className={cn('text-sm font-medium', isFree && 'text-muted-foreground')}>{fmtDay(d)}</p>
+                {isFree
                   ? <p className="text-xs text-muted-foreground">Free</p>
                   : <ul className="mt-1 space-y-1 text-sm">
                       {dayBlocks.map(b => (

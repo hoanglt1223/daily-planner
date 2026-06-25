@@ -88,6 +88,7 @@ export function AppLayout() {
               className="ml-1 size-8"
               onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
               title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+              aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
             >
               {theme === 'dark' ? <Sun className="size-4" /> : <Moon className="size-4" />}
             </Button>
@@ -97,7 +98,7 @@ export function AppLayout() {
                   <p className="text-sm leading-tight">{me.name}</p>
                   <Badge variant="secondary" className="text-[9px] py-0">{me.role}</Badge>
                 </div>
-                <Button variant="ghost" size="icon" className="size-8" asChild title="Settings">
+                <Button variant="ghost" size="icon" className="size-8" asChild title="Settings" aria-label="Settings">
                   <Link to="/settings">
                     <Settings className="size-3.5" />
                   </Link>

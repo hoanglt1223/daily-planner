@@ -8,6 +8,7 @@ import { AppLayout } from '@/components/app-layout';
 const LandingPage = lazy(() => import('@/pages/landing-page').then(m => ({ default: m.LandingPage })));
 const LoginPage = lazy(() => import('@/pages/login-page').then(m => ({ default: m.LoginPage })));
 const RegisterPage = lazy(() => import('@/pages/register-page').then(m => ({ default: m.RegisterPage })));
+const ForgotPasswordPage = lazy(() => import('@/pages/forgot-password-page').then(m => ({ default: m.ForgotPasswordPage })));
 const ShareViewPage = lazy(() => import('@/pages/share-view-page').then(m => ({ default: m.ShareViewPage })));
 const BookSlotPage = lazy(() => import('@/pages/book-slot-page').then(m => ({ default: m.BookSlotPage })));
 const DashboardPage = lazy(() => import('@/pages/dashboard-page').then(m => ({ default: m.DashboardPage })));
@@ -30,6 +31,7 @@ export const router = createBrowserRouter([
   { path: '/', element: page(<LandingPage />) },
   { path: '/login', element: page(<LoginPage />) },
   { path: '/register', element: page(<RegisterPage />) },
+  { path: '/forgot-password', element: page(<ForgotPasswordPage />) },
   { path: '/u/:token', element: page(<ShareViewPage />) },
   { path: '/book/:token', element: page(<BookSlotPage />) },
   {
