@@ -174,6 +174,10 @@ async function createPublicBooking(req: AuthedRequest, res: VercelResponse) {
   const rescheduleToken = nanoid(32);
   const cancelToken = nanoid(32);
 
+  // Track the provisional block so we can roll it back if the booking insert
+  // hits the (ownerUserId, startAt) unique guard. The Neon HTTP driver has no
+  // interactive transactions, so cleanup is explicit.
+  let createdBlockId: string | null = null;
   try {
     const [block] = await db.insert(timeBlocks).values({
       userId: owner.id,
@@ -183,6 +187,7 @@ async function createPublicBooking(req: AuthedRequest, res: VercelResponse) {
       status: 'pending',
       note: `From ${visitorName} <${visitorEmail}>${note ? `\n${note}` : ''}`,
     }).returning();
+    createdBlockId = block.id;
 
     const [booking] = await db.insert(bookings).values({
       ownerUserId: owner.id,
@@ -220,6 +225,8 @@ async function createPublicBooking(req: AuthedRequest, res: VercelResponse) {
   } catch (e) {
     const msg = String((e as Error).message ?? '');
     if (msg.includes('unique') || msg.includes('duplicate')) {
+      // Roll back the provisional block created before the booking insert failed.
+      if (createdBlockId) await db.delete(timeBlocks).where(eq(timeBlocks.id, createdBlockId));
       return res.status(409).json({ error: 'slot_taken' });
     }
     throw e;
