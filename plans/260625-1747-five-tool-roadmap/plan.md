@@ -1,6 +1,6 @@
 # Five-Tool Roadmap — close gaps so Daily Planner credibly replaces Kanban × Calendar × Timesheet × Calendly × Todoist
 
-**Status:** Roadmap only. Per-feature phase detail authored in later rounds.
+**Status:** Features 1, 2, 3 IMPLEMENTED (read-only capacity board; Calendly++ booking with reschedule/cancel; Todoist-grade tasks). Feature 4 DEFERRED (needs Google Cloud OAuth app + secrets that cannot be provisioned autonomously; brief is implementation-ready). Schema pushed to Neon. Verified: tsc + vite build + eslint all green.
 **Created:** 2026-06-25
 **Branch:** master
 **Audience:** personal users + small teams / SMEs.
@@ -15,12 +15,12 @@ Subtasks, due dates, pinning, recurring rules, pomodoro + focus timers, ICS expo
 
 ## Sequence
 
-| # | Feature | Replaces | Impact | Effort | New fn? | Brief |
-|---|---------|----------|--------|--------|---------|-------|
-| 1 | Team capacity board | (differentiator) | High | Med | No (extend `time-blocks`/`reports`) | [phase-01](./phase-01-team-capacity-board.md) |
-| 2 | Calendly++ booking | Calendly | High | Med | No (extend `bookings`) | [phase-02](./phase-02-calendly-plus-booking.md) |
-| 3 | Todoist-grade tasks | Todoist | Med-High | Med | No (extend `tasks`) | [phase-03](./phase-03-todoist-grade-tasks.md) |
-| 4 | Google/Outlook calendar sync | Calendar | High | High | **Yes (risk)** | [phase-04](./phase-04-external-calendar-sync.md) |
+| # | Feature | Replaces | Impact | Effort | New fn? | Status | Brief |
+|---|---------|----------|--------|--------|---------|--------|-------|
+| 1 | Team capacity board | (differentiator) | High | Med | No (extend `time-blocks`/`reports`) | ✅ Done (read-only; assign-into-slot deferred) | [phase-01](./phase-01-team-capacity-board.md) |
+| 2 | Calendly++ booking | Calendly | High | Med | No (extend `bookings`) | ✅ Done | [phase-02](./phase-02-calendly-plus-booking.md) |
+| 3 | Todoist-grade tasks | Todoist | Med-High | Med | No (extend `tasks`) | ✅ Done | [phase-03](./phase-03-todoist-grade-tasks.md) |
+| 4 | Google/Outlook calendar sync | Calendar | High | High | **Yes (risk)** | ⏸ Deferred (needs OAuth app + secrets) | [phase-04](./phase-04-external-calendar-sync.md) |
 
 ### Why this order
 
