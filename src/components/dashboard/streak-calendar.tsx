@@ -9,7 +9,7 @@ import { addDays, startOfDay, fmtIsoDate } from '@/lib/time-utils';
 
 type Block = { startAt: string; endAt: string; status: string };
 
-const WEEKS = 20;
+const WEEKS = 26;
 const TOTAL_DAYS = WEEKS * 7;
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 

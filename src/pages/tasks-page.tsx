@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   AlertTriangle, Archive, ArrowUpDown, CheckCircle2, ChevronDown, ChevronRight,
-  Clock, Copy, Edit3, ListChecks, Palette, Pencil, PlayCircle, Plus, Search, Tag, Trash2, X,
+  Clock, Copy, Edit3, ListChecks, Palette, Pencil, Pin, PinOff, PlayCircle, Plus, Search, Tag, Trash2, X,
 } from 'lucide-react';
 import { apiFetch } from '@/lib/api-client';
 import { Card, CardContent } from '@/components/ui/card';
@@ -237,6 +237,7 @@ export function TasksPage() {
             <button
               key={s}
               onClick={() => setStatusFilter(s)}
+              aria-pressed={statusFilter === s}
               className={cn(
                 'rounded-full border px-3 py-1 text-xs font-medium transition-colors',
                 statusFilter === s
@@ -407,7 +408,7 @@ function TaskRow({ task, category, busy, onStatusChange, onEdit, onDelete, onDup
             )}>
               {task.title}
             </span>
-            {task.isPinned && <span className="text-[10px] text-primary">📌</span>}
+            {task.isPinned && <Pin className="size-3 text-primary shrink-0" />}
           </div>
           <div className="flex items-center gap-2 mt-0.5 flex-wrap">
             <Badge variant="secondary" className={cn('text-[10px] px-1.5 py-0', prio.cls)}>
@@ -464,7 +465,7 @@ function TaskRow({ task, category, busy, onStatusChange, onEdit, onDelete, onDup
           </Button>
           <Button size="icon" variant="ghost" className="size-7" title={task.isPinned ? 'Unpin' : 'Pin'}
             disabled={busy} onClick={onPin}>
-            <span className="text-xs">{task.isPinned ? '📌' : '📍'}</span>
+            {task.isPinned ? <PinOff className="size-3.5" /> : <Pin className="size-3.5" />}
           </Button>
           <Button size="icon" variant="ghost" className="size-7 text-destructive hover:text-destructive" title="Delete"
             disabled={busy} onClick={onDelete}>
@@ -580,24 +581,33 @@ function NewTaskDialog({ open, onOpenChange, categories, onCreated }: {
                   value={minutes} onChange={e => setMinutes(Number(e.target.value) || 60)} />
               </div>
               <div className="space-y-1">
-                <Label>Priority</Label>
-                <div className="flex gap-1">
-                  {[1, 2, 3, 4].map(p => (
-                    <button key={p} type="button"
+                <Label id="nt-pri-label">Priority</Label>
+                <div role="radiogroup" aria-labelledby="nt-pri-label" className="flex gap-1">
+                  {([
+                    { value: 1, label: 'Urgent' },
+                    { value: 2, label: 'High' },
+                    { value: 3, label: 'Normal' },
+                    { value: 4, label: 'Low' },
+                  ] as const).map(p => (
+                    <button key={p.value} type="button"
+                      role="radio"
+                      aria-checked={priority === p.value}
                       className={cn(
                         'flex-1 rounded border py-1 text-xs font-medium transition-colors',
-                        priority === p ? 'border-primary bg-primary text-primary-foreground' : 'border-border text-muted-foreground hover:border-foreground/30',
+                        priority === p.value ? 'border-primary bg-primary text-primary-foreground' : 'border-border text-muted-foreground hover:border-foreground/30',
                       )}
-                      onClick={() => setPriority(p)}>{p}</button>
+                      onClick={() => setPriority(p.value)}>{p.label}</button>
                   ))}
                 </div>
               </div>
             </div>
             {categories.length > 0 && (
               <div className="space-y-1">
-                <Label>Category</Label>
-                <div className="flex flex-wrap gap-1">
+                <Label id="nt-cat-label">Category</Label>
+                <div role="radiogroup" aria-labelledby="nt-cat-label" className="flex flex-wrap gap-1">
                   <button type="button"
+                    role="radio"
+                    aria-checked={categoryId === null}
                     className={cn(
                       'rounded-full border px-2 py-0.5 text-[10px] font-medium transition-colors',
                       categoryId === null ? 'border-primary bg-primary text-primary-foreground' : 'border-border text-muted-foreground hover:border-foreground/30',
@@ -605,6 +615,8 @@ function NewTaskDialog({ open, onOpenChange, categories, onCreated }: {
                     onClick={() => setCategoryId(null)}>None</button>
                   {categories.map(c => (
                     <button key={c.id} type="button"
+                      role="radio"
+                      aria-checked={categoryId === c.id}
                       className={cn(
                         'rounded-full border px-2 py-0.5 text-[10px] font-medium transition-colors flex items-center gap-1',
                         categoryId === c.id ? 'border-primary bg-primary text-primary-foreground' : 'border-border text-muted-foreground hover:border-foreground/30',
@@ -705,26 +717,35 @@ function EditTaskDialog({ task, categories, onClose, onSaved }: {
                 <Input id="et-min" type="number" min={15} step={15} value={minutes} onChange={e => setMinutes(Number(e.target.value) || 60)} />
               </div>
               <div className="space-y-1">
-                <Label>Priority</Label>
-                <div className="flex gap-1">
-                  {[1, 2, 3, 4].map(p => (
-                    <button key={p} type="button"
+                <Label id="et-pri-label">Priority</Label>
+                <div role="radiogroup" aria-labelledby="et-pri-label" className="flex gap-1">
+                  {([
+                    { value: 1, label: 'Urgent' },
+                    { value: 2, label: 'High' },
+                    { value: 3, label: 'Normal' },
+                    { value: 4, label: 'Low' },
+                  ] as const).map(p => (
+                    <button key={p.value} type="button"
+                      role="radio"
+                      aria-checked={priority === p.value}
                       className={cn(
                         'flex-1 rounded border py-1 text-xs font-medium transition-colors',
-                        priority === p ? 'border-primary bg-primary text-primary-foreground' : 'border-border text-muted-foreground hover:border-foreground/30',
+                        priority === p.value ? 'border-primary bg-primary text-primary-foreground' : 'border-border text-muted-foreground hover:border-foreground/30',
                       )}
-                      onClick={() => setPriority(p)}>{p}</button>
+                      onClick={() => setPriority(p.value)}>{p.label}</button>
                   ))}
                 </div>
               </div>
             </div>
             <div className="space-y-1">
-              <Label>Status</Label>
-              <div className="flex flex-wrap gap-1">
+              <Label id="et-status-label">Status</Label>
+              <div role="radiogroup" aria-labelledby="et-status-label" className="flex flex-wrap gap-1">
                 {STATUS_OPTIONS.map(s => {
                   const m = STATUS_META[s];
                   return (
                     <button key={s} type="button"
+                      role="radio"
+                      aria-checked={status === s}
                       className={cn(
                         'rounded-full border px-2.5 py-0.5 text-xs font-medium transition-colors flex items-center gap-1',
                         status === s ? 'border-primary bg-primary text-primary-foreground' : 'border-border text-muted-foreground hover:border-foreground/30',
@@ -738,9 +759,11 @@ function EditTaskDialog({ task, categories, onClose, onSaved }: {
             </div>
             {categories.length > 0 && (
               <div className="space-y-1">
-                <Label>Category</Label>
-                <div className="flex flex-wrap gap-1">
+                <Label id="et-cat-label">Category</Label>
+                <div role="radiogroup" aria-labelledby="et-cat-label" className="flex flex-wrap gap-1">
                   <button type="button"
+                    role="radio"
+                    aria-checked={categoryId === null}
                     className={cn(
                       'rounded-full border px-2 py-0.5 text-[10px] font-medium transition-colors',
                       categoryId === null ? 'border-primary bg-primary text-primary-foreground' : 'border-border text-muted-foreground hover:border-foreground/30',
@@ -748,6 +771,8 @@ function EditTaskDialog({ task, categories, onClose, onSaved }: {
                     onClick={() => setCategoryId(null)}>None</button>
                   {categories.map(c => (
                     <button key={c.id} type="button"
+                      role="radio"
+                      aria-checked={categoryId === c.id}
                       className={cn(
                         'rounded-full border px-2 py-0.5 text-[10px] font-medium transition-colors flex items-center gap-1',
                         categoryId === c.id ? 'border-primary bg-primary text-primary-foreground' : 'border-border text-muted-foreground hover:border-foreground/30',

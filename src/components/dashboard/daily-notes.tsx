@@ -16,6 +16,7 @@ export function DailyNotes() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [saveError, setSaveError] = useState(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const dirty = useRef(false);
 
@@ -39,34 +40,41 @@ export function DailyNotes() {
 
   useEffect(() => { loadNote(date); }, [date, loadNote]);
 
-  // Save with debounce
+  // Save with debounce — snapshot the target date at schedule time to avoid
+  // writing previous-day content to a new date after a day switch.
   function scheduleSave(content: string) {
+    const targetDate = dateStr; // capture current date before any async gap
     setNote(content);
     dirty.current = true;
     setSaved(false);
+    setSaveError(false);
     if (saveTimer.current) clearTimeout(saveTimer.current);
-    saveTimer.current = setTimeout(() => doSave(content), 1500);
+    saveTimer.current = setTimeout(() => doSave(content, targetDate), 1500);
   }
 
-  async function doSave(content: string) {
+  async function doSave(content: string, targetDate: string) {
     setSaving(true);
     try {
       await apiFetch('/api/daily-notes', {
         method: 'PUT',
-        body: JSON.stringify({ date: dateStr, content }),
+        body: JSON.stringify({ date: targetDate, content }),
       });
       dirty.current = false;
+      setSaveError(false);
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
-    } catch { /* silent */ }
-    finally { setSaving(false); }
+    } catch {
+      setSaveError(true);
+    } finally {
+      setSaving(false);
+    }
   }
 
   // Force save on unmount
   useEffect(() => {
     return () => {
       if (saveTimer.current) clearTimeout(saveTimer.current);
-      if (dirty.current) doSave(note);
+      if (dirty.current) doSave(note, dateStr);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -124,10 +132,19 @@ export function DailyNotes() {
               <Loader2 className="size-3 animate-spin" /> Saving…
             </span>
           )}
-          {saved && !saving && (
+          {saved && !saving && !saveError && (
             <span className="flex items-center gap-1 text-[10px] text-emerald-600">
               <Save className="size-3" /> Saved
             </span>
+          )}
+          {saveError && !saving && (
+            <button
+              type="button"
+              className="flex items-center gap-1 text-[10px] text-destructive hover:underline cursor-pointer"
+              onClick={() => doSave(note, dateStr)}
+            >
+              Couldn&apos;t save — retry
+            </button>
           )}
         </div>
       </CardContent>

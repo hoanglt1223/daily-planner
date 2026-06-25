@@ -26,7 +26,7 @@ export function LandingPage() {
           </span>
           <div className="flex gap-2">
             <Button asChild variant="ghost" size="sm"><Link to="/login">Sign in</Link></Button>
-            <Button asChild size="sm"><Link to="/register">Get started <ArrowRight className="size-3.5" /></Link></Button>
+            <Button asChild size="sm"><Link to="/register">Start free <ArrowRight className="size-3.5" /></Link></Button>
           </div>
         </div>
       </header>
@@ -63,6 +63,15 @@ export function LandingPage() {
           ))}
         </div>
       </section>
+
+      <footer className="border-t border-border/40 py-6">
+        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-2 px-6 text-xs text-muted-foreground sm:flex-row">
+          <span>© {new Date().getFullYear()} Daily Planner</span>
+          <Button asChild variant="link" size="sm" className="h-auto p-0 text-xs text-muted-foreground">
+            <Link to="/login">Sign in</Link>
+          </Button>
+        </div>
+      </footer>
     </div>
   );
 }

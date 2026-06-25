@@ -1,8 +1,9 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { DndContext, type DragEndEvent, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus } from 'lucide-react';
 import { toast } from 'sonner';
-import { addDays, fmtIsoDate, startOfDay, startOfWeek, WORKDAY_START_HOUR } from '@/lib/time-utils';
+import { addDays, fmtIsoDate, startOfDay, startOfWeek, WORKDAY_START_HOUR, fromWallClock, DEFAULT_TZ } from '@/lib/time-utils';
+import { formatInTimeZone } from 'date-fns-tz';
 import { Button } from '@/components/ui/button';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { TimeColumn } from './time-column';
@@ -46,6 +47,22 @@ export function PlannerGrid({ initialView = 'week' as View }) {
   );
 
   const todayIso = fmtIsoDate(new Date());
+
+  /** Opens the create dialog defaulting to the next round hour (or :30 if already on the hour). */
+  function openAddBlockDialog() {
+    const now = new Date();
+    const nowInTz = formatInTimeZone(now, DEFAULT_TZ, 'yyyy-MM-dd HH:mm');
+    const [dateIso, hhmm] = nowInTz.split(' ');
+    const [h, m] = hhmm.split(':').map(Number);
+    // Round up to next 30-min slot
+    const nextMin = m < 30 ? 30 : 0;
+    const nextHour = m < 30 ? h : (h + 1) % 24;
+    const paddedHour = String(nextHour).padStart(2, '0');
+    const paddedMin = String(nextMin).padStart(2, '0');
+    const startAt = fromWallClock(dateIso, `${paddedHour}:${paddedMin}`);
+    const endAt = new Date(startAt.getTime() + 30 * 60_000);
+    setEditor({ mode: 'create', startAt, endAt });
+  }
 
   const closeEditor = useCallback(() => setEditor(null), []);
   usePlannerShortcuts({
@@ -94,11 +111,23 @@ export function PlannerGrid({ initialView = 'week' as View }) {
     <DndContext sensors={sensors} onDragEnd={onDragEnd}>
       <div className="space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <ToggleGroup type="single" value={view} variant="outline" size="sm"
-            onValueChange={v => v && setView(v as View)}>
-            <ToggleGroupItem value="day">Day</ToggleGroupItem>
-            <ToggleGroupItem value="week">Week</ToggleGroupItem>
-          </ToggleGroup>
+          <div className="flex items-center gap-2">
+            <ToggleGroup type="single" value={view} variant="outline" size="sm"
+              onValueChange={v => v && setView(v as View)}>
+              <ToggleGroupItem value="day">Day</ToggleGroupItem>
+              <ToggleGroupItem value="week">Week</ToggleGroupItem>
+            </ToggleGroup>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={openAddBlockDialog}
+              aria-label="Add time block"
+              title="Add a new time block (keyboard accessible)"
+            >
+              <Plus className="size-3.5" />
+              Add block
+            </Button>
+          </div>
           <div className="flex items-center gap-1">
             <Button size="sm" variant="outline" onClick={() => setAnchor(addDays(anchor, -days))}>
               <ChevronLeft className="size-3.5" />

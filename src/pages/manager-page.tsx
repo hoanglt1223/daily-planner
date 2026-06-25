@@ -10,6 +10,7 @@ type Block = { id: string; title: string; startAt: string; endAt: string };
 
 export function ManagerPage() {
   const [people, setPeople] = useState<ManagedUser[]>([]);
+  const [listLoading, setListLoading] = useState(true);
   const [selected, setSelected] = useState<string | null>(null);
   const [blocks, setBlocks] = useState<Block[]>([]);
   const [listError, setListError] = useState<string | null>(null);
@@ -18,7 +19,8 @@ export function ManagerPage() {
   useEffect(() => {
     apiFetch<ManagedUser[]>('/api/admin/managed-users')
       .then(setPeople)
-      .catch(e => setListError((e as Error).message));
+      .catch(e => setListError((e as Error).message))
+      .finally(() => setListLoading(false));
   }, []);
 
   useEffect(() => {
@@ -39,17 +41,22 @@ export function ManagerPage() {
   const days = Array.from({ length: 14 }, (_, i) => addDays(startOfWeek(new Date()), i));
 
   return (
-    <div className="grid grid-cols-[220px_1fr] gap-4">
+    <div className="grid grid-cols-1 md:grid-cols-[220px_1fr] gap-4">
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-base">Team</CardTitle>
-          <CardDescription>{people.length} managed users</CardDescription>
+          <CardDescription>{listLoading ? 'Loading…' : `${people.length} managed users`}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-1">
-          {listError && (
+          {listLoading && (
+            <p className="text-xs text-muted-foreground px-1">Loading…</p>
+          )}
+          {!listLoading && listError && (
             <p className="text-xs text-red-600 px-1">{listError}</p>
           )}
-          {!listError && people.length === 0 && <p className="text-xs text-muted-foreground">No managed users.</p>}
+          {!listLoading && !listError && people.length === 0 && (
+            <p className="text-xs text-muted-foreground">No managed users.</p>
+          )}
           {people.map(p => (
             <Button key={p.id} variant={selected === p.id ? 'default' : 'ghost'}
               className="w-full justify-start"

@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
-import { CalendarCheck2, Clock4, TrendingUp } from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
+import { CalendarCheck2, Clock4, ListTodo, RefreshCw, TrendingUp } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { apiFetch } from '@/lib/api-client';
 import { SharePanel } from '@/components/dashboard/share-panel';
 import { BookingsInbox } from '@/components/dashboard/bookings-inbox';
@@ -16,6 +17,7 @@ import { DailyReview } from '@/components/dashboard/daily-review';
 import { StreakCalendar } from '@/components/dashboard/streak-calendar';
 import { TimeAllocation } from '@/components/dashboard/time-allocation';
 import { PomodoroTimer } from '@/components/dashboard/pomodoro-timer';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { addDays, startOfWeek, WORKDAY_HOURS } from '@/lib/time-utils';
@@ -27,8 +29,13 @@ export function DashboardPage() {
   const [todayMin, setTodayMin] = useState<number | null>(null);
   const [weekMin, setWeekMin] = useState<number | null>(null);
   const [weekBlocks, setWeekBlocks] = useState<Block[]>([]);
+  const [fetchError, setFetchError] = useState(false);
 
-  useEffect(() => {
+  const loadStats = useCallback(() => {
+    setFetchError(false);
+    setTodayMin(null);
+    setWeekMin(null);
+    setWeekBlocks([]);
     const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
     const todayEnd = addDays(todayStart, 1);
     const weekStart = startOfWeek(new Date());
@@ -40,13 +47,17 @@ export function DashboardPage() {
       setTodayMin(sumMinutes(today));
       setWeekMin(sumMinutes(week));
       setWeekBlocks(week);
-    }).catch(() => undefined);
+    }).catch(() => setFetchError(true));
   }, []);
+
+  useEffect(() => { loadStats(); }, [loadStats]);
 
   const workDayMin = WORKDAY_HOURS * 60;
   const workWeekMin = workDayMin * 7;
   const todayFree = todayMin === null ? null : Math.max(0, workDayMin - todayMin);
   const weekLoadPct = weekMin === null ? null : Math.min(100, Math.round((weekMin / workWeekMin) * 100));
+
+  const isEmpty = weekBlocks.length === 0 && todayMin === 0 && weekMin === 0;
 
   return (
     <div className="space-y-6">
@@ -55,15 +66,62 @@ export function DashboardPage() {
         <p className="text-sm text-muted-foreground">Workload, capacity, and pending requests at a glance.</p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-3">
-        <StatCard label="Booked today" icon={Clock4} tone="sky"
-          value={todayMin === null ? null : fmtHm(todayMin)} />
-        <StatCard label="Free today" icon={CalendarCheck2} tone="emerald"
-          value={todayFree === null ? null : fmtHm(todayFree)} />
-        <StatCard label="Week load" icon={TrendingUp} tone="violet"
-          value={weekLoadPct === null ? null : `${weekLoadPct}%`}
-          sub={weekMin !== null ? `${fmtHm(weekMin)} of ${fmtHm(workWeekMin)}` : undefined}
-          bar={weekLoadPct ?? undefined} />
+      {isEmpty && !fetchError && (
+        <Card className="border-dashed border-2 border-muted-foreground/25 bg-muted/20">
+          <CardContent className="flex flex-col items-center gap-4 py-10 text-center">
+            <div className="rounded-full bg-primary/10 p-4">
+              <ListTodo className="size-8 text-primary" />
+            </div>
+            <div className="space-y-1">
+              <p className="text-lg font-semibold">Nothing scheduled yet</p>
+              <p className="text-sm text-muted-foreground max-w-xs">
+                Create your first task then schedule it on the Planner to start tracking your day.
+              </p>
+            </div>
+            <div className="flex flex-wrap justify-center gap-3">
+              <Button asChild>
+                <Link to="/tasks">Create a task</Link>
+              </Button>
+              <Button variant="outline" asChild>
+                <Link to="/planner">Open Planner</Link>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {fetchError ? (
+        <Card className="border-destructive/40 bg-destructive/5">
+          <CardContent className="flex items-center justify-between gap-4 py-4 px-5">
+            <p className="text-sm text-destructive font-medium">
+              Couldn't load capacity stats. Check your connection and try again.
+            </p>
+            <Button size="sm" variant="outline" onClick={loadStats} className="shrink-0 gap-1.5">
+              <RefreshCw className="size-3.5" />
+              Retry
+            </Button>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid gap-4 md:grid-cols-3">
+          <StatCard label="Booked today" icon={Clock4} tone="sky"
+            value={todayMin === null ? null : fmtHm(todayMin)} />
+          <StatCard label="Free today" icon={CalendarCheck2} tone="emerald"
+            value={todayFree === null ? null : fmtHm(todayFree)} />
+          <StatCard label="Week load" icon={TrendingUp} tone="violet"
+            value={weekLoadPct === null ? null : `${weekLoadPct}%`}
+            sub={weekMin !== null ? `${fmtHm(weekMin)} of ${fmtHm(workWeekMin)}` : undefined}
+            bar={weekLoadPct ?? undefined} />
+        </div>
+      )}
+
+      <DailyTimeline />
+
+      <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-4">
+        <ProductivityInsights />
+        <TodayTasks />
+        <UpcomingTasks />
+        <CompletedTasks />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">
@@ -77,15 +135,6 @@ export function DashboardPage() {
           <DailyFocus />
           <DailyReview />
         </div>
-      </div>
-
-      <DailyTimeline />
-
-      <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-4">
-        <ProductivityInsights />
-        <TodayTasks />
-        <UpcomingTasks />
-        <CompletedTasks />
       </div>
 
       <DailyNotes />
@@ -111,7 +160,7 @@ function StatCard({ label, value, sub, bar, icon: Icon, tone }: {
     violet:  { ring: 'ring-violet-200',  icon: 'text-violet-600',  bg: 'bg-violet-50',  bar: 'bg-violet-500' },
   }[tone];
   return (
-    <Card className={cn('relative overflow-hidden ring-1 transition-shadow hover:shadow-md', tones.ring)}>
+    <Card className={cn('relative overflow-hidden ring-1 transition-shadow hover:shadow-soft-md', tones.ring)}>
       <CardContent className="p-5">
         <div className="flex items-start justify-between">
           <p className="text-sm text-muted-foreground">{label}</p>

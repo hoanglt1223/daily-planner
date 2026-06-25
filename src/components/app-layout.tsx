@@ -25,16 +25,19 @@ export function AppLayout() {
   const { pathname } = useLocation();
   const nav = useNavigate();
   const [me, setMe] = useState<Me | null>(null);
+  const [authReady, setAuthReady] = useState(false);
   const { theme, setTheme } = useTheme();
 
   useGlobalShortcuts();
 
   useEffect(() => {
-    if (!getAuthToken()) { nav('/login'); return; }
-    apiFetch<Me>('/api/auth/me').then(setMe).catch(() => {
-      clearAuthToken();
-      nav('/login');
-    });
+    if (!getAuthToken()) { nav('/login', { replace: true }); return; }
+    apiFetch<Me>('/api/auth/me')
+      .then(data => { setMe(data); setAuthReady(true); })
+      .catch(() => {
+        clearAuthToken();
+        nav('/login', { replace: true });
+      });
   }, [nav]);
 
   const links: Array<{ to: keyof typeof ICONS; label: string; show: boolean }> = [
@@ -66,6 +69,7 @@ export function AppLayout() {
               const active = pathname.startsWith(n.to);
               return (
                 <Link key={n.to} to={n.to}
+                  aria-current={active ? 'page' : undefined}
                   className={cn(
                     'flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm transition-colors',
                     active ? 'bg-primary/10 text-primary font-medium' : 'hover:bg-muted',
@@ -93,7 +97,7 @@ export function AppLayout() {
                     <Settings className="size-3.5" />
                   </Link>
                 </Button>
-                <Button variant="ghost" size="sm" onClick={logout}>
+                <Button variant="ghost" size="sm" onClick={logout} title="Log out" aria-label="Log out">
                   <LogOut className="size-3.5" />
                 </Button>
               </div>
@@ -102,7 +106,7 @@ export function AppLayout() {
         </div>
       </header>
       <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6">
-        <Outlet />
+        {authReady && <Outlet />}
       </main>
       <KeyboardShortcutsDialog />
       <QuickTaskDialog />

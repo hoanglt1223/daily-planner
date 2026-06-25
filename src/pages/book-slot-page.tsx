@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import { format, parseISO } from 'date-fns';
-import { CalendarIcon } from 'lucide-react';
+import { CalendarIcon, ArrowRight } from 'lucide-react';
 import { toast } from 'sonner';
 import { fmtDay, fmtHour, fmtIsoDate } from '@/lib/time-utils';
 import { Button } from '@/components/ui/button';
@@ -17,6 +17,17 @@ import { cn } from '@/lib/utils';
 type Slot = { startAt: string; endAt: string };
 type Owner = { name: string; timezone: string };
 
+function Logo() {
+  return (
+    <span className="flex items-center gap-2 font-semibold">
+      <span className="grid size-7 place-items-center rounded-lg bg-gradient-to-br from-violet-500 via-primary to-fuchsia-500 text-white text-xs shadow-sm">
+        DP
+      </span>
+      Daily Planner
+    </span>
+  );
+}
+
 export function BookSlotPage() {
   const { token } = useParams<{ token: string }>();
   const [date, setDate] = useState<Date>(() => new Date());
@@ -24,6 +35,7 @@ export function BookSlotPage() {
   const [slots, setSlots] = useState<Slot[] | null>(null);
   const [picked, setPicked] = useState<Slot | null>(null);
   const [submitted, setSubmitted] = useState(false);
+  const [invalidToken, setInvalidToken] = useState(false);
   const [form, setForm] = useState({ visitorName: '', visitorEmail: '', title: '', note: '' });
   const [submitting, setSubmitting] = useState(false);
 
@@ -32,8 +44,12 @@ export function BookSlotPage() {
     setSlots(null); setPicked(null);
     const iso = fmtIsoDate(date);
     fetch(`/api/bookings/free-slots?token=${token}&date=${iso}`)
-      .then(r => r.ok ? r.json() : Promise.reject(new Error(`${r.status}`)))
-      .then(d => { setOwner(d.owner); setSlots(d.slots); })
+      .then(r => {
+        if (r.status === 404 || r.status === 410) { setInvalidToken(true); return null; }
+        if (!r.ok) return Promise.reject(new Error(`${r.status}`));
+        return r.json();
+      })
+      .then(d => { if (d) { setOwner(d.owner); setSlots(d.slots); } })
       .catch(e => toast.error(e.message));
   }, [token, date]);
 
@@ -59,9 +75,23 @@ export function BookSlotPage() {
     finally { setSubmitting(false); }
   }
 
+  if (invalidToken) return (
+    <Wrap>
+      <Card className="shadow-soft">
+        <CardContent className="flex flex-col items-center gap-4 p-8 text-center">
+          <Logo />
+          <p className="text-muted-foreground">This booking link is invalid or expired.</p>
+          <Button asChild size="sm" variant="default">
+            <Link to="/">Go to Daily Planner <ArrowRight className="size-3.5" /></Link>
+          </Button>
+        </CardContent>
+      </Card>
+    </Wrap>
+  );
+
   if (submitted) return (
     <Wrap>
-      <Card>
+      <Card className="shadow-soft">
         <CardHeader>
           <CardTitle>Request sent</CardTitle>
           <CardDescription>{owner?.name} will review and confirm.</CardDescription>
@@ -72,10 +102,14 @@ export function BookSlotPage() {
 
   return (
     <Wrap>
-      <Card>
+      <Card className="shadow-soft">
         <CardHeader>
           <CardTitle>Book a slot with {owner?.name ?? '…'}</CardTitle>
-          <CardDescription>Timezone: {owner?.timezone ?? '…'}</CardDescription>
+          <CardDescription>
+            {owner?.timezone
+              ? <>Times shown in <span className="font-medium text-foreground">{owner.timezone}</span></>
+              : 'Loading…'}
+          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex items-center gap-2">
@@ -157,5 +191,9 @@ function SlotPicker({ slots, picked, onPick }: {
 }
 
 function Wrap({ children }: { children: React.ReactNode }) {
-  return <div className="mx-auto max-w-xl px-4 py-8">{children}</div>;
+  return (
+    <div className="flex min-h-svh items-center justify-center px-4 py-12">
+      <div className="w-full max-w-xl">{children}</div>
+    </div>
+  );
 }

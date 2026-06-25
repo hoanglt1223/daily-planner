@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { toast } from 'sonner';
 
 /* ─── Types ─── */
@@ -158,7 +159,7 @@ function ProfileSection({ profile, onUpdated }: {
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="settings-email">Email</Label>
-          <Input id="settings-email" value={profile.email} disabled className="opacity-60" />
+          <Input id="settings-email" value={profile.email} disabled />
           <p className="text-[10px] text-muted-foreground">Email cannot be changed.</p>
         </div>
         <div className="space-y-1.5">
@@ -222,7 +223,7 @@ function PrivacySection({ profile, onUpdated }: {
         <CardDescription>Control what managers can see about your schedule.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="space-y-2">
+        <RadioGroup value={privacy} onValueChange={v => setPrivacy(v as PrivacyMode)} className="gap-2">
           {PRIVACY_OPTIONS.map(opt => (
             <label
               key={opt.value}
@@ -232,21 +233,14 @@ function PrivacySection({ profile, onUpdated }: {
                   : 'ring-hairline hover:bg-muted/50'
               }`}
             >
-              <input
-                type="radio"
-                name="privacy"
-                value={opt.value}
-                checked={privacy === opt.value}
-                onChange={() => setPrivacy(opt.value)}
-                className="mt-0.5"
-              />
+              <RadioGroupItem value={opt.value} id={`privacy-${opt.value}`} className="mt-0.5" />
               <div>
                 <p className="text-sm font-medium">{opt.label}</p>
                 <p className="text-xs text-muted-foreground">{opt.description}</p>
               </div>
             </label>
           ))}
-        </div>
+        </RadioGroup>
         <Separator />
         <Button size="sm" onClick={save} disabled={privacy === profile.privacy || saving}>
           {saving ? <Loader2 className="size-3.5 mr-1.5 animate-spin" /> : <Save className="size-3.5 mr-1.5" />}

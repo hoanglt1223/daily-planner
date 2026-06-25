@@ -141,8 +141,8 @@ export function QuickTimeLogDialog() {
             <div className="space-y-4 py-3">
               {/* Task selector */}
               <div className="space-y-1.5">
-                <Label>Task</Label>
-                <div className="max-h-48 space-y-1.5 overflow-y-auto rounded-md ring-hairline p-2">
+                <Label id="qtl-task-label">Task</Label>
+                <div role="radiogroup" aria-labelledby="qtl-task-label" className="max-h-48 space-y-1.5 overflow-y-auto rounded-md ring-hairline p-2">
                   {sortedTasks.length === 0 && (
                     <p className="text-xs text-muted-foreground py-2 text-center">No active tasks.</p>
                   )}
@@ -153,6 +153,8 @@ export function QuickTimeLogDialog() {
                       <button
                         key={t.id}
                         type="button"
+                        role="radio"
+                        aria-checked={selectedTaskId === t.id}
                         onClick={() => setSelectedTaskId(t.id)}
                         className={cn(
                           'w-full rounded-md border px-3 py-2 text-left transition-colors',
@@ -183,12 +185,14 @@ export function QuickTimeLogDialog() {
 
               {/* Minutes */}
               <div className="space-y-1.5">
-                <Label>Time spent</Label>
-                <div className="flex flex-wrap gap-1.5">
+                <Label id="qtl-time-label">Time spent</Label>
+                <div role="radiogroup" aria-labelledby="qtl-time-label" className="flex flex-wrap gap-1.5">
                   {QUICK_MINUTES.map(m => (
                     <button
                       key={m}
                       type="button"
+                      role="radio"
+                      aria-checked={minutes === m}
                       onClick={() => setMinutes(m)}
                       className={cn(
                         'rounded-md border px-3 py-1.5 text-xs font-medium transition-colors',

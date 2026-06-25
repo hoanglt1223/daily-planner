@@ -19,6 +19,7 @@ type Mapping = { managerId: string; userId: string };
 
 export function AdminPage() {
   const [users, setUsers] = useState<AdminUser[] | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [mappings, setMappings] = useState<Mapping[]>([]);
   const [pickedManager, setPickedManager] = useState('');
   const [pickedUser, setPickedUser] = useState('');
@@ -27,11 +28,13 @@ export function AdminPage() {
   const [removing, setRemoving] = useState<string | null>(null);
 
   const load = useCallback(() => {
+    setLoadError(null);
+    setUsers(null);
     Promise.all([
       apiFetch<AdminUser[]>('/api/admin/users'),
       apiFetch<Mapping[]>('/api/admin/list-mappings'),
     ]).then(([u, m]) => { setUsers(u); setMappings(m); })
-      .catch(e => toast.error((e as Error).message));
+      .catch(e => setLoadError((e as Error).message));
   }, []);
   useEffect(load, [load]);
 
@@ -83,10 +86,15 @@ export function AdminPage() {
       <Card>
         <CardHeader>
           <CardTitle>Users</CardTitle>
-          <CardDescription>{users ? `${users.length} accounts` : 'Loading…'}</CardDescription>
+          <CardDescription>{loadError ? 'Failed to load' : users ? `${users.length} accounts` : 'Loading…'}</CardDescription>
         </CardHeader>
         <CardContent>
-          {!users ? (
+          {loadError ? (
+            <div className="space-y-3 py-2">
+              <p className="text-sm text-red-600">{loadError}</p>
+              <Button size="sm" variant="outline" onClick={load}>Retry</Button>
+            </div>
+          ) : !users ? (
             <div className="space-y-2">
               {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-9 w-full" />)}
             </div>

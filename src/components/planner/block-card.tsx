@@ -109,24 +109,30 @@ export function BlockCard({ block, dayStart, onResize, onClick, onStatusChange }
       )}>
       <div className="flex items-start gap-1">
         <span className={cn('mt-0.5 inline-block size-1.5 shrink-0 rounded-full', color.accent)} />
-        <span className={cn('font-medium truncate', block.status === 'completed' && 'line-through')}>{block.title}</span>
+        <span
+          title={block.title}
+          className={cn('font-medium truncate', block.status === 'completed' && 'line-through')}
+        >
+          {block.title}
+        </span>
       </div>
       <div className="flex items-center gap-1 text-[10px] opacity-70">
         <span>{fmtHour(start)}–{fmtHour(end)}</span>
         <button
           type="button"
           onClick={cycleStatus}
+          aria-label={`Status: ${STATUS_LABELS[block.status]} — click to cycle`}
           className={cn(
             'ml-auto shrink-0 rounded px-1 py-0.5 text-[9px] font-semibold leading-none transition-colors cursor-pointer select-none',
             STATUS_CHIP_COLORS[block.status],
             cycling && 'animate-pulse',
           )}
-          title={`Status: ${STATUS_LABELS[block.status]} → click to cycle`}
         >
           {STATUS_LABELS[block.status]}
         </button>
       </div>
       <div
+        aria-hidden="true"
         onPointerDown={onResizePointerDown}
         onPointerMove={onResizePointerMove}
         onPointerUp={onResizePointerUp}

@@ -110,18 +110,25 @@ export function QuickTaskDialog() {
                     value={minutes} onChange={e => setMinutes(Number(e.target.value) || 60)} />
                 </div>
                 <div className="space-y-1">
-                  <Label htmlFor="qt-pri">Priority (1–4)</Label>
-                  <div className="flex gap-1">
-                    {[1, 2, 3, 4].map(p => (
-                      <button key={p} type="button"
+                  <Label id="qt-pri-label">Priority</Label>
+                  <div role="radiogroup" aria-labelledby="qt-pri-label" className="flex gap-1">
+                    {([
+                      { value: 1, label: 'Urgent' },
+                      { value: 2, label: 'High' },
+                      { value: 3, label: 'Normal' },
+                      { value: 4, label: 'Low' },
+                    ] as const).map(p => (
+                      <button key={p.value} type="button"
+                        role="radio"
+                        aria-checked={priority === p.value}
                         className={cn(
                           'flex-1 rounded border py-1 text-xs font-medium transition-colors',
-                          priority === p
+                          priority === p.value
                             ? 'border-primary bg-primary text-primary-foreground'
                             : 'border-border text-muted-foreground hover:border-foreground/30',
                         )}
-                        onClick={() => setPriority(p)}>
-                        {p}
+                        onClick={() => setPriority(p.value)}>
+                        {p.label}
                       </button>
                     ))}
                   </div>
@@ -129,9 +136,11 @@ export function QuickTaskDialog() {
               </div>
               {categories.length > 0 && (
                 <div className="space-y-1">
-                  <Label>Category</Label>
-                  <div className="flex flex-wrap gap-1">
+                  <Label id="qt-cat-label">Category</Label>
+                  <div role="radiogroup" aria-labelledby="qt-cat-label" className="flex flex-wrap gap-1">
                     <button type="button"
+                      role="radio"
+                      aria-checked={categoryId === null}
                       className={cn(
                         'rounded-full border px-2 py-0.5 text-[10px] font-medium transition-colors',
                         categoryId === null
@@ -143,6 +152,8 @@ export function QuickTaskDialog() {
                     </button>
                     {categories.map(c => (
                       <button key={c.id} type="button"
+                        role="radio"
+                        aria-checked={categoryId === c.id}
                         className={cn(
                           'rounded-full border px-2 py-0.5 text-[10px] font-medium transition-colors flex items-center gap-1',
                           categoryId === c.id

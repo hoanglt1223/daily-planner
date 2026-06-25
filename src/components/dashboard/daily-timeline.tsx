@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { type KeyboardEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { CalendarClock, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { apiFetch } from '@/lib/api-client';
@@ -33,6 +33,9 @@ export function DailyTimeline() {
   const [error, setError] = useState(false);
   const [now, setNow] = useState(() => new Date());
   const navigate = useNavigate();
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  const nowMarkerRef = useRef<HTMLDivElement | null>(null);
+  const firstBlockRef = useRef<HTMLDivElement | null>(null);
 
   function load() {
     setError(false);
@@ -54,6 +57,15 @@ export function DailyTimeline() {
     const id = setInterval(() => setNow(new Date()), 60_000);
     return () => clearInterval(id);
   }, []);
+
+  // Auto-scroll the timeline's OWN container (never the page) to "now" / first block
+  useEffect(() => {
+    if (loading) return;
+    const container = scrollRef.current;
+    const target = nowMarkerRef.current ?? firstBlockRef.current;
+    if (!container || !target) return;
+    container.scrollTop = Math.max(0, target.offsetTop - container.clientHeight / 2);
+  }, [loading, blocks.length]);
 
   const nowMinutes = minutesSinceMidnight(now);
   const nowOffset =
@@ -102,8 +114,21 @@ export function DailyTimeline() {
 
   const hours = Array.from({ length: TOTAL_HOURS }, (_, i) => WORKDAY_START_HOUR + i);
 
+  function handleKeyDown(e: KeyboardEvent<HTMLDivElement>) {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      navigate('/planner');
+    }
+  }
+
   return (
-    <Card className="cursor-pointer hover:shadow-soft-md transition-shadow" onClick={() => navigate('/planner')}>
+    <Card
+      className="cursor-pointer hover:shadow-soft-md transition-shadow"
+      role="button"
+      tabIndex={0}
+      onClick={() => navigate('/planner')}
+      onKeyDown={handleKeyDown}
+    >
       <CardContent className="p-5 space-y-3">
         <div className="flex items-center gap-1.5">
           <CalendarClock className="size-3.5 text-muted-foreground" />
@@ -120,6 +145,7 @@ export function DailyTimeline() {
             No blocks scheduled today. Click to open planner.
           </p>
         ) : (
+          <div ref={scrollRef} className="max-h-[360px] overflow-y-auto pr-1">
           <div
             className="relative ml-10 border-l"
             style={{ height: TOTAL_HOURS * HOUR_PX }}
@@ -138,9 +164,10 @@ export function DailyTimeline() {
             })}
 
             {/* Time blocks */}
-            {positioned.map(b => b && (
+            {positioned.map((b, bi) => b && (
               <div
                 key={b.id}
+                ref={bi === 0 ? firstBlockRef : undefined}
                 className={cn(
                   'absolute inset-x-1 rounded-md border-l-2 px-1.5 py-0.5 overflow-hidden transition-colors',
                   b.color.bg,
@@ -165,6 +192,7 @@ export function DailyTimeline() {
             {/* Now line */}
             {nowOffset !== null && (
               <div
+                ref={nowMarkerRef}
                 className="pointer-events-none absolute inset-x-0 z-10"
                 style={{ top: nowOffset }}
               >
@@ -174,6 +202,7 @@ export function DailyTimeline() {
                 </div>
               </div>
             )}
+          </div>
           </div>
         )}
       </CardContent>

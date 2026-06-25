@@ -1,14 +1,28 @@
 import { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
+import { ArrowRight } from 'lucide-react';
 import { addDays, fmtDay, fmtHour, startOfWeek } from '@/lib/time-utils';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 
 type ShareData = {
   user: { name: string; timezone: string };
   privacy: 'details_to_managers' | 'busy_only_to_managers' | 'private';
   blocks: Array<{ id: string; title: string; startAt: string; endAt: string }>;
 };
+
+function Logo() {
+  return (
+    <span className="flex items-center gap-2 font-semibold">
+      <span className="grid size-7 place-items-center rounded-lg bg-gradient-to-br from-violet-500 via-primary to-fuchsia-500 text-white text-xs shadow-sm">
+        DP
+      </span>
+      Daily Planner
+    </span>
+  );
+}
 
 export function ShareViewPage() {
   const { token } = useParams<{ token: string }>();
@@ -24,11 +38,34 @@ export function ShareViewPage() {
   }, [token]);
 
   if (error) return (
-    <Wrap><Card><CardContent className="p-6 text-red-600">
-      {error === '404' ? 'Share link is private or invalid.' : `Error: ${error}`}
-    </CardContent></Card></Wrap>
+    <Wrap>
+      <Card className="shadow-soft">
+        <CardContent className="flex flex-col items-center gap-4 p-8 text-center">
+          <Logo />
+          <p className="text-muted-foreground">
+            {error === '404' ? 'This share link is private or invalid.' : `Something went wrong (${error}).`}
+          </p>
+          <Button asChild size="sm">
+            <Link to="/">Go to Daily Planner <ArrowRight className="size-3.5" /></Link>
+          </Button>
+        </CardContent>
+      </Card>
+    </Wrap>
   );
-  if (!data) return <Wrap><Card><CardContent className="p-6">Loading…</CardContent></Card></Wrap>;
+
+  if (!data) return (
+    <Wrap>
+      <Card className="shadow-soft">
+        <CardContent className="space-y-3 p-6">
+          <p className="text-sm text-muted-foreground">Loading shared schedule…</p>
+          <Skeleton className="h-5 w-48" />
+          <Skeleton className="h-14 w-full" />
+          <Skeleton className="h-14 w-full" />
+          <Skeleton className="h-14 w-full" />
+        </CardContent>
+      </Card>
+    </Wrap>
+  );
 
   const weekStart = startOfWeek(new Date());
   const days = Array.from({ length: 21 }, (_, i) => addDays(weekStart, i));
@@ -72,7 +109,11 @@ export function ShareViewPage() {
 }
 
 function Wrap({ children }: { children: React.ReactNode }) {
-  return <div className="mx-auto max-w-2xl px-4 py-8">{children}</div>;
+  return (
+    <div className="flex min-h-svh items-center justify-center px-4 py-12">
+      <div className="w-full max-w-2xl">{children}</div>
+    </div>
+  );
 }
 function sameDay(a: Date, b: Date) {
   return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();

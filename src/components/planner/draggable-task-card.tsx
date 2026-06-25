@@ -271,7 +271,11 @@ export function TaskEditDialog({ task, categories, open, onOpenChange, onSave }:
   function addSubtask() {
     const t = newSubtask.trim();
     if (!t) return;
-    setSubtasks(prev => [...prev, { id: crypto.randomUUID().slice(0, 8), title: t, done: false }]);
+    // crypto.randomUUID is unavailable on non-secure origins (plain HTTP); fall back to Math.random.
+    const id = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+      ? crypto.randomUUID().slice(0, 8)
+      : Math.random().toString(36).slice(2, 10);
+    setSubtasks(prev => [...prev, { id, title: t, done: false }]);
     setNewSubtask('');
   }
 
