@@ -75,6 +75,41 @@ export async function emailBookingDecision(args: {
   `);
 }
 
+export async function emailBookingVisitorLinks(args: {
+  visitorEmail: string; visitorName: string;
+  ownerName: string; ownerTz: string;
+  title: string; startAt: Date; endAt: Date;
+  rescheduleToken: string; cancelToken: string; appUrl?: string;
+}): Promise<void> {
+  const base = args.appUrl ?? process.env.VITE_APP_URL ?? '';
+  const rescheduleUrl = `${base}/reschedule/${args.rescheduleToken}`;
+  const cancelUrl = `${base}/cancel/${args.cancelToken}`;
+  await send(args.visitorEmail, `Booking received: ${args.title} with ${args.ownerName}`, `
+    <p>Hi ${escape(args.visitorName)},</p>
+    <p>Your booking request for <b>${escape(args.title)}</b> with ${escape(args.ownerName)} has been received.</p>
+    <p>Requested time: ${fmtRange(args.startAt, args.endAt, args.ownerTz)}</p>
+    <p>
+      Need to change your plans? You can:<br/>
+      <a href="${rescheduleUrl}">Reschedule this booking</a> or
+      <a href="${cancelUrl}">Cancel this booking</a>
+    </p>
+    <p>You will receive another email once the owner approves or declines.</p>
+  `);
+}
+
+export async function emailBookingCancelled(args: {
+  visitorEmail: string; visitorName: string;
+  ownerName: string; ownerTz: string;
+  title: string; startAt: Date; endAt: Date;
+}): Promise<void> {
+  await send(args.visitorEmail, `Cancelled: ${args.title} with ${args.ownerName}`, `
+    <p>Hi ${escape(args.visitorName)},</p>
+    <p>Your booking for <b>${escape(args.title)}</b> at
+       ${fmtRange(args.startAt, args.endAt, args.ownerTz)}
+       has been cancelled.</p>
+  `);
+}
+
 function escape(s: string): string {
   return s.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] || c));
 }

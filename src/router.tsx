@@ -11,6 +11,8 @@ const RegisterPage = lazy(() => import('@/pages/register-page').then(m => ({ def
 const ForgotPasswordPage = lazy(() => import('@/pages/forgot-password-page').then(m => ({ default: m.ForgotPasswordPage })));
 const ShareViewPage = lazy(() => import('@/pages/share-view-page').then(m => ({ default: m.ShareViewPage })));
 const BookSlotPage = lazy(() => import('@/pages/book-slot-page').then(m => ({ default: m.BookSlotPage })));
+const CancelBookingPage = lazy(() => import('@/pages/cancel-booking-page').then(m => ({ default: m.CancelBookingPage })));
+const RescheduleBookingPage = lazy(() => import('@/pages/reschedule-booking-page').then(m => ({ default: m.RescheduleBookingPage })));
 const DashboardPage = lazy(() => import('@/pages/dashboard-page').then(m => ({ default: m.DashboardPage })));
 const TasksPage = lazy(() => import('@/pages/tasks-page').then(m => ({ default: m.TasksPage })));
 const PlannerPage = lazy(() => import('@/pages/planner-page').then(m => ({ default: m.PlannerPage })));
@@ -34,6 +36,8 @@ export const router = createBrowserRouter([
   { path: '/forgot-password', element: page(<ForgotPasswordPage />) },
   { path: '/u/:token', element: page(<ShareViewPage />) },
   { path: '/book/:token', element: page(<BookSlotPage />) },
+  { path: '/reschedule/:token', element: page(<RescheduleBookingPage />) },
+  { path: '/cancel/:token', element: page(<CancelBookingPage />) },
   {
     // AppLayout is eager (small) and provides the Suspense boundary for its
     // lazy child pages via the <Outlet/>.

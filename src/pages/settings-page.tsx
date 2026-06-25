@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import {
   Globe, Lock, Save, Shield, Link2, Copy, RefreshCw, KeyRound, Loader2, ExternalLink,
+  CalendarClock, Plus, Pencil, Trash2,
 } from 'lucide-react';
 import { apiFetch } from '@/lib/api-client';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -13,6 +14,12 @@ import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { toast } from 'sonner';
+import { EventTypeForm } from '@/components/booking/event-type-form';
+import { AvailabilityEditor } from '@/components/booking/availability-editor';
+import {
+  listEventTypes, deleteEventType, updateBookingSettings,
+  type BookingEventType,
+} from '@/lib/booking-api';
 
 /* ─── Types ─── */
 
@@ -26,6 +33,9 @@ interface UserProfile {
   privacy: PrivacyMode;
   timezone: string;
   shareToken: string | null;
+  bookingBufferMinutes: number;
+  bookingMinNoticeMinutes: number;
+  bookingHorizonDays: number;
 }
 
 /* ─── Constants ─── */
@@ -113,6 +123,7 @@ export function SettingsPage() {
       <ProfileSection profile={profile} onUpdated={setProfile} />
       <PrivacySection profile={profile} onUpdated={setProfile} />
       <ShareLinkSection profile={profile} onUpdated={setProfile} />
+      <BookingSection profile={profile} onUpdated={setProfile} />
       <PasswordSection />
     </div>
   );
@@ -403,3 +414,221 @@ function PasswordSection() {
     </Card>
   );
 }
+
+/* ─── Booking Section ─── */
+
+function BookingSection({ profile, onUpdated }: {
+  profile: UserProfile;
+  onUpdated: (p: UserProfile) => void;
+}) {
+  const [eventTypes, setEventTypes] = useState<BookingEventType[]>([]);
+  const [loadingEt, setLoadingEt] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [editing, setEditing] = useState<BookingEventType | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  // Booking settings local state.
+  const [buffer, setBuffer] = useState(String(profile.bookingBufferMinutes ?? 0));
+  const [minNotice, setMinNotice] = useState(String(profile.bookingMinNoticeMinutes ?? 0));
+  const [horizon, setHorizon] = useState(String(profile.bookingHorizonDays ?? 14));
+  const [savingSettings, setSavingSettings] = useState(false);
+
+  const settingsDirty =
+    buffer !== String(profile.bookingBufferMinutes ?? 0) ||
+    minNotice !== String(profile.bookingMinNoticeMinutes ?? 0) ||
+    horizon !== String(profile.bookingHorizonDays ?? 14);
+
+  useEffect(() => {
+    listEventTypes()
+      .then(setEventTypes)
+      .catch(() => toast.error('Failed to load event types.'))
+      .finally(() => setLoadingEt(false));
+  }, []);
+
+  async function handleDelete(id: string) {
+    setDeletingId(id);
+    try {
+      await deleteEventType(id);
+      setEventTypes(prev => prev.filter(et => et.id !== id));
+      toast.success('Event type deleted.');
+    } catch (e) { toast.error((e as Error).message); }
+    finally { setDeletingId(null); }
+  }
+
+  async function saveSettings() {
+    const b = Number(buffer);
+    const mn = Number(minNotice);
+    const h = Number(horizon);
+    if (!Number.isInteger(b) || b < 0 || b > 240) { toast.error('Buffer must be 0-240 minutes.'); return; }
+    if (!Number.isInteger(mn) || mn < 0 || mn > 10080) { toast.error('Min notice must be 0-10080 minutes.'); return; }
+    if (!Number.isInteger(h) || h < 1 || h > 365) { toast.error('Horizon must be 1-365 days.'); return; }
+    setSavingSettings(true);
+    try {
+      const updated = await updateBookingSettings({
+        bookingBufferMinutes: b,
+        bookingMinNoticeMinutes: mn,
+        bookingHorizonDays: h,
+      });
+      onUpdated({ ...profile, ...updated });
+      toast.success('Booking settings saved.');
+    } catch (e) { toast.error((e as Error).message); }
+    finally { setSavingSettings(false); }
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-lg">
+          <CalendarClock className="size-4" /> Booking
+        </CardTitle>
+        <CardDescription>
+          Configure what visitors can book on your public booking page.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-6">
+
+        {/* Event types */}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <Label className="text-sm font-semibold">Event types</Label>
+            {!showForm && !editing && (
+              <Button size="sm" variant="outline" onClick={() => setShowForm(true)}>
+                <Plus className="size-3.5 mr-1" /> New type
+              </Button>
+            )}
+          </div>
+
+          {showForm && (
+            <EventTypeForm
+              onSaved={et => { setEventTypes(prev => [...prev, et]); setShowForm(false); }}
+              onCancel={() => setShowForm(false)}
+            />
+          )}
+
+          {loadingEt ? (
+            <p className="text-xs text-muted-foreground">Loading…</p>
+          ) : eventTypes.length === 0 && !showForm ? (
+            <p className="text-xs text-muted-foreground">
+              No event types yet. Add one so visitors can book slots with you.
+            </p>
+          ) : (
+            <div className="space-y-2">
+              {eventTypes.map(et => (
+                <div key={et.id}>
+                  {editing?.id === et.id ? (
+                    <EventTypeForm
+                      existing={et}
+                      onSaved={updated => {
+                        setEventTypes(prev => prev.map(x => x.id === updated.id ? updated : x));
+                        setEditing(null);
+                      }}
+                      onCancel={() => setEditing(null)}
+                    />
+                  ) : (
+                    <div className="flex items-center justify-between rounded-lg border px-3 py-2 bg-card">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium truncate">{et.name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {et.durationMinutes} min
+                          {et.description ? ` · ${et.description}` : ''}
+                          {!et.active && ' · inactive'}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-1 shrink-0 ml-2">
+                        <Button
+                          size="icon" variant="ghost" className="size-7"
+                          onClick={() => { setEditing(et); setShowForm(false); }}
+                          aria-label="Edit event type"
+                        >
+                          <Pencil className="size-3.5" />
+                        </Button>
+                        <Button
+                          size="icon" variant="ghost"
+                          className="size-7 text-muted-foreground hover:text-destructive"
+                          onClick={() => handleDelete(et.id)}
+                          disabled={deletingId === et.id}
+                          aria-label="Delete event type"
+                        >
+                          {deletingId === et.id
+                            ? <Loader2 className="size-3.5 animate-spin" />
+                            : <Trash2 className="size-3.5" />}
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <Separator />
+
+        {/* Availability windows */}
+        <div className="space-y-3">
+          <Label className="text-sm font-semibold">Weekly availability</Label>
+          <p className="text-xs text-muted-foreground">
+            Times are in your profile timezone ({profile.timezone}). Slots outside these windows will not be offered.
+          </p>
+          <AvailabilityEditor />
+        </div>
+
+        <Separator />
+
+        {/* Booking settings */}
+        <div className="space-y-3">
+          <Label className="text-sm font-semibold">Booking rules</Label>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="booking-buffer" className="text-xs">Buffer between bookings (min)</Label>
+              <Input
+                id="booking-buffer"
+                type="number"
+                min={0}
+                max={240}
+                step={5}
+                value={buffer}
+                onChange={e => setBuffer(e.target.value)}
+              />
+              <p className="text-[10px] text-muted-foreground">Gap added after each booking.</p>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="booking-notice" className="text-xs">Min notice (min)</Label>
+              <Input
+                id="booking-notice"
+                type="number"
+                min={0}
+                max={10080}
+                step={30}
+                value={minNotice}
+                onChange={e => setMinNotice(e.target.value)}
+              />
+              <p className="text-[10px] text-muted-foreground">How far ahead bookings must be made.</p>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="booking-horizon" className="text-xs">Horizon (days)</Label>
+              <Input
+                id="booking-horizon"
+                type="number"
+                min={1}
+                max={365}
+                step={1}
+                value={horizon}
+                onChange={e => setHorizon(e.target.value)}
+              />
+              <p className="text-[10px] text-muted-foreground">How far into the future slots are shown.</p>
+            </div>
+          </div>
+          <Button size="sm" onClick={saveSettings} disabled={!settingsDirty || savingSettings}>
+            {savingSettings
+              ? <Loader2 className="size-3.5 mr-1.5 animate-spin" />
+              : <Save className="size-3.5 mr-1.5" />}
+            Save rules
+          </Button>
+        </div>
+
+      </CardContent>
+    </Card>
+  );
+}
+

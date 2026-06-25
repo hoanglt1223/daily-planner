@@ -2,8 +2,10 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   AlertTriangle, Archive, ArrowUpDown, CheckCircle2, CheckSquare, ChevronDown, ChevronRight,
   Clock, Copy, Edit3, ListChecks, Palette, Pencil, Pin, PinOff, PlayCircle, Plus, Search, Square, Tag, Trash2, X,
+  Zap,
 } from 'lucide-react';
 import { apiFetch } from '@/lib/api-client';
+import { parseQuickAdd } from '@/lib/parse-quick-add';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -19,6 +21,7 @@ import { toast } from 'sonner';
 /* ─── Types ─── */
 
 type TaskStatus = 'backlog' | 'todo' | 'doing' | 'done' | 'archived';
+type SmartView = 'all' | 'active' | 'done' | 'archived' | 'today' | 'upcoming' | 'overdue';
 
 interface Subtask { id: string; title: string; done: boolean }
 
@@ -27,6 +30,7 @@ interface Task {
   status: TaskStatus; priority: number; estimatedMinutes: number;
   dueDate: string | null; categoryId: string | null; isPinned: boolean;
   subtasks: Subtask[];
+  labels: string[];
   createdAt: string; updatedAt: string;
 }
 
@@ -43,24 +47,52 @@ const PRIORITY_LABEL: Record<number, { label: string; cls: string }> = {
 };
 
 const STATUS_META: Record<TaskStatus, { label: string; icon: typeof CheckCircle2; color: string }> = {
-  backlog:   { label: 'Backlog',   icon: Archive,      color: 'text-slate-500' },
-  todo:      { label: 'To Do',     icon: Clock,        color: 'text-blue-500' },
-  doing:     { label: 'In Progress', icon: PlayCircle, color: 'text-amber-500' },
-  done:      { label: 'Done',      icon: CheckCircle2, color: 'text-emerald-500' },
-  archived:  { label: 'Archived',  icon: Archive,      color: 'text-slate-400' },
+  backlog:  { label: 'Backlog',     icon: Archive,      color: 'text-slate-500' },
+  todo:     { label: 'To Do',       icon: Clock,        color: 'text-blue-500' },
+  doing:    { label: 'In Progress', icon: PlayCircle,   color: 'text-amber-500' },
+  done:     { label: 'Done',        icon: CheckCircle2, color: 'text-emerald-500' },
+  archived: { label: 'Archived',    icon: Archive,      color: 'text-slate-400' },
 };
 
 const STATUS_OPTIONS: TaskStatus[] = ['backlog', 'todo', 'doing', 'done', 'archived'];
 
 const SORT_OPTIONS = [
-  { value: 'smart', label: 'Smart (priority + due)' },
-  { value: 'priority', label: 'Priority' },
-  { value: 'dueDate', label: 'Due date' },
+  { value: 'smart',     label: 'Smart (priority + due)' },
+  { value: 'priority',  label: 'Priority' },
+  { value: 'dueDate',   label: 'Due date' },
   { value: 'estimated', label: 'Estimated time' },
-  { value: 'title', label: 'Title A–Z' },
-  { value: 'created', label: 'Newest first' },
+  { value: 'title',     label: 'Title A-Z' },
+  { value: 'created',   label: 'Newest first' },
 ] as const;
 type SortKey = (typeof SORT_OPTIONS)[number]['value'];
+
+/* ─── Smart-view helpers (client-side, uses local date) ─── */
+
+function startOfToday(): Date {
+  const d = new Date();
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+}
+
+function isToday(dateStr: string | null): boolean {
+  if (!dateStr) return false;
+  const d = new Date(dateStr);
+  const t = startOfToday();
+  return d >= t && d < new Date(t.getTime() + 86_400_000);
+}
+
+function isUpcoming(dateStr: string | null): boolean {
+  if (!dateStr) return false;
+  const d = new Date(dateStr);
+  const t = startOfToday();
+  const end = new Date(t.getTime() + 7 * 86_400_000);
+  return d >= t && d < end;
+}
+
+function isOverdue(task: Task): boolean {
+  if (!task.dueDate) return false;
+  const d = new Date(task.dueDate);
+  return d < startOfToday() && task.status !== 'done' && task.status !== 'archived';
+}
 
 /* ─── Page ─── */
 
@@ -69,8 +101,9 @@ export function TasksPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'active' | 'done' | 'archived' | 'all'>('active');
+  const [smartView, setSmartView] = useState<SmartView>('active');
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
+  const [labelFilter, setLabelFilter] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<SortKey>('smart');
   const [editTask, setEditTask] = useState<Task | null>(null);
   const [newOpen, setNewOpen] = useState(false);
@@ -79,6 +112,10 @@ export function TasksPage() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkBusy, setBulkBusy] = useState(false);
+  // Quick-add bar state
+  const [quickInput, setQuickInput] = useState('');
+  const [quickBusy, setQuickBusy] = useState(false);
+  const [quickPreview, setQuickPreview] = useState<ReturnType<typeof parseQuickAdd> | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -102,22 +139,41 @@ export function TasksPage() {
     return () => window.removeEventListener('task-created', onTaskCreated);
   }, [load]);
 
+  // Live quick-add preview
+  useEffect(() => {
+    if (!quickInput.trim()) { setQuickPreview(null); return; }
+    setQuickPreview(parseQuickAdd(quickInput));
+  }, [quickInput]);
+
   const catMap = useMemo(() => {
     const m = new Map<string, Category>();
     categories.forEach(c => m.set(c.id, c));
     return m;
   }, [categories]);
 
+  // Collect all labels across tasks for filter suggestions
+  const allLabels = useMemo(() => {
+    const s = new Set<string>();
+    tasks.forEach(t => (t.labels ?? []).forEach(l => s.add(l)));
+    return [...s].sort();
+  }, [tasks]);
+
   const filtered = useMemo(() => {
     const q = search.toLowerCase().trim();
     return tasks
       .filter(t => {
-        if (statusFilter === 'active') return t.status !== 'done' && t.status !== 'archived';
-        if (statusFilter === 'done') return t.status === 'done';
-        if (statusFilter === 'archived') return t.status === 'archived';
-        return true; // 'all'
+        switch (smartView) {
+          case 'active':   return t.status !== 'done' && t.status !== 'archived';
+          case 'done':     return t.status === 'done';
+          case 'archived': return t.status === 'archived';
+          case 'today':    return isToday(t.dueDate);
+          case 'upcoming': return isUpcoming(t.dueDate) && !isToday(t.dueDate);
+          case 'overdue':  return isOverdue(t);
+          default:         return true; // 'all'
+        }
       })
       .filter(t => categoryFilter === null || t.categoryId === categoryFilter)
+      .filter(t => labelFilter === null || (t.labels ?? []).includes(labelFilter))
       .filter(t => !q || t.title.toLowerCase().includes(q) || (t.description ?? '').toLowerCase().includes(q))
       .sort((a, b) => {
         if (a.isPinned !== b.isPinned) return a.isPinned ? -1 : 1;
@@ -130,13 +186,13 @@ export function TasksPage() {
         if (sortBy === 'estimated') return a.estimatedMinutes - b.estimatedMinutes || a.priority - b.priority;
         if (sortBy === 'title') return a.title.localeCompare(b.title);
         if (sortBy === 'created') return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-        // smart: due date → priority → title
+        // smart: due date then priority then title
         const aD = a.dueDate ? new Date(a.dueDate).getTime() : Infinity;
         const bD = b.dueDate ? new Date(b.dueDate).getTime() : Infinity;
         if (aD !== bD) return aD - bD;
         return a.priority - b.priority || a.title.localeCompare(b.title);
       });
-  }, [tasks, search, statusFilter, categoryFilter, sortBy]);
+  }, [tasks, search, smartView, categoryFilter, labelFilter, sortBy]);
 
   async function updateTask(id: string, patch: Partial<Task>) {
     setBusyId(id);
@@ -170,6 +226,7 @@ export function TasksPage() {
           priority: task.priority,
           categoryId: task.categoryId,
           dueDate: task.dueDate,
+          labels: task.labels ?? [],
           status: 'todo',
         }),
       });
@@ -179,10 +236,50 @@ export function TasksPage() {
     finally { setBusyId(null); }
   }
 
+  // Quick-add submit: parse NL input and create task
+  async function submitQuickAdd(e: React.FormEvent) {
+    e.preventDefault();
+    const raw = quickInput.trim();
+    if (!raw) return;
+    setQuickBusy(true);
+    try {
+      const parsed = parseQuickAdd(raw);
+      if (!parsed.title) { toast.error('Could not extract a title'); return; }
+
+      // Resolve categoryName to categoryId
+      let categoryId: string | null = null;
+      if (parsed.categoryName) {
+        const match = categories.find(c => c.name.toLowerCase() === parsed.categoryName!.toLowerCase());
+        categoryId = match?.id ?? null;
+      }
+
+      await apiFetch('/api/tasks', {
+        method: 'POST',
+        body: JSON.stringify({
+          title: parsed.title,
+          status: 'todo',
+          priority: parsed.priority ?? 3,
+          estimatedMinutes: 60,
+          categoryId,
+          dueDate: parsed.dueDate ?? null,
+          labels: parsed.labels ?? [],
+        }),
+      });
+      toast.success('Task created');
+      setQuickInput('');
+      setQuickPreview(null);
+      load();
+    } catch (err) { toast.error((err as Error).message); }
+    finally { setQuickBusy(false); }
+  }
+
   const counts = useMemo(() => {
     const c = { backlog: 0, todo: 0, doing: 0, done: 0, archived: 0 };
     tasks.forEach(t => c[t.status]++);
-    return c;
+    const today = tasks.filter(t => isToday(t.dueDate)).length;
+    const upcoming = tasks.filter(t => isUpcoming(t.dueDate) && !isToday(t.dueDate)).length;
+    const overdue = tasks.filter(isOverdue).length;
+    return { ...c, today, upcoming, overdue };
   }, [tasks]);
 
   const selectedCount = selectedIds.size;
@@ -277,6 +374,16 @@ export function TasksPage() {
     );
   }
 
+  const smartViewTabs: { key: SmartView; label: string; count: number }[] = [
+    { key: 'active',   label: 'Active',    count: counts.todo + counts.doing + counts.backlog },
+    { key: 'today',    label: 'Today',     count: counts.today },
+    { key: 'upcoming', label: 'Upcoming',  count: counts.upcoming },
+    { key: 'overdue',  label: 'Overdue',   count: counts.overdue },
+    { key: 'done',     label: 'Done',      count: counts.done },
+    { key: 'archived', label: 'Archived',  count: counts.archived },
+    { key: 'all',      label: 'All',       count: tasks.length },
+  ];
+
   return (
     <div className="space-y-5">
       {/* Header */}
@@ -292,29 +399,67 @@ export function TasksPage() {
         </Button>
       </div>
 
-      {/* Status summary chips */}
+      {/* Quick-add bar */}
+      <form onSubmit={submitQuickAdd} className="space-y-1.5">
+        <div className="relative flex items-center gap-2">
+          <Zap className="absolute left-3 size-4 text-muted-foreground pointer-events-none" />
+          <Input
+            placeholder='Quick add: "draft report fri 3pm !p1 #work @home"'
+            value={quickInput}
+            onChange={e => setQuickInput(e.target.value)}
+            className="pl-9 h-10"
+            aria-label="Quick-add task with natural language"
+          />
+          <Button type="submit" size="sm" disabled={!quickInput.trim() || quickBusy} className="shrink-0">
+            {quickBusy ? '…' : 'Add'}
+          </Button>
+        </div>
+        {quickPreview && quickInput.trim() && (
+          <div className="flex flex-wrap items-center gap-2 px-1 text-[11px] text-muted-foreground">
+            <span className="font-medium text-foreground">"{quickPreview.title}"</span>
+            {quickPreview.dueDate && (
+              <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                {quickPreview.dueDate}{quickPreview.dueTime ? ` ${quickPreview.dueTime}` : ''}
+              </Badge>
+            )}
+            {quickPreview.priority && (
+              <Badge variant="secondary" className={cn('text-[10px] px-1.5 py-0', PRIORITY_LABEL[quickPreview.priority]?.cls)}>
+                {PRIORITY_LABEL[quickPreview.priority]?.label}
+              </Badge>
+            )}
+            {quickPreview.categoryName && (
+              <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                #{quickPreview.categoryName}
+              </Badge>
+            )}
+            {(quickPreview.labels ?? []).map(l => (
+              <Badge key={l} variant="outline" className="text-[10px] px-1.5 py-0">
+                @{l}
+              </Badge>
+            ))}
+          </div>
+        )}
+      </form>
+
+      {/* Smart view tabs */}
       <div className="flex flex-wrap gap-2">
-        {(['active', 'done', 'archived', 'all'] as const).map(s => {
-          const count = s === 'active' ? counts.todo + counts.doing + counts.backlog
-            : s === 'all' ? tasks.length
-            : counts[s] ?? 0;
-          return (
-            <button
-              key={s}
-              onClick={() => setStatusFilter(s)}
-              aria-pressed={statusFilter === s}
-              className={cn(
-                'rounded-full border px-3 py-1 text-xs font-medium transition-colors',
-                statusFilter === s
-                  ? 'border-primary bg-primary text-primary-foreground'
-                  : 'border-border text-muted-foreground hover:border-foreground/30',
-              )}
-            >
-              {s === 'active' ? 'Active' : s.charAt(0).toUpperCase() + s.slice(1)}
-              <span className="ml-1.5 opacity-70">{count}</span>
-            </button>
-          );
-        })}
+        {smartViewTabs.map(({ key, label, count }) => (
+          <button
+            key={key}
+            onClick={() => setSmartView(key)}
+            aria-pressed={smartView === key}
+            className={cn(
+              'rounded-full border px-3 py-1 text-xs font-medium transition-colors',
+              smartView === key
+                ? 'border-primary bg-primary text-primary-foreground'
+                : 'border-border text-muted-foreground hover:border-foreground/30',
+              key === 'overdue' && count > 0 && smartView !== key && 'border-red-300 text-red-600',
+            )}
+          >
+            {label}
+            <span className="ml-1.5 opacity-70">{count}</span>
+          </button>
+        ))}
       </div>
 
       {/* Filters row */}
@@ -323,7 +468,7 @@ export function TasksPage() {
         <div className="relative flex-1 min-w-[200px] max-w-sm">
           <Search className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
-            placeholder="Search tasks…"
+            placeholder="Search tasks..."
             value={search}
             onChange={e => setSearch(e.target.value)}
             className="h-9 pl-8"
@@ -334,10 +479,10 @@ export function TasksPage() {
         <Select value={categoryFilter ?? 'all'} onValueChange={v => setCategoryFilter(v === 'all' ? null : v)}>
           <SelectTrigger className="h-9 w-auto min-w-[140px]">
             <Tag className="size-3.5 mr-1.5" />
-            <SelectValue placeholder="All categories" />
+            <SelectValue placeholder="All projects" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All categories</SelectItem>
+            <SelectItem value="all">All projects</SelectItem>
             {categories.map(c => (
               <SelectItem key={c.id} value={c.id}>
                 <span className="flex items-center gap-1.5">
@@ -348,8 +493,25 @@ export function TasksPage() {
             ))}
           </SelectContent>
         </Select>
+
+        {/* Label filter */}
+        {allLabels.length > 0 && (
+          <Select value={labelFilter ?? 'all'} onValueChange={v => setLabelFilter(v === 'all' ? null : v)}>
+            <SelectTrigger className="h-9 w-auto min-w-[120px]">
+              <Tag className="size-3.5 mr-1.5" />
+              <SelectValue placeholder="All labels" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All labels</SelectItem>
+              {allLabels.map(l => (
+                <SelectItem key={l} value={l}>@{l}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+
         <Button size="sm" variant="outline" className="h-9" onClick={() => setCatManagerOpen(true)}>
-          <Palette className="size-3.5 mr-1.5" /> Categories
+          <Palette className="size-3.5 mr-1.5" /> Projects
         </Button>
 
         {/* Sort */}
@@ -366,6 +528,19 @@ export function TasksPage() {
         </Select>
       </div>
 
+      {/* Active label filter chip */}
+      {labelFilter && (
+        <div className="flex items-center gap-1.5">
+          <span className="text-xs text-muted-foreground">Label:</span>
+          <button
+            onClick={() => setLabelFilter(null)}
+            className="flex items-center gap-1 rounded-full bg-primary/10 border border-primary/20 px-2.5 py-0.5 text-xs font-medium text-primary hover:bg-primary/20 transition-colors"
+          >
+            @{labelFilter} <X className="size-3 ml-0.5" />
+          </button>
+        </div>
+      )}
+
       {/* Bulk action bar */}
       {selectedCount > 0 && (
         <div className="flex items-center gap-3 rounded-lg bg-primary/5 border border-primary/20 px-4 py-2.5">
@@ -374,10 +549,9 @@ export function TasksPage() {
           </button>
           <span className="text-sm font-medium">{selectedCount} selected</span>
           <div className="flex items-center gap-1.5 ml-auto">
-            {/* Bulk status */}
             <Select onValueChange={v => bulkSetStatus(v as TaskStatus)} disabled={bulkBusy}>
               <SelectTrigger className="h-7 w-auto text-xs">
-                <SelectValue placeholder="Set status…" />
+                <SelectValue placeholder="Set status..." />
               </SelectTrigger>
               <SelectContent>
                 {STATUS_OPTIONS.map(s => (
@@ -385,10 +559,9 @@ export function TasksPage() {
                 ))}
               </SelectContent>
             </Select>
-            {/* Bulk priority */}
             <Select onValueChange={v => bulkSetPriority(Number(v))} disabled={bulkBusy}>
               <SelectTrigger className="h-7 w-auto text-xs">
-                <SelectValue placeholder="Set priority…" />
+                <SelectValue placeholder="Set priority..." />
               </SelectTrigger>
               <SelectContent>
                 {Object.entries(PRIORITY_LABEL).map(([v, { label }]) => (
@@ -396,7 +569,6 @@ export function TasksPage() {
                 ))}
               </SelectContent>
             </Select>
-            {/* Bulk delete */}
             <Button size="sm" variant="destructive" className="h-7 text-xs gap-1" disabled={bulkBusy} onClick={bulkDelete}>
               <Trash2 className="size-3" /> Delete
             </Button>
@@ -410,10 +582,10 @@ export function TasksPage() {
           <CardContent className="p-10 text-center">
             <CheckCircle2 className="mx-auto size-10 text-muted-foreground/30 mb-3" />
             <p className="text-sm font-medium text-muted-foreground">
-              {search || statusFilter !== 'all' || categoryFilter ? 'No matching tasks' : 'No tasks yet'}
+              {search || smartView !== 'all' || categoryFilter || labelFilter ? 'No matching tasks' : 'No tasks yet'}
             </p>
             <p className="text-xs text-muted-foreground/70 mt-1">
-              {search ? 'Try a different search term' : 'Click "New task" to get started'}
+              {search ? 'Try a different search term' : 'Click "New task" or use quick-add above'}
             </p>
           </CardContent>
         </Card>
@@ -447,6 +619,7 @@ export function TasksPage() {
               onDelete={() => deleteTask(task.id)}
               onDuplicate={() => duplicateTask(task)}
               onPin={() => updateTask(task.id, { isPinned: !task.isPinned })}
+              onLabelClick={setLabelFilter}
             />
           ))}
         </div>
@@ -465,7 +638,7 @@ export function TasksPage() {
         />
       )}
 
-      {/* Category manager dialog */}
+      {/* Category manager dialog (renamed Projects in UI) */}
       <CategoryManagerDialog
         open={catManagerOpen}
         onOpenChange={setCatManagerOpen}
@@ -478,10 +651,11 @@ export function TasksPage() {
 
 /* ─── Task Row ─── */
 
-function TaskRow({ task, category, busy, selected, onToggleSelect, onStatusChange, onEdit, onDelete, onDuplicate, onPin }: {
+function TaskRow({ task, category, busy, selected, onToggleSelect, onStatusChange, onEdit, onDelete, onDuplicate, onPin, onLabelClick }: {
   task: Task; category?: Category; busy: boolean; selected: boolean;
   onToggleSelect: () => void;
   onStatusChange: (s: TaskStatus) => void; onEdit: () => void; onDelete: () => void; onDuplicate: () => void; onPin: () => void;
+  onLabelClick: (label: string) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
   const prio = PRIORITY_LABEL[task.priority] ?? PRIORITY_LABEL[3];
@@ -492,13 +666,13 @@ function TaskRow({ task, category, busy, selected, onToggleSelect, onStatusChang
   const estM = task.estimatedMinutes % 60;
   const estStr = estH > 0 ? (estM ? `${estH}h${estM}m` : `${estH}h`) : `${estM}m`;
 
-  const isOverdue = task.dueDate && new Date(task.dueDate) < new Date() && task.status !== 'done' && task.status !== 'archived';
+  const overdue = isOverdue(task);
 
   return (
     <div className={cn(
       'group rounded-lg bg-card transition-all shadow-soft hover:shadow-soft-md',
       task.isPinned && 'ring-1 ring-primary/20',
-      isOverdue && 'border border-red-200 bg-red-50/30',
+      overdue && 'border border-red-200 bg-red-50/30',
     )}>
       <div className="flex items-center gap-3 px-4 py-3">
         {/* Expand toggle */}
@@ -526,7 +700,7 @@ function TaskRow({ task, category, busy, selected, onToggleSelect, onStatusChang
             onStatusChange(next[task.status]);
           }}
           className="shrink-0"
-          title={`Status: ${meta.label} (click to change)`}
+          title={`Status: ${meta.label} (click to advance)`}
         >
           <StatusIcon className={cn('size-5', meta.color, busy && 'animate-pulse')} />
         </button>
@@ -552,9 +726,9 @@ function TaskRow({ task, category, busy, selected, onToggleSelect, onStatusChang
             {task.dueDate && (
               <span className={cn(
                 'text-[10px] flex items-center gap-0.5',
-                isOverdue ? 'text-red-600 font-medium' : 'text-muted-foreground',
+                overdue ? 'text-red-600 font-medium' : 'text-muted-foreground',
               )}>
-                {isOverdue && <AlertTriangle className="size-3" />}
+                {overdue && <AlertTriangle className="size-3" />}
                 Due {fmtShortDate(new Date(task.dueDate))}
               </span>
             )}
@@ -570,6 +744,17 @@ function TaskRow({ task, category, busy, selected, onToggleSelect, onStatusChang
                 {task.subtasks.filter(s => s.done).length}/{task.subtasks.length}
               </span>
             )}
+            {/* Label chips */}
+            {(task.labels ?? []).map(l => (
+              <button
+                key={l}
+                onClick={() => onLabelClick(l)}
+                className="text-[10px] rounded-full bg-muted border border-border px-1.5 py-0 text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors"
+                title={`Filter by @${l}`}
+              >
+                @{l}
+              </button>
+            ))}
           </div>
         </div>
 
@@ -635,6 +820,17 @@ function TaskRow({ task, category, busy, selected, onToggleSelect, onStatusChang
             <span>Created: {fmtShortDate(new Date(task.createdAt))}</span>
             {task.dueDate && <span>Due: {fmtShortDate(new Date(task.dueDate))}</span>}
           </div>
+          {/* Labels in expanded view */}
+          {(task.labels ?? []).length > 0 && (
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="text-xs text-muted-foreground">Labels:</span>
+              {(task.labels ?? []).map(l => (
+                <span key={l} className="text-[10px] rounded-full bg-muted border border-border px-1.5 py-0 text-muted-foreground">
+                  @{l}
+                </span>
+              ))}
+            </div>
+          )}
           {/* Status quick-change */}
           <div className="flex items-center gap-1.5 pt-1">
             <span className="text-xs text-muted-foreground">Move to:</span>
@@ -658,6 +854,50 @@ function TaskRow({ task, category, busy, selected, onToggleSelect, onStatusChang
   );
 }
 
+/* ─── Label input component ─── */
+
+function LabelsInput({ value, onChange }: { value: string[]; onChange: (v: string[]) => void }) {
+  const [input, setInput] = useState('');
+
+  function addLabel() {
+    const l = input.trim().replace(/^@/, '').replace(/\s+/g, '-');
+    if (!l || value.includes(l)) { setInput(''); return; }
+    onChange([...value, l]);
+    setInput('');
+  }
+
+  function removeLabel(l: string) {
+    onChange(value.filter(x => x !== l));
+  }
+
+  return (
+    <div className="space-y-1.5">
+      <div className="flex flex-wrap gap-1 min-h-[24px]">
+        {value.map(l => (
+          <span key={l} className="flex items-center gap-0.5 rounded-full bg-muted border border-border px-2 py-0.5 text-[10px] text-muted-foreground">
+            @{l}
+            <button type="button" onClick={() => removeLabel(l)} className="hover:text-destructive ml-0.5" aria-label={`Remove label ${l}`}>
+              <X className="size-2.5" />
+            </button>
+          </span>
+        ))}
+      </div>
+      <div className="flex gap-1.5">
+        <Input
+          placeholder="Add label..."
+          value={input}
+          onChange={e => setInput(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addLabel(); } }}
+          className="h-7 text-xs"
+        />
+        <Button type="button" size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={addLabel} disabled={!input.trim()}>
+          <Plus className="size-3" />
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 /* ─── New Task Dialog ─── */
 
 function NewTaskDialog({ open, onOpenChange, categories, onCreated }: {
@@ -669,10 +909,12 @@ function NewTaskDialog({ open, onOpenChange, categories, onCreated }: {
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [dueDate, setDueDate] = useState('');
   const [repeatFreq, setRepeatFreq] = useState<'none' | 'daily' | 'weekly'>('none');
+  const [labels, setLabels] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
 
   function reset() {
-    setTitle(''); setMinutes(60); setPriority(3); setCategoryId(null); setDueDate(''); setRepeatFreq('none');
+    setTitle(''); setMinutes(60); setPriority(3); setCategoryId(null);
+    setDueDate(''); setRepeatFreq('none'); setLabels([]);
   }
 
   async function submit(e: React.FormEvent) {
@@ -685,6 +927,7 @@ function NewTaskDialog({ open, onOpenChange, categories, onCreated }: {
         body: JSON.stringify({
           title: title.trim(), estimatedMinutes: minutes, priority,
           categoryId, dueDate: dueDate || null, status: 'todo',
+          labels,
           recurringRule: repeatFreq === 'none' ? null : {
             freq: repeatFreq,
             interval: 1,
@@ -743,7 +986,7 @@ function NewTaskDialog({ open, onOpenChange, categories, onCreated }: {
             </div>
             {categories.length > 0 && (
               <div className="space-y-1">
-                <Label id="nt-cat-label">Category</Label>
+                <Label id="nt-cat-label">Project</Label>
                 <div role="radiogroup" aria-labelledby="nt-cat-label" className="flex flex-wrap gap-1">
                   <button type="button"
                     role="radio"
@@ -788,6 +1031,10 @@ function NewTaskDialog({ open, onOpenChange, categories, onCreated }: {
                 </Select>
               </div>
             </div>
+            <div className="space-y-1">
+              <Label>Labels</Label>
+              <LabelsInput value={labels} onChange={setLabels} />
+            </div>
           </div>
           <DialogFooter>
             <Button type="button" variant="ghost" onClick={() => { reset(); onOpenChange(false); }}>Cancel</Button>
@@ -812,13 +1059,13 @@ function EditTaskDialog({ task, categories, onClose, onSaved }: {
   const [categoryId, setCategoryId] = useState<string | null>(task.categoryId);
   const [dueDate, setDueDate] = useState(task.dueDate ? task.dueDate.slice(0, 10) : '');
   const [subtasks, setSubtasks] = useState<Subtask[]>(task.subtasks ?? []);
+  const [labels, setLabels] = useState<string[]>(task.labels ?? []);
   const [newSubtask, setNewSubtask] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   function addSubtask() {
     const t = newSubtask.trim();
     if (!t) return;
-    // crypto.randomUUID may be absent on non-HTTPS origins; fall back to timestamp+random
     const id = crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`;
     setSubtasks(prev => [...prev, { id, title: t, done: false }]);
     setNewSubtask('');
@@ -842,7 +1089,7 @@ function EditTaskDialog({ task, categories, onClose, onSaved }: {
         body: JSON.stringify({
           title: title.trim(), description: description || null,
           estimatedMinutes: minutes, priority, status, categoryId,
-          dueDate: dueDate || null, subtasks,
+          dueDate: dueDate || null, subtasks, labels,
         }),
       });
       toast.success('Task updated!');
@@ -866,7 +1113,7 @@ function EditTaskDialog({ task, categories, onClose, onSaved }: {
             </div>
             <div className="space-y-1">
               <Label htmlFor="et-desc">Description</Label>
-              <Textarea id="et-desc" rows={3} value={description} onChange={e => setDescription(e.target.value)} placeholder="Optional details…" />
+              <Textarea id="et-desc" rows={3} value={description} onChange={e => setDescription(e.target.value)} placeholder="Optional details..." />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
@@ -916,7 +1163,7 @@ function EditTaskDialog({ task, categories, onClose, onSaved }: {
             </div>
             {categories.length > 0 && (
               <div className="space-y-1">
-                <Label id="et-cat-label">Category</Label>
+                <Label id="et-cat-label">Project</Label>
                 <div role="radiogroup" aria-labelledby="et-cat-label" className="flex flex-wrap gap-1">
                   <button type="button"
                     role="radio"
@@ -968,7 +1215,7 @@ function EditTaskDialog({ task, categories, onClose, onSaved }: {
                 ))}
               </div>
               <div className="flex gap-1.5">
-                <Input placeholder="Add subtask…" value={newSubtask}
+                <Input placeholder="Add subtask..." value={newSubtask}
                   onChange={e => setNewSubtask(e.target.value)}
                   onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addSubtask(); } }}
                   className="h-7 text-xs" />
@@ -977,6 +1224,11 @@ function EditTaskDialog({ task, categories, onClose, onSaved }: {
                   <Plus className="size-3" />
                 </Button>
               </div>
+            </div>
+            {/* Labels */}
+            <div className="space-y-1">
+              <Label>Labels</Label>
+              <LabelsInput value={labels} onChange={setLabels} />
             </div>
           </div>
           <DialogFooter>
@@ -1020,7 +1272,7 @@ function CategoryManagerDialog({ open, onOpenChange, categories, onSaved }: {
         method: 'POST',
         body: JSON.stringify({ name: newName.trim(), color: newColor }),
       });
-      toast.success('Category created');
+      toast.success('Project created');
       resetNew();
       onSaved();
     } catch (e) { toast.error((e as Error).message); }
@@ -1035,7 +1287,7 @@ function CategoryManagerDialog({ open, onOpenChange, categories, onSaved }: {
         method: 'PATCH',
         body: JSON.stringify({ name: editName.trim(), color: editColor }),
       });
-      toast.success('Category updated');
+      toast.success('Project updated');
       cancelEdit();
       onSaved();
     } catch (e) { toast.error((e as Error).message); }
@@ -1046,7 +1298,7 @@ function CategoryManagerDialog({ open, onOpenChange, categories, onSaved }: {
     setBusy(true);
     try {
       await apiFetch(`/api/categories/${id}`, { method: 'DELETE' });
-      toast.success('Category deleted');
+      toast.success('Project deleted');
       setConfirmDelete(null);
       onSaved();
     } catch (e) { toast.error((e as Error).message); }
@@ -1057,14 +1309,13 @@ function CategoryManagerDialog({ open, onOpenChange, categories, onSaved }: {
     <Dialog open={open} onOpenChange={o => { if (!o) { cancelEdit(); setConfirmDelete(null); } onOpenChange(o); }}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Manage categories</DialogTitle>
-          <DialogDescription>Create, edit, or delete task categories.</DialogDescription>
+          <DialogTitle>Manage projects</DialogTitle>
+          <DialogDescription>Create, edit, or delete task projects (categories).</DialogDescription>
         </DialogHeader>
         <div className="space-y-4 py-2">
-          {/* Existing categories */}
           <div className="space-y-2 max-h-60 overflow-y-auto">
             {categories.length === 0 && (
-              <p className="text-xs text-muted-foreground text-center py-4">No categories yet. Create one below.</p>
+              <p className="text-xs text-muted-foreground text-center py-4">No projects yet. Create one below.</p>
             )}
             {categories.map(cat => (
               <div key={cat.id}>
@@ -1122,9 +1373,8 @@ function CategoryManagerDialog({ open, onOpenChange, categories, onSaved }: {
             ))}
           </div>
 
-          {/* Create new */}
           <div className="divider-t pt-3 space-y-2">
-            <p className="text-xs font-medium text-muted-foreground">New category</p>
+            <p className="text-xs font-medium text-muted-foreground">New project</p>
             <div className="flex gap-1 flex-wrap">
               {PRESET_COLORS.map(c => (
                 <button key={c} type="button"
@@ -1135,7 +1385,7 @@ function CategoryManagerDialog({ open, onOpenChange, categories, onSaved }: {
               ))}
             </div>
             <div className="flex gap-2">
-              <Input placeholder="Category name" value={newName} onChange={e => setNewName(e.target.value)}
+              <Input placeholder="Project name" value={newName} onChange={e => setNewName(e.target.value)}
                 className="h-8 text-sm"
                 onKeyDown={e => { if (e.key === 'Enter') createCategory(); }}
               />
