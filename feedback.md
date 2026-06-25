@@ -143,3 +143,93 @@ What works well: click-to-create scheduling + live capacity (the core loop), tas
 
 ## Next: live authenticated verification
 Everything above for sections 5–12 is from code audit. To verify live and catch interaction-level issues (drag-drop feel, real empty states, real error toasts, responsive behavior), I need to be signed in — and creating an account / entering a password is the one action my safety rules don't let me do. **Please sign up or sign in in the open browser tab, then tell me to continue** and I'll walk every authenticated flow live and append findings here.
+
+---
+
+# 🆕 LIVE LOCAL WALKTHROUGH — fresh signup, real interaction (2026-06-25)
+
+Method: ran the app locally (Vite :5173 + `vercel dev` API), **actually registered a brand-new account** (`Mai (QA)`, role `user`) through the real signup form and clicked through flows as a first-time non-technical user. Complements the earlier prod/code-audit sections above; only NEW live findings logged here. Severity: 🔴 high · 🟠 med · 🟡 low · 👍 good.
+
+## L1. Auth pages (`/login`, `/register`) — live visual
+- 👍 Split-screen layout (gradient panel left, form right) looks modern; register copy is reassuring ("It takes 30 seconds.", "No credit card required.").
+- 🟠 **Left-panel marketing copy is nearly invisible** — "Plan with clarity. Deliver with confidence." + the sub-tagline are very low-contrast (light text on a light pastel gradient). On both login and register the words are barely legible. Darken the text or add an overlay scrim. Fails WCAG contrast.
+- 🟡 Top-left "DP Daily Planner" wordmark also sits on the bright part of the gradient and is hard to read.
+- 👍 Password field has a working show/hide eye toggle; password rule ("min 8") shown inline on register.
+- 🟡 Signup succeeded and logged me straight in (good), but there's no confirmation/welcome moment — you just land on a half-loaded dashboard (see L2).
+
+## L2. Dashboard (`/dashboard`) — first impression as a new user
+- 🔴 **Skeleton loaders render in dark BROWN/ORANGE, not neutral gray.** Root cause: `src/components/ui/skeleton.tsx` uses `bg-accent`, and dark-mode `--color-accent` = `oklch(0.32 0.08 55)` (a warm amber/brown). Every loading placeholder (stat cards, task lists, timeline) looks like a broken image / error block on the dark theme. Highly visible on first paint. Fix: use `bg-muted` (neutral) for skeletons, not the amber accent token.
+- 🔴 **Slow / persistent loading on a new account**: 3s after signup the timeline, "upcoming", and "completed" panels were still showing spinners + brown skeletons. For a user with zero data these should resolve to empty states quickly, not sit spinning. (Dev mode is unoptimized, but the empty-data case shouldn't need network round-trips this long.)
+- 🟠 **Dashboard is heavy/overwhelming as a first screen for a brand-new user** — Booked/Free/Week-load stats, timeline, daily focus, upcoming, completed, daily notes, booking requests, timesheet export… all at once, mostly empty. A first-run user has no tasks; consider a lighter first-run state guiding them to "Create your first task / schedule something".
+- 👍 The today-tasks card has a proper empty state: "All clear! No tasks due today or overdue." (green check). Good pattern — extend this style to the other panels instead of endless skeletons.
+- 👍 Header is solid: active-tab highlight (Dashboard/Tasks/Planner), dark-mode toggle, account name + role badge, settings gear, logout icon all present and clear.
+- 🟡 **DOM-nesting validation error in console** on the dashboard: React warns `<div> cannot be a descendant of <p>` (hydration/nesting warning) inside `<main>`. Invalid HTML; find the `<p>` wrapping a block element and switch it to a `<div>`/`<span>`.
+
+## L3. Tasks page (`/tasks`) — live
+- 👍 Excellent empty state: check icon + "No matching tasks" + "Click \"New task\" to get started". This is the gold standard; reuse it on the dashboard panels.
+- 👍 Clean header: "1 active · 0 done · 0 archived", filter pills (Active/Done/Archived/All) with live counts, search, category filter, "Smart (priority + due)" sort. Create flow is fast.
+- 👍 Create-task dialog is simple (Title, Est. minutes default 60, Priority segmented Urgent/High/Normal/Low, optional Due date) — low friction.
+- 🟠 **Create dialog can't assign a category** even though categories exist as a filter/concept — you can only categorize after creation (if at all). Add a category picker to the create dialog.
+- 🟠 **No description/notes and no recurring-rule option in the create dialog**, yet recurring tasks are a headline feature. A non-tech user has no obvious way to make a task repeat. Surface recurrence in create/edit.
+- 🔴 **Brown-skeleton flash on every refetch**: after creating a task the whole list blanks to the brown `bg-accent` skeletons (~1.3s Neon round-trip) before the row appears. Same root cause as L2. Jarring on each mutation. (Same fix: neutral skeleton color; consider optimistic insert so the new row appears instantly.)
+- 🟡 **Priority vocabulary is inconsistent across pages**: Tasks list shows a named badge ("High"); the Planner backlog shows the same task as "P2". Pick one scheme (named or numeric) and use it everywhere.
+
+## L4. Planner (`/planner`) — the core value loop — live
+- 👍 **The core loop works well**: click an empty slot → "New time block" dialog (date, title autofocused, start time, duration, note) → Create → block appears on the grid, capacity (Booked/Free) + a "Period summary" (Scheduled/Completed/Skipped) update live. This is the product's heart and it's smooth.
+- 👍 Week grid is clean: Day/Week toggle, Today + ‹ › nav, backlog sidebar (Backlog/To Do/Doing) with search + sort, 06:00–21:00 rows, today's column marked with a dot.
+- 🔴 **Capacity baseline is unrealistic: "Free 112h" for the week (= 16h/day × 7).** The whole point of this app is "does the new urgent task fit?" — but with a 16h/day, 7-day baseline, almost everything "fits" and **Load stays at 0%** even with a block scheduled (0.5h ÷ 112h rounds to 0%). Use real working hours (e.g. configurable 8h/day, Mon–Fri) so capacity/Load is meaningful. (Confirms the earlier "Free today 16h" finding, now seen on the week view.)
+- 🟠 **New planned block renders PINK/red.** Pink/red conventionally means error/urgent/danger; a freshly created, ordinary "Planned" block shouldn't look alarming. (Looks inherited from the old prototype's "fixed=red / flexible=green" legend.) Define clear, non-alarming color semantics for planned blocks and document the legend in-app.
+- 🟠 The Day/Week toggle's active state uses the warm `accent` brown — muddy as a "selected" indicator on the dark theme; a primary/violet selected state would read clearer (and match the nav's active tab).
+- 🟡 Block titles truncate aggressively on short blocks ("Deep work: Q3 d…") with no tooltip on hover to see the full title.
+- 🟡 Click-created blocks are standalone (title only) — you can't link a click-created block to an existing backlog task from this dialog; linking requires the drag flow. Consider a "link to task" option in the dialog.
+
+## L0. ⚠️ Local-dev/repo hygiene — stale `planner.html` shadows the real planner
+- 🟠 A leftover **`planner.html` (65 KB, the original Vietnamese "Sổ Kế Hoạch" prototype) sits in the repo root.** Under `vite` dev it is served at `/planner` and **shadows the real SPA route** (different language, light theme, hardcoded demo data "Ms. Minh"). In production `vercel.json` rewrites `/planner` → `index.html`, so end users get the correct English SPA planner — but any local QA/dev hitting `/planner` directly sees the wrong page and could mistake it for a data leak. Remove or relocate `planner.html` out of the web root (and confirm it's excluded from the build). (Note: I temporarily renamed it to test the real planner; restore/remove as you prefer.)
+
+## L5. Settings (`/settings`) — live
+- 👍 Well-organized: Profile (display name, read-only email with "Email cannot be changed", timezone select defaulting to the user's TZ, account-role badge), Privacy (3 clear radio options with a proper selected ring — "Busy only (Default)" preselected), Share link, Change password. Comprehensive.
+- 👍 Privacy radios now have a real custom selected state (purple dot + ring) — the earlier "native unstyled radio" concern looks resolved here.
+- 🟠 **Whitespace imbalance on wide screens (confirmed live):** the whole settings form is a single ~760px column pinned left; on a 1440px viewport the entire right half is empty black. Center the column (mx-auto) or use a two-column layout.
+- 🟡 No "Forgot password" path still (only in-app Change password, which needs the current password). A locked-out user can't recover. (Echoes earlier finding.)
+
+## L6. Public share view (`/u/:token`) — live
+- 👍 **Privacy redaction verified live**: with "Busy only", my "Deep work: Q3 deck" block shows publicly as **"Busy 09:30–10:00"** (title hidden). Header is clear: "Mai (QA)'s schedule · Read-only · next 3 weeks · Asia/Bangkok" + a "busy-only" badge. Clean centered card.
+- 🟡 It's a flat vertical list of all 21 days, almost all "Free" — a visitor must scroll 21 rows to spot the few busy ones. Consider collapsing/grouping free days or a compact week-grid so busy times stand out.
+
+## L7. Public booking (`/book/:token`) — live
+- 👍 Solid base: "Book a slot with Mai (QA)", "Times shown in Asia/Bangkok", tidy 3-column slot grid; **my booked 09:30 slot is correctly excluded** from availability.
+- 🔴 **The "Date" picker is non-functional / misleading.** It shows "June 25th, 2026" as if you pick a day, but the grid below ignores it and dumps **every slot for all ~14 days at once** (Thu, then Fri, then Sat…) in one endless scroll. Either make the picker filter to the selected day (true Calendly behavior) or remove it. As-is it's confusing.
+- 🟠 **Booking availability is over-broad**: slots run **06:00–21:30 every day including weekends**. A visitor can book the owner at 6:00 AM or 9:30 PM on a Sunday. Tie bookable slots to the owner's working hours/days (same baseline fix as the capacity finding in L4).
+- 🟡 Slot buttons repeat the full "Thu 25/06 06:00" date on every single cell — once you group by day (per the date-picker fix) the per-cell date prefix becomes redundant; show just the time under a day heading.
+
+## L8. Admin (`/admin`) — live
+- 👍 Clean: Users table (Name/Email/Role/Privacy) with **inline editable Role dropdowns**, privacy badges, account count; Manager↔User mapping panel (manager select + user select + Assign, "No mappings" empty state). Functional and clear.
+- 🟡 Email column is inconsistent: one seeded user's email renders as a blue link while the others are plain text. Make the column uniform.
+- 🟡 Wide-screen whitespace below the cards (same single-column-pinned-left pattern as Settings/Manager).
+
+## L9. Manager (`/manager`) — live (with a real mapping)
+- 👍 **Works and privacy is enforced correctly.** Created a mapping (Sam→Mai) and opened Mai as a manager/admin: her schedule shows **"Busy 09:30–10:00"** (title redacted) per her busy_only setting — correct. Selected user gets a clear purple highlight; right panel shows name/email/privacy + day list.
+- ✅ **Resolves the earlier audit's open question**: a viewer of a `busy_only_to_managers` user sees "Busy", not the real title — even when the viewer is admin. (busy_only redacts for everyone; the admin override only bypasses `private`.) So the privacy model is coherent.
+- 🟠 Layout is the fixed two-column `220px + 1fr`; on a phone width this will cramp, and on a wide screen the list+content leave a large empty lower-right. Make it responsive (stack on mobile) and vertically balance.
+- 🟠 As an **admin**, `/manager` lists **all** users as "managed" (admin sees everyone). That's reasonable, but the heading "4 managed users" is misleading for an admin who manages no one — label it "All users (admin)" vs actual mapped users for a plain manager.
+
+## L10. FAB quick-capture + cross-cutting (live)
+- 🔴 **Quick-capture FAB still doesn't refresh the Tasks list (reproduced).** Clicked the bottom-left "+" on `/tasks`, captured "Quick: call supplier" → success toast, but the list stayed empty; the task only appeared after a manual reload. (Server-side create works; the FAB path doesn't invalidate the tasks query.) Note the **"New task" dialog DOES refresh** — so the two create paths diverge. Make the FAB invalidate/refetch (or optimistically insert) like the dialog.
+- 🔴 **Pinpointed the DOM-nesting bug** (console hydration warning seen on every authed page): `StatCard` renders its value inside a `<p className="mt-2 text-3xl font-semibold">` that wraps `<Skeleton>` (a `<div>`) while loading → "`<div>` cannot be a descendant of `<p>`". Fix: render the Skeleton in a `<div>`/`<span>` container, or swap the value `<p>` for a `<div>`.
+- 👍 FAB quick-capture dialog itself is nicely minimal (title, est minutes, priority, optional date, "Capture").
+- 🟡 Two floating FABs (＋ quick-capture, 🕐 quick time-log) sit bottom-left with icon-only affordance and no visible labels/tooltips — a non-tech user won't know what the clock does until clicking. Add tooltips/aria-labels.
+
+---
+
+## 🆕 Live-walkthrough summary (2026-06-25)
+Tested locally with a **real fresh signup** (normal user `Mai (QA)` + admin `Sam`), exercised: register → dashboard → tasks (create) → planner (click-to-create block, capacity) → settings (privacy + share-link gen) → public share view → public booking → admin → manager (with a real mapping) → FAB quick-capture.
+
+**What genuinely works well:** the core scheduling loop (click slot → block → live capacity/summary), task create + empty states, privacy redaction end-to-end (share view + manager view both show "Busy"), admin role/mapping tools, public share/booking base flows, dark theme + nav.
+
+**Top new issues to fix (priority):**
+1. 🔴 Brown skeletons everywhere — `Skeleton` uses `bg-accent` (dark amber) instead of `bg-muted`; reads as broken/error blocks on every load and every mutation. (1-line token fix, huge visual win.)
+2. 🔴 Capacity baseline unrealistic (Free 112h/wk = 16h/day × 7; Load stays 0%) — undermines the app's whole "does it fit?" premise. Use configurable working hours/days. Same root inflates booking availability (06:00–21:30, 7 days).
+3. 🔴 Booking page "Date" picker is ignored (dumps all 14 days at once) — make it filter to the chosen day.
+4. 🔴 FAB quick-capture doesn't refresh the Tasks list (must reload).
+5. 🔴 StatCard `<div>`-in-`<p>` DOM-nesting warning on every authed page.
+6. 🟠 Low-contrast auth-page marketing copy; pink "Planned" blocks; priority label mismatch (High vs P2); wide-screen whitespace on Settings/Admin/Manager; stale `planner.html` shadowing `/planner` in local dev.
