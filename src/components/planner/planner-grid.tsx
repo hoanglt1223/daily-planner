@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { DndContext, type DragEndEvent, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
-import { ChevronLeft, ChevronRight, Plus } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { addDays, fmtIsoDate, startOfDay, startOfWeek, WORKDAY_START_HOUR, fromWallClock, getActiveTimeZone } from '@/lib/time-utils';
 import { formatInTimeZone } from 'date-fns-tz';
@@ -18,12 +18,38 @@ import { usePlannerShortcuts } from './use-keyboard-shortcuts';
 
 type View = 'day' | 'week';
 
+const HINT_KEY = 'planner-hint-dismissed';
+
+function DragHint({ onDismiss }: { onDismiss: () => void }) {
+  return (
+    <div className="flex items-center gap-2 rounded-md border border-border bg-muted/50 px-3 py-2 text-xs text-muted-foreground">
+      <span className="flex-1">
+        Tip: click an empty slot to schedule a block, drag across slots to set duration, or drag a backlog task onto the calendar.
+      </span>
+      <button
+        type="button"
+        onClick={onDismiss}
+        aria-label="Dismiss hint"
+        className="shrink-0 rounded p-0.5 hover:bg-muted transition-colors"
+      >
+        <X className="size-3" />
+      </button>
+    </div>
+  );
+}
+
 export function PlannerGrid({ initialView = 'week' as View }) {
   const [view, setView] = useState<View>(initialView);
   const [anchor, setAnchor] = useState<Date>(new Date());
   const [editor, setEditor] = useState<BlockEditorState | null>(null);
   const [focusBlock, setFocusBlock] = useState<TimeBlock | null>(null);
+  const [showHint, setShowHint] = useState(() => localStorage.getItem(HINT_KEY) !== 'true');
   const backlogRef = useRef<BacklogColumnHandle>(null);
+
+  function dismissHint() {
+    localStorage.setItem(HINT_KEY, 'true');
+    setShowHint(false);
+  }
 
   const days = view === 'week' ? 7 : 1;
   // Memoize range so identity is stable across renders — otherwise
@@ -145,6 +171,8 @@ export function PlannerGrid({ initialView = 'week' as View }) {
           </div>
         </div>
 
+        {showHint && <DragHint onDismiss={dismissHint} />}
+
         <CapacitySummary blocks={blocks} days={days} />
 
         {loading && <p className="text-sm text-muted-foreground">Loading…</p>}
@@ -202,6 +230,7 @@ export function PlannerGrid({ initialView = 'week' as View }) {
         </div>
 
         <BlockEditorDialog state={editor}
+          tasks={tasks.filter(t => t.status !== 'done' && t.status !== 'archived')}
           onClose={() => setEditor(null)}
           onCreate={async (data) => {
             try { await createBlock(data); toast.success('Block created'); }

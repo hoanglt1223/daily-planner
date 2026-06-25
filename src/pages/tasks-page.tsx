@@ -668,10 +668,11 @@ function NewTaskDialog({ open, onOpenChange, categories, onCreated }: {
   const [priority, setPriority] = useState(3);
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [dueDate, setDueDate] = useState('');
+  const [repeatFreq, setRepeatFreq] = useState<'none' | 'daily' | 'weekly'>('none');
   const [submitting, setSubmitting] = useState(false);
 
   function reset() {
-    setTitle(''); setMinutes(60); setPriority(3); setCategoryId(null); setDueDate('');
+    setTitle(''); setMinutes(60); setPriority(3); setCategoryId(null); setDueDate(''); setRepeatFreq('none');
   }
 
   async function submit(e: React.FormEvent) {
@@ -684,6 +685,11 @@ function NewTaskDialog({ open, onOpenChange, categories, onCreated }: {
         body: JSON.stringify({
           title: title.trim(), estimatedMinutes: minutes, priority,
           categoryId, dueDate: dueDate || null, status: 'todo',
+          recurringRule: repeatFreq === 'none' ? null : {
+            freq: repeatFreq,
+            interval: 1,
+            defaultDurationMinutes: minutes,
+          },
         }),
       });
       toast.success('Task created!');
@@ -763,9 +769,24 @@ function NewTaskDialog({ open, onOpenChange, categories, onCreated }: {
                 </div>
               </div>
             )}
-            <div className="space-y-1">
-              <Label htmlFor="nt-due">Due date (optional)</Label>
-              <Input id="nt-due" type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} />
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label htmlFor="nt-due">Due date (optional)</Label>
+                <Input id="nt-due" type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="nt-repeat">Repeat</Label>
+                <Select value={repeatFreq} onValueChange={v => setRepeatFreq(v as 'none' | 'daily' | 'weekly')}>
+                  <SelectTrigger id="nt-repeat" className="h-9">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">None</SelectItem>
+                    <SelectItem value="daily">Daily</SelectItem>
+                    <SelectItem value="weekly">Weekly</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </div>
           <DialogFooter>
@@ -797,7 +818,9 @@ function EditTaskDialog({ task, categories, onClose, onSaved }: {
   function addSubtask() {
     const t = newSubtask.trim();
     if (!t) return;
-    setSubtasks(prev => [...prev, { id: crypto.randomUUID().slice(0, 8), title: t, done: false }]);
+    // crypto.randomUUID may be absent on non-HTTPS origins; fall back to timestamp+random
+    const id = crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    setSubtasks(prev => [...prev, { id, title: t, done: false }]);
     setNewSubtask('');
   }
 

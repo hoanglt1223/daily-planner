@@ -80,7 +80,7 @@ export function AdminPage() {
   const managers = users?.filter(u => u.role === 'manager' || u.role === 'admin') ?? [];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-w-5xl mx-auto">
       <h1 className="text-2xl font-semibold">Admin</h1>
 
       <Card>

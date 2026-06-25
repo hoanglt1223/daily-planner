@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { fmtDay, fmtIsoDate, fromWallClock, getActiveTimeZone } from '@/lib/time-utils';
 import { formatInTimeZone } from 'date-fns-tz';
 
@@ -14,15 +15,18 @@ export type BlockEditorState =
   | { mode: 'create'; startAt: Date; endAt: Date }
   | { mode: 'edit'; id: string; title: string; startAt: Date; endAt: Date; note: string | null };
 
+export type TaskOption = { id: string; title: string };
+
 /** Format a Date as "HH:mm" in the active timezone for use in <input type="time"> */
 function toTimeInput(d: Date): string {
   return formatInTimeZone(d, getActiveTimeZone(), 'HH:mm');
 }
 
-export function BlockEditorDialog({ state, onClose, onCreate, onUpdate, onDelete }: {
+export function BlockEditorDialog({ state, tasks = [], onClose, onCreate, onUpdate, onDelete }: {
   state: BlockEditorState | null;
+  tasks?: TaskOption[];
   onClose: () => void;
-  onCreate: (data: { title: string; startAt: Date; endAt: Date; note: string }) => Promise<void> | void;
+  onCreate: (data: { title: string; startAt: Date; endAt: Date; note: string; taskId?: string }) => Promise<void> | void;
   onUpdate: (id: string, data: { title?: string; startAt?: Date; endAt?: Date; note?: string }) => Promise<void> | void;
   onDelete: (id: string) => Promise<void> | void;
 }) {
@@ -30,6 +34,7 @@ export function BlockEditorDialog({ state, onClose, onCreate, onUpdate, onDelete
   const [note, setNote] = useState('');
   const [startTime, setStartTime] = useState('');
   const [durationMin, setDurationMin] = useState(30);
+  const [linkedTaskId, setLinkedTaskId] = useState<string>('');
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -38,6 +43,7 @@ export function BlockEditorDialog({ state, onClose, onCreate, onUpdate, onDelete
     setNote(state.mode === 'edit' ? state.note ?? '' : '');
     setStartTime(toTimeInput(state.startAt));
     setDurationMin(Math.max(15, Math.round((state.endAt.getTime() - state.startAt.getTime()) / 60_000)));
+    setLinkedTaskId('');
   }, [state]);
 
   if (!state) return null;
@@ -58,7 +64,7 @@ export function BlockEditorDialog({ state, onClose, onCreate, onUpdate, onDelete
     try {
       const { startAt, endAt } = resolveRange();
       if (state.mode === 'create') {
-        await onCreate({ title: title.trim(), startAt, endAt, note });
+        await onCreate({ title: title.trim(), startAt, endAt, note, taskId: linkedTaskId || undefined });
       } else {
         await onUpdate(state.id, { title: title.trim(), startAt, endAt, note });
       }
@@ -118,6 +124,22 @@ export function BlockEditorDialog({ state, onClose, onCreate, onUpdate, onDelete
               <Textarea id="be-note" rows={3}
                 value={note} onChange={e => setNote(e.target.value)} />
             </div>
+            {state.mode === 'create' && tasks.length > 0 && (
+              <div className="space-y-1">
+                <Label>Link to task (optional)</Label>
+                <Select value={linkedTaskId} onValueChange={setLinkedTaskId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="None" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">None</SelectItem>
+                    {tasks.map(t => (
+                      <SelectItem key={t.id} value={t.id}>{t.title}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
           </div>
           <DialogFooter className="gap-2 sm:justify-between">
             {state.mode === 'edit' ? (
