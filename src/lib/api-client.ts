@@ -1,6 +1,27 @@
 const TOKEN_KEY = 'auth_token';
 const OWNER_KEY = 'owner_token';
 
+const ERROR_MESSAGES: Record<string, string> = {
+  invalid_credentials: 'Incorrect email or password.',
+  wrong_password: 'Incorrect current password.',
+  unauthorized: 'Your session has expired. Please sign in again.',
+  forbidden: "You don't have access to that.",
+  not_found: 'Not found.',
+  email_taken: 'That email is already registered.',
+  too_many_requests: 'Too many requests. Please wait a moment.',
+  slot_taken: 'That time slot is no longer available.',
+  invalid_input: 'Some required fields are missing or invalid.',
+  title_required: 'A title is required.',
+  name_required: 'A name is required.',
+  nothing_to_update: 'Nothing to update.',
+  invalid_privacy: 'Please choose a valid privacy option.',
+  date_required: 'A date is required.',
+  token_required: 'This link is missing its token.',
+  unknown_kind: 'Unsupported request.',
+  method_not_allowed: 'That action is not allowed here.',
+  server_error: 'Something went wrong on our end. Please try again.',
+};
+
 export function getAuthToken() { return localStorage.getItem(TOKEN_KEY); }
 export function setAuthToken(t: string) { localStorage.setItem(TOKEN_KEY, t); }
 export function clearAuthToken() { localStorage.removeItem(TOKEN_KEY); }
@@ -35,13 +56,17 @@ export async function apiFetch<T = unknown>(path: string, init: RequestInit = {}
     let message: string;
     try {
       const json = await res.json() as Record<string, unknown>;
-      message = (typeof json.error === 'string' ? json.error : null)
-        ?? (typeof json.message === 'string' ? json.message : null)
+      const rawCode = typeof json.error === 'string' ? json.error : null;
+      const rawMessage = (typeof json.message === 'string' ? json.message : null)
+        ?? rawCode
         ?? JSON.stringify(json);
+      message = (rawCode ? ERROR_MESSAGES[rawCode] : null) ?? rawMessage;
     } catch {
       message = await res.text().catch(() => res.statusText);
     }
     throw new Error(message);
   }
-  return res.json() as Promise<T>;
+  if (res.status === 204) return undefined as T;
+  const text = await res.text();
+  return (text ? JSON.parse(text) : undefined) as T;
 }

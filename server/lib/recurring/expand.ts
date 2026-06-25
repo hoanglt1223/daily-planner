@@ -1,4 +1,4 @@
-import { fromZonedTime, toZonedTime, formatInTimeZone } from 'date-fns-tz';
+import { fromZonedTime, toZonedTime } from 'date-fns-tz';
 
 export type RecurringRule = {
   freq: 'daily' | 'weekly' | 'monthly';
@@ -70,8 +70,7 @@ function pushIfInRange(
   untilTs: number,
   tz: string,
 ) {
-  const iso = formatInTimeZone(zoned, tz, "yyyy-MM-dd'T'HH:mm:ss");
-  const start = fromZonedTime(iso, tz);
+  const start = fromZonedTime(zoned, tz);
   if (start.getTime() > untilTs) return;
   const end = new Date(start.getTime() + durationMin * 60_000);
   out.push({ start, end });

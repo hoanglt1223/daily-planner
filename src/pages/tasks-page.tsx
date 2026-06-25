@@ -93,6 +93,12 @@ export function TasksPage() {
 
   useEffect(() => { load(); }, [load]);
 
+  useEffect(() => {
+    function onTaskCreated() { load(); }
+    window.addEventListener('task-created', onTaskCreated);
+    return () => window.removeEventListener('task-created', onTaskCreated);
+  }, [load]);
+
   const catMap = useMemo(() => {
     const m = new Map<string, Category>();
     categories.forEach(c => m.set(c.id, c));

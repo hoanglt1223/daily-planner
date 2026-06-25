@@ -66,6 +66,7 @@ export function QuickTaskDialog() {
         }),
       });
       toast.success('Task captured!');
+      window.dispatchEvent(new CustomEvent('task-created'));
       reset();
       setOpen(false);
     } catch (err) {
