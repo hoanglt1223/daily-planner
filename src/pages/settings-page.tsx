@@ -226,10 +226,10 @@ function PrivacySection({ profile, onUpdated }: {
           {PRIVACY_OPTIONS.map(opt => (
             <label
               key={opt.value}
-              className={`flex items-start gap-3 rounded-lg border p-3 cursor-pointer transition-colors ${
+              className={`flex items-start gap-3 rounded-lg p-3 cursor-pointer transition-colors ${
                 privacy === opt.value
-                  ? 'border-primary bg-primary/5 ring-1 ring-primary/20'
-                  : 'hover:bg-muted/50'
+                  ? 'border border-primary bg-primary/5 ring-1 ring-primary/20'
+                  : 'ring-hairline hover:bg-muted/50'
               }`}
             >
               <input

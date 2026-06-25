@@ -22,6 +22,9 @@ export function AdminPage() {
   const [mappings, setMappings] = useState<Mapping[]>([]);
   const [pickedManager, setPickedManager] = useState('');
   const [pickedUser, setPickedUser] = useState('');
+  const [assigning, setAssigning] = useState(false);
+  const [confirmRemove, setConfirmRemove] = useState<{ managerId: string; userId: string } | null>(null);
+  const [removing, setRemoving] = useState<string | null>(null);
 
   const load = useCallback(() => {
     Promise.all([
@@ -44,7 +47,8 @@ export function AdminPage() {
     }
   }
   async function assign() {
-    if (!pickedManager || !pickedUser || pickedManager === pickedUser) return;
+    if (!pickedManager || !pickedUser || pickedManager === pickedUser || assigning) return;
+    setAssigning(true);
     try {
       await apiFetch('/api/admin/assign-manager', {
         method: 'POST', body: JSON.stringify({ managerId: pickedManager, userId: pickedUser }),
@@ -52,8 +56,13 @@ export function AdminPage() {
       toast.success('Mapping added');
       load();
     } catch (e) { toast.error((e as Error).message); }
+    finally { setAssigning(false); }
   }
   async function unassign(managerId: string, userId: string) {
+    const key = `${managerId}-${userId}`;
+    if (removing === key) return;
+    setRemoving(key);
+    setConfirmRemove(null);
     try {
       await apiFetch('/api/admin/unassign-manager', {
         method: 'POST', body: JSON.stringify({ managerId, userId }),
@@ -61,6 +70,7 @@ export function AdminPage() {
       setMappings(ms => ms.filter(m => !(m.managerId === managerId && m.userId === userId)));
       toast.success('Mapping removed');
     } catch (e) { toast.error((e as Error).message); }
+    finally { setRemoving(null); }
   }
 
   const byId = (id: string) => users?.find(u => u.id === id);
@@ -141,25 +151,45 @@ export function AdminPage() {
                 </SelectContent>
               </Select>
             </div>
-            <Button onClick={assign} disabled={!pickedManager || !pickedUser || pickedManager === pickedUser}>
-              Assign
+            <Button onClick={assign} disabled={!pickedManager || !pickedUser || pickedManager === pickedUser || assigning}>
+              {assigning ? 'Assigning…' : 'Assign'}
             </Button>
           </div>
 
           <ul className="space-y-1 text-sm">
             {mappings.length === 0 && <li className="text-xs text-muted-foreground">No mappings.</li>}
-            {mappings.map(m => (
-              <li key={`${m.managerId}-${m.userId}`}
-                className="flex items-center justify-between rounded-md border px-3 py-1.5">
-                <span>
-                  <b>{byId(m.managerId)?.name ?? m.managerId}</b>
-                  <span className="text-muted-foreground"> manages </span>
-                  <b>{byId(m.userId)?.name ?? m.userId}</b>
-                </span>
-                <Button variant="ghost" size="sm" className="text-red-600 hover:text-red-700"
-                  onClick={() => unassign(m.managerId, m.userId)}>Remove</Button>
-              </li>
-            ))}
+            {mappings.map(m => {
+              const key = `${m.managerId}-${m.userId}`;
+              const isConfirming = confirmRemove?.managerId === m.managerId && confirmRemove?.userId === m.userId;
+              const isBusy = removing === key;
+              return (
+                <li key={key}
+                  className="flex items-center justify-between rounded-md ring-hairline px-3 py-1.5">
+                  <span>
+                    <b>{byId(m.managerId)?.name ?? m.managerId}</b>
+                    <span className="text-muted-foreground"> manages </span>
+                    <b>{byId(m.userId)?.name ?? m.userId}</b>
+                  </span>
+                  {isConfirming ? (
+                    <div className="flex items-center gap-1">
+                      <Button size="sm" variant="destructive" className="h-6 text-[10px] px-2" disabled={isBusy}
+                        onClick={() => unassign(m.managerId, m.userId)}>
+                        {isBusy ? '…' : 'Confirm'}
+                      </Button>
+                      <Button size="sm" variant="ghost" className="h-6 text-[10px] px-2"
+                        onClick={() => setConfirmRemove(null)}>
+                        Cancel
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button variant="ghost" size="sm" className="text-red-600 hover:text-red-700" disabled={isBusy}
+                      onClick={() => setConfirmRemove({ managerId: m.managerId, userId: m.userId })}>
+                      Remove
+                    </Button>
+                  )}
+                </li>
+              );
+            })}
           </ul>
         </CardContent>
       </Card>

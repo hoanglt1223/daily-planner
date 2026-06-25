@@ -12,24 +12,28 @@ export function ManagerPage() {
   const [people, setPeople] = useState<ManagedUser[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
   const [blocks, setBlocks] = useState<Block[]>([]);
-  const [error, setError] = useState<string | null>(null);
+  const [listError, setListError] = useState<string | null>(null);
+  const [blocksError, setBlocksError] = useState<string | null>(null);
 
   useEffect(() => {
     apiFetch<ManagedUser[]>('/api/admin/managed-users')
       .then(setPeople)
-      .catch(e => setError(e.message));
+      .catch(e => setListError((e as Error).message));
   }, []);
 
   useEffect(() => {
     if (!selected) return;
+    // Clear stale state immediately on user switch
+    setBlocks([]);
+    setBlocksError(null);
+    let cancelled = false;
     const from = startOfWeek(new Date());
     const to = addDays(from, 14);
     apiFetch<Block[]>(`/api/time-blocks?viewUser=${selected}&from=${from.toISOString()}&to=${to.toISOString()}`)
-      .then(setBlocks)
-      .catch(e => setError(e.message));
+      .then(data => { if (!cancelled) setBlocks(data); })
+      .catch(e => { if (!cancelled) setBlocksError((e as Error).message); });
+    return () => { cancelled = true; };
   }, [selected]);
-
-  if (error) return <p className="text-sm text-red-600">{error}</p>;
 
   const selectedUser = people.find(p => p.id === selected);
   const days = Array.from({ length: 14 }, (_, i) => addDays(startOfWeek(new Date()), i));
@@ -42,7 +46,10 @@ export function ManagerPage() {
           <CardDescription>{people.length} managed users</CardDescription>
         </CardHeader>
         <CardContent className="space-y-1">
-          {people.length === 0 && <p className="text-xs text-muted-foreground">No managed users.</p>}
+          {listError && (
+            <p className="text-xs text-red-600 px-1">{listError}</p>
+          )}
+          {!listError && people.length === 0 && <p className="text-xs text-muted-foreground">No managed users.</p>}
           {people.map(p => (
             <Button key={p.id} variant={selected === p.id ? 'default' : 'ghost'}
               className="w-full justify-start"
@@ -70,10 +77,13 @@ export function ManagerPage() {
               <Badge variant="secondary">{shortPrivacy(selectedUser.privacy)}</Badge>
             </CardHeader>
             <CardContent className="space-y-2">
-              {days.map(d => {
+              {blocksError && (
+                <p className="text-sm text-red-600">{blocksError}</p>
+              )}
+              {!blocksError && days.map(d => {
                 const day = blocks.filter(b => sameDay(new Date(b.startAt), d));
                 return (
-                  <div key={d.toISOString()} className="rounded-md border p-2">
+                  <div key={d.toISOString()} className="rounded-md shadow-soft p-2">
                     <p className="text-sm font-medium">{fmtDay(d)}</p>
                     {day.length === 0
                       ? <p className="text-xs text-muted-foreground">Free</p>

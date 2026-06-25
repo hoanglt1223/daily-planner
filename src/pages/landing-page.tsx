@@ -54,7 +54,7 @@ export function LandingPage() {
         <div className="grid gap-4 sm:grid-cols-2">
           {features.map(f => (
             <div key={f.title}
-              className={`group relative overflow-hidden rounded-2xl border bg-card p-6 transition-all hover:-translate-y-0.5 hover:shadow-xl`}>
+              className={`group relative overflow-hidden rounded-2xl bg-card p-6 transition-all shadow-soft hover:-translate-y-0.5 hover:shadow-soft-lg`}>
               <div className={`pointer-events-none absolute inset-0 -z-10 bg-gradient-to-br ${f.tone}`} />
               <f.icon className="size-7 text-primary" />
               <p className="mt-3 text-lg font-semibold">{f.title}</p>

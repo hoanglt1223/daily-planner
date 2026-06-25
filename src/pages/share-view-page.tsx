@@ -48,7 +48,7 @@ export function ShareViewPage() {
           {days.map(d => {
             const dayBlocks = data.blocks.filter(b => sameDay(new Date(b.startAt), d));
             return (
-              <div key={d.toISOString()} className="rounded-md border p-3">
+              <div key={d.toISOString()} className="rounded-md shadow-soft p-3">
                 <p className="text-sm font-medium">{fmtDay(d)}</p>
                 {dayBlocks.length === 0
                   ? <p className="text-xs text-muted-foreground">Free</p>

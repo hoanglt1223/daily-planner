@@ -75,9 +75,11 @@ export function TasksPage() {
   const [newOpen, setNewOpen] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [catManagerOpen, setCatManagerOpen] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
+    setLoadError(null);
     try {
       const [t, c] = await Promise.all([
         apiFetch<Task[]>('/api/tasks'),
@@ -85,7 +87,7 @@ export function TasksPage() {
       ]);
       setTasks(t);
       setCategories(c);
-    } catch { /* silent */ }
+    } catch (e) { setLoadError((e as Error).message || 'Failed to load tasks'); }
     finally { setLoading(false); }
   }, []);
 
@@ -180,6 +182,26 @@ export function TasksPage() {
         <Skeleton className="h-8 w-48" />
         <Skeleton className="h-12 w-full" />
         {Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-16 w-full" />)}
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <div className="space-y-5">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Tasks</h1>
+        </div>
+        <Card>
+          <CardContent className="p-10 text-center">
+            <AlertTriangle className="mx-auto size-10 text-destructive/50 mb-3" />
+            <p className="text-sm font-medium text-destructive">Failed to load tasks</p>
+            <p className="text-xs text-muted-foreground mt-1">{loadError}</p>
+            <Button size="sm" variant="outline" className="mt-4" onClick={load}>
+              Retry
+            </Button>
+          </CardContent>
+        </Card>
       </div>
     );
   }
@@ -346,9 +368,9 @@ function TaskRow({ task, category, busy, onStatusChange, onEdit, onDelete, onDup
 
   return (
     <div className={cn(
-      'group rounded-lg border bg-card transition-all hover:shadow-sm',
+      'group rounded-lg bg-card transition-all shadow-soft hover:shadow-soft-md',
       task.isPinned && 'ring-1 ring-primary/20',
-      isOverdue && 'border-red-200 bg-red-50/30',
+      isOverdue && 'border border-red-200 bg-red-50/30',
     )}>
       <div className="flex items-center gap-3 px-4 py-3">
         {/* Expand toggle */}
@@ -447,7 +469,7 @@ function TaskRow({ task, category, busy, onStatusChange, onEdit, onDelete, onDup
 
       {/* Expanded details */}
       {expanded && (
-        <div className="border-t px-4 py-3 pl-14 space-y-2 text-sm">
+        <div className="divider-t px-4 py-3 pl-14 space-y-2 text-sm">
           {task.description && (
             <p className="text-muted-foreground whitespace-pre-wrap">{task.description}</p>
           )}
@@ -859,7 +881,7 @@ function CategoryManagerDialog({ open, onOpenChange, categories, onSaved }: {
             {categories.map(cat => (
               <div key={cat.id}>
                 {editingCat?.id === cat.id ? (
-                  <div className="flex items-center gap-2 rounded-md border p-2">
+                  <div className="flex items-center gap-2 rounded-md ring-hairline p-2">
                     <div className="flex gap-1 flex-wrap">
                       {PRESET_COLORS.map(c => (
                         <button key={c} type="button"
@@ -881,7 +903,7 @@ function CategoryManagerDialog({ open, onOpenChange, categories, onSaved }: {
                     </Button>
                   </div>
                 ) : (
-                  <div className="flex items-center gap-2 rounded-md border px-3 py-2 group hover:bg-muted/30">
+                  <div className="flex items-center gap-2 rounded-md ring-hairline px-3 py-2 group hover:bg-muted/30">
                     <span className="size-3 rounded-full shrink-0" style={{ backgroundColor: cat.color }} />
                     <span className="text-sm flex-1 truncate">{cat.name}</span>
                     {confirmDelete === cat.id ? (
@@ -913,7 +935,7 @@ function CategoryManagerDialog({ open, onOpenChange, categories, onSaved }: {
           </div>
 
           {/* Create new */}
-          <div className="border-t pt-3 space-y-2">
+          <div className="divider-t pt-3 space-y-2">
             <p className="text-xs font-medium text-muted-foreground">New category</p>
             <div className="flex gap-1 flex-wrap">
               {PRESET_COLORS.map(c => (
