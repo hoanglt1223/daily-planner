@@ -5,7 +5,8 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
-import { Task, Category, TaskRow } from './task-row-shared';
+import { TaskRow } from './task-row-shared';
+import type { Task, Category } from './task-row-shared';
 
 export function TodayTasks() {
   const [tasks, setTasks] = useState<Task[]>([]);

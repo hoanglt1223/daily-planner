@@ -6,7 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
-import { Category, PRIORITY_LABEL, fmtEst } from './task-row-shared';
+import { PRIORITY_LABEL, fmtEst } from './task-row-shared';
+import type { Category } from './task-row-shared';
 
 type CompletedTask = {
   id: string; title: string;
