@@ -1,7 +1,13 @@
 import jwt from 'jsonwebtoken';
 import { randomBytes, scryptSync, timingSafeEqual } from 'node:crypto';
 
-const SECRET = process.env.JWT_SECRET || 'dev-secret-change-me';
+const SECRET = process.env.JWT_SECRET;
+if (!SECRET) {
+  throw new Error(
+    'JWT_SECRET is not set. Refusing to start with an insecure default. ' +
+    'Set JWT_SECRET in the environment (Vercel project settings + .env.local for local dev).'
+  );
+}
 const EXPIRES_IN = '7d';
 
 export type JwtPayload = { sub: string; email: string; role: 'user' | 'manager' | 'admin' };
