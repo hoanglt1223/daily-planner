@@ -81,7 +81,7 @@ export function DraggableTaskCard({ task, category, categories, onUpdate, onDele
 
   return (
     <div ref={setNodeRef} {...listeners} {...attributes}
-      className={`group relative cursor-grab rounded border bg-card p-2 text-sm shadow-sm transition-colors hover:border-foreground/20 ${isDragging ? 'opacity-40' : ''} ${task.isPinned ? 'border-l-2 border-l-amber-400' : ''}`}>
+      className={`group relative cursor-grab rounded-lg bg-card p-2 text-sm shadow-soft transition-shadow hover:shadow-soft-md ${isDragging ? 'opacity-40' : ''} ${task.isPinned ? 'border-l-2 border-l-amber-400' : ''}`}>
       <div className="flex items-start justify-between gap-1">
         <div className="flex items-center gap-1.5 flex-1 min-w-0">
           {task.isPinned && <Pin className="size-3 text-amber-500 shrink-0" />}

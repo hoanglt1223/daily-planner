@@ -64,6 +64,33 @@
 
 :root {
   --radius: 0.75rem;
+
+  /* Soft elevation system — replaces hard 1px borders with layered shadows.
+     Shadow color derived from foreground oklch(0.2 0.03 280) for a cohesive cast. */
+  --shadow-soft:
+    0 1px 2px 0 oklch(0.2 0.03 280 / 0.05),
+    0 4px 16px -4px oklch(0.2 0.03 280 / 0.1);
+  --shadow-soft-md:
+    0 2px 6px -1px oklch(0.2 0.03 280 / 0.08),
+    0 10px 30px -6px oklch(0.2 0.03 280 / 0.14);
+  --shadow-soft-lg:
+    0 4px 10px -2px oklch(0.2 0.03 280 / 0.1),
+    0 20px 48px -8px oklch(0.2 0.03 280 / 0.2);
+  /* Form fields: hairline ring via inset shadow + faint lift, no border */
+  --shadow-field:
+    inset 0 0 0 1px oklch(0.9 0.012 280),
+    0 1px 2px 0 oklch(0.2 0.03 280 / 0.05);
+  --shadow-field-focus:
+    inset 0 0 0 1px var(--color-ring),
+    0 0 0 3px oklch(0.56 0.22 280 / 0.18);
+  --shadow-field-invalid:
+    inset 0 0 0 1px var(--color-destructive),
+    0 0 0 3px oklch(0.62 0.22 25 / 0.18);
+  /* Row / section dividers as inset shadows instead of border-b / border-t */
+  --shadow-divider-b: inset 0 -1px 0 0 oklch(0.92 0.012 280 / 0.8);
+  --shadow-divider-t: inset 0 1px 0 0 oklch(0.92 0.012 280 / 0.8);
+  /* Subtle hairline ring (chips, outline badges) */
+  --shadow-ring: inset 0 0 0 1px oklch(0.9 0.012 280);
 }
 
 .dark {
@@ -86,6 +113,45 @@
   --color-border: oklch(0.3 0.03 280);
   --color-input: oklch(0.3 0.03 280);
   --color-ring: oklch(0.72 0.2 280);
+
+  /* Dark elevation: drop shadows read poorly on dark, so lean on a faint
+     light inset ring for definition plus a deeper ambient shadow. */
+  --shadow-soft:
+    inset 0 0 0 1px oklch(1 0 0 / 0.05),
+    0 2px 8px -2px oklch(0 0 0 / 0.5);
+  --shadow-soft-md:
+    inset 0 0 0 1px oklch(1 0 0 / 0.06),
+    0 8px 24px -6px oklch(0 0 0 / 0.6);
+  --shadow-soft-lg:
+    inset 0 0 0 1px oklch(1 0 0 / 0.07),
+    0 18px 44px -8px oklch(0 0 0 / 0.7);
+  --shadow-field: inset 0 0 0 1px oklch(1 0 0 / 0.1);
+  --shadow-field-focus:
+    inset 0 0 0 1px var(--color-ring),
+    0 0 0 3px oklch(0.72 0.2 280 / 0.3);
+  --shadow-field-invalid:
+    inset 0 0 0 1px var(--color-destructive),
+    0 0 0 3px oklch(0.7 0.22 25 / 0.3);
+  --shadow-divider-b: inset 0 -1px 0 0 oklch(1 0 0 / 0.08);
+  --shadow-divider-t: inset 0 1px 0 0 oklch(1 0 0 / 0.08);
+  --shadow-ring: inset 0 0 0 1px oklch(1 0 0 / 0.1);
+}
+
+/* Soft-elevation utilities — used in place of border utilities across the UI.
+   Defined with @utility (not @layer) so they compose with variants like
+   `[&_tr]:divider-b`, `hover:shadow-soft-md`, etc. */
+@utility shadow-soft { box-shadow: var(--shadow-soft); }
+@utility shadow-soft-md { box-shadow: var(--shadow-soft-md); }
+@utility shadow-soft-lg { box-shadow: var(--shadow-soft-lg); }
+@utility divider-b { box-shadow: var(--shadow-divider-b); }
+@utility divider-t { box-shadow: var(--shadow-divider-t); }
+@utility ring-hairline { box-shadow: var(--shadow-ring); }
+
+/* Form-field surface: hairline ring + lift, with focus/invalid states baked in */
+@utility field-shadow {
+  box-shadow: var(--shadow-field);
+  &:focus-visible { box-shadow: var(--shadow-field-focus); }
+  &[aria-invalid="true"] { box-shadow: var(--shadow-field-invalid); }
 }
 
 html, body, #root { height: 100%; }
@@ -107,7 +173,5 @@ body {
 /* Soft elevated surface */
 .card-surface {
   background: var(--color-card);
-  box-shadow:
-    0 1px 2px 0 oklch(0.2 0.03 280 / 0.04),
-    0 4px 12px -4px oklch(0.2 0.03 280 / 0.08);
+  box-shadow: var(--shadow-soft);
 }
