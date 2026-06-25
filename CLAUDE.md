@@ -1,7 +1,15 @@
 # CLAUDE.md — Daily Planner
 
-Time-blocked kanban + calendar + timesheet for personal work management.
-Core value: capacity check — show free slots when manager assigns urgent work.
+All-in-one work planner that replaces five tools: Kanban × Calendar × Timesheet × Calendly × Todoist.
+Focus: personal use and small teams / SMEs.
+Core value: capacity check, show free slots when a manager assigns urgent work.
+
+Pillar → implementation map:
+- **Kanban** → `tasks` (status/priority/category) + kanban board UI
+- **Calendar** → `time_blocks` (startAt/endAt) + lazy recurring expansion
+- **Timesheet** → `time_blocks.actualMinutes` + `reports` function
+- **Calendly** → `bookings` + public `/book/:token` page
+- **Todoist** → `tasks.recurringRule` (freq/byDay/interval/defaultTime/defaultDurationMinutes)
 
 ## Tech stack (FIXED)
 

@@ -1,16 +1,16 @@
 import { Link } from 'react-router-dom';
-import { CalendarRange, Clock, Share2, Users, Sparkles, ArrowRight } from 'lucide-react';
+import { CalendarRange, Clock, Share2, Users, Repeat, Sparkles, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 const features = [
   { icon: CalendarRange, title: 'Time-blocked kanban', tone: 'from-violet-500/15 to-violet-500/0',
-    body: 'Drag tasks onto a day or week grid. Click an empty slot — or drag across cells — to schedule in seconds.' },
-  { icon: Clock, title: 'Capacity at a glance', tone: 'from-emerald-500/15 to-emerald-500/0',
-    body: 'See booked vs. free hours instantly. Know whether the new urgent task actually fits — before saying yes.' },
+    body: 'Drag tasks onto a day or week grid. Click an empty slot, or drag across cells, to schedule in seconds.' },
+  { icon: Repeat, title: 'Recurring tasks & habits', tone: 'from-rose-500/15 to-rose-500/0',
+    body: 'Daily, weekly, or custom cadence with a default time and duration. Your to-do list and calendar, one source.' },
   { icon: Share2, title: 'Share + book slots', tone: 'from-amber-500/15 to-amber-500/0',
     body: 'One link gives a read-only week view and a Calendly-style booking page. Three privacy modes per user.' },
   { icon: Users, title: 'Cross-team free/busy', tone: 'from-sky-500/15 to-sky-500/0',
-    body: 'Managers see free/busy of mapped users. Owner picks: full details or busy-only — like Google Calendar.' },
+    body: 'Managers see free/busy of mapped users. Owner picks: full details or busy-only, like Google Calendar.' },
 ];
 
 export function LandingPage() {
@@ -33,14 +33,15 @@ export function LandingPage() {
 
       <section className="mx-auto max-w-4xl px-6 py-24 text-center">
         <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/20 bg-primary/5 px-3 py-1 text-xs font-medium text-primary">
-          <Sparkles className="size-3" /> Kanban × Calendar × Timesheet
+          <Sparkles className="size-3" /> Kanban × Calendar × Timesheet × Calendly × Todoist
         </span>
         <h1 className="mt-6 bg-gradient-to-br from-foreground via-primary to-fuchsia-600 bg-clip-text text-5xl font-bold leading-tight tracking-tight text-transparent sm:text-7xl">
-          Plan with clarity.<br />Deliver with confidence.
+          Five tools.<br />One planner.
         </h1>
         <p className="mx-auto mt-6 max-w-2xl text-lg text-muted-foreground">
-          A time-blocked planner that combines kanban, calendar, and timesheet — built so individuals and
-          their managers can see workload, capacity, and trade-offs at a glance.
+          Kanban, calendar, timesheet, booking links, and recurring to-dos in one place. Replace the stack
+          you juggle today, whether you plan solo or run a small team, and see workload, capacity, and
+          trade-offs at a glance.
         </p>
         <div className="mt-10 flex justify-center gap-3">
           <Button asChild size="lg" className="shadow-lg shadow-primary/30">
@@ -51,6 +52,15 @@ export function LandingPage() {
       </section>
 
       <section className="mx-auto max-w-5xl px-6 pb-24">
+        <div className="mb-4 group relative overflow-hidden rounded-2xl bg-card p-6 shadow-soft sm:p-8">
+          <div className="pointer-events-none absolute inset-0 -z-10 bg-gradient-to-br from-emerald-500/15 to-emerald-500/0" />
+          <Clock className="size-7 text-emerald-500" />
+          <p className="mt-3 text-lg font-semibold sm:text-xl">Capacity check, the reason it exists</p>
+          <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+            See booked vs. free hours instantly. When a manager drops in urgent work, know whether it
+            actually fits before you say yes, and show them the free slots without exposing the details.
+          </p>
+        </div>
         <div className="grid gap-4 sm:grid-cols-2">
           {features.map(f => (
             <div key={f.title}

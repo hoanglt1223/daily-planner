@@ -1,6 +1,6 @@
 # Daily Planner
 
-Time-blocked kanban + calendar + timesheet for personal work management. Drag tasks onto a day/week grid, run recurring events, and see at a glance how much free time you have when a new urgent task lands.
+All-in-one work planner that replaces five tools in one: Kanban × Calendar × Timesheet × Calendly × Todoist. Built for personal use and small teams / SMEs. Drag tasks onto a day/week grid, run recurring to-dos, share booking links, and see at a glance how much free time you have when a new urgent task lands.
 
 ## Stack
 
