@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertTriangle, Archive, ArrowUpDown, CheckCircle2, CheckSquare, ChevronDown, ChevronRight,
-  Clock, Copy, Edit3, ListChecks, Palette, Pencil, Pin, PinOff, PlayCircle, Plus, Search, Square, Tag, Trash2, X,
+  Clock, Copy, Edit3, FileSpreadsheet, ListChecks, Palette, Pencil, Pin, PinOff, PlayCircle, Plus, Search, Square, Tag, Trash2, X,
   Zap,
 } from 'lucide-react';
 import { apiFetch } from '@/lib/api-client';
@@ -18,6 +18,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { BulkImportDialog } from '@/components/bulk-import-dialog';
 
 /* ─── Types ─── */
 
@@ -110,6 +111,7 @@ export function TasksPage() {
   const [newOpen, setNewOpen] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [catManagerOpen, setCatManagerOpen] = useState(false);
+  const [bulkImportOpen, setBulkImportOpen] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkBusy, setBulkBusy] = useState(false);
@@ -422,9 +424,14 @@ export function TasksPage() {
             {counts.todo + counts.doing} active · {counts.done} done · {counts.archived} archived
           </p>
         </div>
-        <Button onClick={() => setNewOpen(true)}>
-          <Plus className="size-4 mr-1.5" /> New task
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={() => setBulkImportOpen(true)}>
+            <FileSpreadsheet className="size-4 mr-1.5" /> Bulk import
+          </Button>
+          <Button onClick={() => setNewOpen(true)}>
+            <Plus className="size-4 mr-1.5" /> New task
+          </Button>
+        </div>
       </div>
 
       {/* Quick-add bar */}
@@ -669,6 +676,14 @@ export function TasksPage() {
           onSaved={load}
         />
       )}
+
+      {/* Bulk import dialog */}
+      <BulkImportDialog
+        open={bulkImportOpen}
+        onOpenChange={setBulkImportOpen}
+        categories={categories}
+        onDone={load}
+      />
 
       {/* Category manager dialog (renamed Projects in UI) */}
       <CategoryManagerDialog
