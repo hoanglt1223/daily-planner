@@ -8,6 +8,21 @@ type ShortcutRow = { keys: string; description: string };
 
 const SECTIONS: Array<{ title: string; items: ShortcutRow[] }> = [
   {
+    title: 'Tasks',
+    items: [
+      { keys: 'j / ↓', description: 'Highlight next task' },
+      { keys: 'k / ↑', description: 'Highlight previous task' },
+      { keys: 'Enter', description: 'Expand / collapse task' },
+      { keys: 'e', description: 'Edit highlighted task' },
+      { keys: 's', description: 'Cycle task status' },
+      { keys: '1-4', description: 'Set priority (1=Urgent … 4=Low)' },
+      { keys: 'x', description: 'Toggle selection' },
+      { keys: 'Delete', description: 'Delete highlighted task' },
+      { keys: 'n', description: 'New task dialog' },
+      { keys: '/', description: 'Focus search' },
+    ],
+  },
+  {
     title: 'Planner',
     items: [
       { keys: 'd', description: 'Switch to day view' },

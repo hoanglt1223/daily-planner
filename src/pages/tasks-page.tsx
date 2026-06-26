@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertTriangle, Archive, ArrowUpDown, CheckCircle2, CheckSquare, ChevronDown, ChevronRight,
   Clock, Copy, Edit3, ListChecks, Palette, Pencil, Pin, PinOff, PlayCircle, Plus, Search, Square, Tag, Trash2, X,
@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { apiFetch } from '@/lib/api-client';
 import { parseQuickAdd } from '@/lib/parse-quick-add';
+import { useTasksKeyboardShortcuts } from '@/lib/use-tasks-keyboard-shortcuts';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -116,6 +117,9 @@ export function TasksPage() {
   const [quickInput, setQuickInput] = useState('');
   const [quickBusy, setQuickBusy] = useState(false);
   const [quickPreview, setQuickPreview] = useState<ReturnType<typeof parseQuickAdd> | null>(null);
+  const [highlightedId, setHighlightedId] = useState<string | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -281,6 +285,30 @@ export function TasksPage() {
     const overdue = tasks.filter(isOverdue).length;
     return { ...c, today, upcoming, overdue };
   }, [tasks]);
+
+  // Keyboard shortcuts for task navigation
+  const filteredIds = useMemo(() => filtered.map(t => t.id), [filtered]);
+
+  useTasksKeyboardShortcuts({
+    taskIds: filteredIds,
+    highlightedId,
+    setHighlightedId,
+    onExpand: (id) => setExpandedId(prev => prev === id ? null : id),
+    onEdit: (id) => { const t = tasks.find(x => x.id === id); if (t) setEditTask(t); },
+    onStatusCycle: (id) => {
+      const t = tasks.find(x => x.id === id);
+      if (!t) return;
+      const next: Record<TaskStatus, TaskStatus> = {
+        backlog: 'todo', todo: 'doing', doing: 'done', done: 'archived', archived: 'backlog',
+      };
+      updateTask(id, { status: next[t.status] });
+    },
+    onSetPriority: (id, priority) => updateTask(id, { priority }),
+    onToggleSelect: (id) => toggleSelect(id),
+    onDelete: (id) => deleteTask(id),
+    onNewTask: () => setNewOpen(true),
+    onFocusSearch: () => searchRef.current?.focus(),
+  });
 
   const selectedCount = selectedIds.size;
 
@@ -468,7 +496,8 @@ export function TasksPage() {
         <div className="relative flex-1 min-w-[200px] max-w-sm">
           <Search className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
-            placeholder="Search tasks..."
+            ref={searchRef}
+            placeholder="Search tasks... (press / to focus)"
             value={search}
             onChange={e => setSearch(e.target.value)}
             className="h-9 pl-8"
@@ -613,7 +642,10 @@ export function TasksPage() {
               category={task.categoryId ? catMap.get(task.categoryId) : undefined}
               busy={busyId === task.id}
               selected={selectedIds.has(task.id)}
+              isHighlighted={highlightedId === task.id}
+              isExpanded={expandedId === task.id}
               onToggleSelect={() => toggleSelect(task.id)}
+              onToggleExpand={() => setExpandedId(prev => prev === task.id ? null : task.id)}
               onStatusChange={(status) => updateTask(task.id, { status })}
               onEdit={() => setEditTask(task)}
               onDelete={() => deleteTask(task.id)}
@@ -651,13 +683,13 @@ export function TasksPage() {
 
 /* ─── Task Row ─── */
 
-function TaskRow({ task, category, busy, selected, onToggleSelect, onStatusChange, onEdit, onDelete, onDuplicate, onPin, onLabelClick }: {
+function TaskRow({ task, category, busy, selected, isHighlighted, isExpanded, onToggleSelect, onToggleExpand, onStatusChange, onEdit, onDelete, onDuplicate, onPin, onLabelClick }: {
   task: Task; category?: Category; busy: boolean; selected: boolean;
-  onToggleSelect: () => void;
+  isHighlighted: boolean; isExpanded: boolean;
+  onToggleSelect: () => void; onToggleExpand: () => void;
   onStatusChange: (s: TaskStatus) => void; onEdit: () => void; onDelete: () => void; onDuplicate: () => void; onPin: () => void;
   onLabelClick: (label: string) => void;
 }) {
-  const [expanded, setExpanded] = useState(false);
   const prio = PRIORITY_LABEL[task.priority] ?? PRIORITY_LABEL[3];
   const meta = STATUS_META[task.status];
   const StatusIcon = meta.icon;
@@ -669,15 +701,19 @@ function TaskRow({ task, category, busy, selected, onToggleSelect, onStatusChang
   const overdue = isOverdue(task);
 
   return (
-    <div className={cn(
-      'group rounded-lg bg-card transition-all shadow-soft hover:shadow-soft-md',
-      task.isPinned && 'ring-1 ring-primary/20',
-      overdue && 'border border-red-200 bg-red-50/30',
-    )}>
+    <div
+      data-task-id={task.id}
+      className={cn(
+        'group rounded-lg bg-card transition-all shadow-soft hover:shadow-soft-md',
+        task.isPinned && 'ring-1 ring-primary/20',
+        overdue && 'border border-red-200 bg-red-50/30',
+        isHighlighted && 'ring-2 ring-primary shadow-soft-md',
+      )}
+    >
       <div className="flex items-center gap-3 px-4 py-3">
         {/* Expand toggle */}
-        <button onClick={() => setExpanded(!expanded)} className="text-muted-foreground hover:text-foreground shrink-0">
-          {expanded ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}
+        <button onClick={onToggleExpand} className="text-muted-foreground hover:text-foreground shrink-0">
+          {isExpanded ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}
         </button>
 
         {/* Selection checkbox */}
@@ -794,7 +830,7 @@ function TaskRow({ task, category, busy, selected, onToggleSelect, onStatusChang
       </div>
 
       {/* Expanded details */}
-      {expanded && (
+      {isExpanded && (
         <div className="divider-t px-4 py-3 pl-14 space-y-2 text-sm">
           {task.description && (
             <p className="text-muted-foreground whitespace-pre-wrap">{task.description}</p>
