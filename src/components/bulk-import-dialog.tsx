@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { FileSpreadsheet, Loader2, Plus, X } from 'lucide-react';
+import { FileSpreadsheet, Loader2, Plus } from 'lucide-react';
 import { apiFetch } from '@/lib/api-client';
 import { parseQuickAdd } from '@/lib/parse-quick-add';
 import { Button } from '@/components/ui/button';
