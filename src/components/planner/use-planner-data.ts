@@ -21,6 +21,7 @@ export type TimeBlock = {
   startAt: string; endAt: string;
   status: 'planned' | 'in_progress' | 'completed' | 'skipped' | 'pending';
   note: string | null;
+  energyLevel: number | null;
 };
 
 export function usePlannerData(from: Date, to: Date) {

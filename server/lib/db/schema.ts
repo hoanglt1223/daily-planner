@@ -79,6 +79,7 @@ export const timeBlocks = pgTable('time_blocks', {
   actualMinutes: integer('actual_minutes'),
   status: blockStatus('status').notNull().default('planned'),
   note: text('note'),
+  energyLevel: integer('energy_level'), // 1-5 scale for subjective energy during task
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 }, (t) => [
   index('blocks_user_start_idx').on(t.userId, t.startAt),

@@ -13,7 +13,7 @@ import { formatInTimeZone } from 'date-fns-tz';
 
 export type BlockEditorState =
   | { mode: 'create'; startAt: Date; endAt: Date }
-  | { mode: 'edit'; id: string; title: string; startAt: Date; endAt: Date; note: string | null };
+  | { mode: 'edit'; id: string; title: string; startAt: Date; endAt: Date; note: string | null; energyLevel: number | null };
 
 export type TaskOption = { id: string; title: string };
 
@@ -26,8 +26,8 @@ export function BlockEditorDialog({ state, tasks = [], onClose, onCreate, onUpda
   state: BlockEditorState | null;
   tasks?: TaskOption[];
   onClose: () => void;
-  onCreate: (data: { title: string; startAt: Date; endAt: Date; note: string; taskId?: string }) => Promise<void> | void;
-  onUpdate: (id: string, data: { title?: string; startAt?: Date; endAt?: Date; note?: string }) => Promise<void> | void;
+  onCreate: (data: { title: string; startAt: Date; endAt: Date; note: string; taskId?: string; energyLevel?: number }) => Promise<void> | void;
+  onUpdate: (id: string, data: { title?: string; startAt?: Date; endAt?: Date; note?: string; energyLevel?: number }) => Promise<void> | void;
   onDelete: (id: string) => Promise<void> | void;
 }) {
   const [title, setTitle] = useState('');
@@ -35,6 +35,7 @@ export function BlockEditorDialog({ state, tasks = [], onClose, onCreate, onUpda
   const [startTime, setStartTime] = useState('');
   const [durationMin, setDurationMin] = useState(30);
   const [linkedTaskId, setLinkedTaskId] = useState<string>('');
+  const [energyLevel, setEnergyLevel] = useState<number | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -44,6 +45,7 @@ export function BlockEditorDialog({ state, tasks = [], onClose, onCreate, onUpda
     setStartTime(toTimeInput(state.startAt));
     setDurationMin(Math.max(15, Math.round((state.endAt.getTime() - state.startAt.getTime()) / 60_000)));
     setLinkedTaskId('');
+    setEnergyLevel(state.mode === 'edit' ? state.energyLevel ?? null : null);
   }, [state]);
 
   if (!state) return null;
@@ -64,9 +66,9 @@ export function BlockEditorDialog({ state, tasks = [], onClose, onCreate, onUpda
     try {
       const { startAt, endAt } = resolveRange();
       if (state.mode === 'create') {
-        await onCreate({ title: title.trim(), startAt, endAt, note, taskId: linkedTaskId || undefined });
+        await onCreate({ title: title.trim(), startAt, endAt, note, taskId: linkedTaskId || undefined, energyLevel: energyLevel ?? undefined });
       } else {
-        await onUpdate(state.id, { title: title.trim(), startAt, endAt, note });
+        await onUpdate(state.id, { title: title.trim(), startAt, endAt, note, energyLevel: energyLevel ?? undefined });
       }
       onClose();
     } finally { setSubmitting(false); }
@@ -123,6 +125,33 @@ export function BlockEditorDialog({ state, tasks = [], onClose, onCreate, onUpda
               <Label htmlFor="be-note">Note</Label>
               <Textarea id="be-note" rows={3}
                 value={note} onChange={e => setNote(e.target.value)} />
+            </div>
+            <div className="space-y-1">
+              <Label>Energy level (optional)</Label>
+              <div className="flex gap-2">
+                {[
+                  { level: 1, emoji: '😴', label: 'Drained' },
+                  { level: 2, emoji: '😐', label: 'Low' },
+                  { level: 3, emoji: '🙂', label: 'OK' },
+                  { level: 4, emoji: '😃', label: 'Good' },
+                  { level: 5, emoji: '⚡', label: 'Peak' },
+                ].map(({ level, emoji, label }) => (
+                  <button
+                    key={level}
+                    type="button"
+                    onClick={() => setEnergyLevel(energyLevel === level ? null : level)}
+                    className={`flex-1 rounded-md border-2 p-2 text-center transition-all hover:bg-muted ${
+                      energyLevel === level
+                        ? 'border-primary bg-primary/10'
+                        : 'border-muted-foreground/20'
+                    }`}
+                    title={label}
+                  >
+                    <span className="text-2xl">{emoji}</span>
+                    <div className="text-xs text-muted-foreground">{label}</div>
+                  </button>
+                ))}
+              </div>
             </div>
             {state.mode === 'create' && tasks.length > 0 && (
               <div className="space-y-1">

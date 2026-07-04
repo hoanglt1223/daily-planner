@@ -17,6 +17,7 @@ import { DailyReview } from '@/components/dashboard/daily-review';
 import { StreakCalendar } from '@/components/dashboard/streak-calendar';
 import { TimeAllocation } from '@/components/dashboard/time-allocation';
 import { PomodoroTimer } from '@/components/dashboard/pomodoro-timer';
+import { EnergyPatterns } from '@/components/dashboard/energy-patterns';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -134,6 +135,7 @@ export function DashboardPage() {
           <PomodoroTimer />
           <DailyFocus />
           <DailyReview />
+          <EnergyPatterns />
         </div>
       </div>
 
