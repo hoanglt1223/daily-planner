@@ -62,6 +62,9 @@ export const tasks = pgTable('tasks', {
   subtasks: jsonb('subtasks').$type<Array<{ id: string; title: string; done: boolean }>>().default([]),
   // Todoist-style free-form labels (categories serve as the single "project" grouping)
   labels: jsonb('labels').$type<string[]>().default([]),
+  // Task reminder settings (browser notifications)
+  reminderEnabled: boolean('reminder_enabled').notNull().default(false),
+  reminderMinutes: integer('reminder_minutes'),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 }, (t) => [

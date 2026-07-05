@@ -85,6 +85,8 @@ export default async function handler(req: AuthedRequest, res: VercelResponse) {
         dueDate: body.dueDate ? new Date(body.dueDate) : null,
         subtasks: body.subtasks ?? [],
         labels: Array.isArray(body.labels) ? body.labels : [],
+        reminderEnabled: body.reminderEnabled ?? false,
+        reminderMinutes: body.reminderMinutes ?? null,
       }).returning();
       return res.status(201).json(row);
     }
@@ -92,7 +94,7 @@ export default async function handler(req: AuthedRequest, res: VercelResponse) {
     if (req.method === 'PATCH' && id) {
       const body = req.body ?? {};
       const patch: Record<string, unknown> = { updatedAt: new Date() };
-      for (const key of ['title', 'description', 'status', 'priority', 'estimatedMinutes', 'categoryId', 'recurringRule', 'isPinned', 'subtasks']) {
+      for (const key of ['title', 'description', 'status', 'priority', 'estimatedMinutes', 'categoryId', 'recurringRule', 'isPinned', 'subtasks', 'reminderEnabled', 'reminderMinutes']) {
         if (key in body) patch[key] = body[key];
       }
       if ('dueDate' in body) patch.dueDate = body.dueDate ? new Date(body.dueDate) : null;

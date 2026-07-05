@@ -5,6 +5,7 @@ import { useTheme } from 'next-themes';
 import { apiFetch, clearAuthToken, getAuthToken } from '@/lib/api-client';
 import { setActiveTimeZone } from '@/lib/time-utils';
 import { useGlobalShortcuts } from '@/lib/use-global-keyboard-shortcuts';
+import { useTaskReminders } from '@/hooks/use-task-reminders';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { KeyboardShortcutsDialog } from '@/components/keyboard-shortcuts-dialog';
@@ -13,6 +14,14 @@ import { QuickTimeLogDialog } from '@/components/quick-time-log-dialog';
 import { cn } from '@/lib/utils';
 
 type Me = { id: string; name: string; role: 'user' | 'manager' | 'admin'; email: string; timezone?: string };
+
+type Task = {
+  id: string;
+  title: string;
+  dueDate: string | null;
+  reminderEnabled: boolean;
+  reminderMinutes: number | null;
+};
 
 const ICONS = {
   '/dashboard': LayoutDashboard,
@@ -27,9 +36,11 @@ export function AppLayout() {
   const nav = useNavigate();
   const [me, setMe] = useState<Me | null>(null);
   const [authReady, setAuthReady] = useState(false);
+  const [tasks, setTasks] = useState<Task[]>([]);
   const { theme, setTheme } = useTheme();
 
   useGlobalShortcuts();
+  useTaskReminders(tasks);
 
   useEffect(() => {
     if (!getAuthToken()) { nav('/login', { replace: true }); return; }
@@ -44,6 +55,15 @@ export function AppLayout() {
         nav('/login', { replace: true });
       });
   }, [nav]);
+
+  useEffect(() => {
+    if (!authReady) return;
+    apiFetch<Task[]>('/api/tasks')
+      .then(data => setTasks(data))
+      .catch(() => {
+        // Silently fail - reminders are optional
+      });
+  }, [authReady]);
 
   const links: Array<{ to: keyof typeof ICONS; label: string; show: boolean }> = [
     { to: '/dashboard', label: 'Dashboard', show: true },

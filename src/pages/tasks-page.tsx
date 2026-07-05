@@ -19,6 +19,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { BulkImportDialog } from '@/components/bulk-import-dialog';
+import { TaskReminderSettings } from '@/components/task-reminder-settings';
 
 /* ─── Types ─── */
 
@@ -33,6 +34,8 @@ interface Task {
   dueDate: string | null; categoryId: string | null; isPinned: boolean;
   subtasks: Subtask[];
   labels: string[];
+  reminderEnabled: boolean;
+  reminderMinutes: number | null;
   createdAt: string; updatedAt: string;
 }
 
@@ -961,11 +964,14 @@ function NewTaskDialog({ open, onOpenChange, categories, onCreated }: {
   const [dueDate, setDueDate] = useState('');
   const [repeatFreq, setRepeatFreq] = useState<'none' | 'daily' | 'weekly'>('none');
   const [labels, setLabels] = useState<string[]>([]);
+  const [reminderEnabled, setReminderEnabled] = useState(false);
+  const [reminderMinutes, setReminderMinutes] = useState<number | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   function reset() {
     setTitle(''); setMinutes(60); setPriority(3); setCategoryId(null);
     setDueDate(''); setRepeatFreq('none'); setLabels([]);
+    setReminderEnabled(false); setReminderMinutes(null);
   }
 
   async function submit(e: React.FormEvent) {
@@ -979,6 +985,7 @@ function NewTaskDialog({ open, onOpenChange, categories, onCreated }: {
           title: title.trim(), estimatedMinutes: minutes, priority,
           categoryId, dueDate: dueDate || null, status: 'todo',
           labels,
+          reminderEnabled, reminderMinutes,
           recurringRule: repeatFreq === 'none' ? null : {
             freq: repeatFreq,
             interval: 1,
@@ -1086,6 +1093,13 @@ function NewTaskDialog({ open, onOpenChange, categories, onCreated }: {
               <Label>Labels</Label>
               <LabelsInput value={labels} onChange={setLabels} />
             </div>
+            {/* Task Reminders */}
+            <TaskReminderSettings
+              reminderEnabled={reminderEnabled}
+              reminderMinutes={reminderMinutes}
+              onReminderEnabledChange={setReminderEnabled}
+              onReminderMinutesChange={setReminderMinutes}
+            />
           </div>
           <DialogFooter>
             <Button type="button" variant="ghost" onClick={() => { reset(); onOpenChange(false); }}>Cancel</Button>
@@ -1111,6 +1125,8 @@ function EditTaskDialog({ task, categories, onClose, onSaved }: {
   const [dueDate, setDueDate] = useState(task.dueDate ? task.dueDate.slice(0, 10) : '');
   const [subtasks, setSubtasks] = useState<Subtask[]>(task.subtasks ?? []);
   const [labels, setLabels] = useState<string[]>(task.labels ?? []);
+  const [reminderEnabled, setReminderEnabled] = useState(task.reminderEnabled ?? false);
+  const [reminderMinutes, setReminderMinutes] = useState<number | null>(task.reminderMinutes ?? null);
   const [newSubtask, setNewSubtask] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
@@ -1141,6 +1157,7 @@ function EditTaskDialog({ task, categories, onClose, onSaved }: {
           title: title.trim(), description: description || null,
           estimatedMinutes: minutes, priority, status, categoryId,
           dueDate: dueDate || null, subtasks, labels,
+          reminderEnabled, reminderMinutes,
         }),
       });
       toast.success('Task updated!');
@@ -1244,6 +1261,13 @@ function EditTaskDialog({ task, categories, onClose, onSaved }: {
               <Label htmlFor="et-due">Due date</Label>
               <Input id="et-due" type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} />
             </div>
+            {/* Task Reminders */}
+            <TaskReminderSettings
+              reminderEnabled={reminderEnabled}
+              reminderMinutes={reminderMinutes}
+              onReminderEnabledChange={setReminderEnabled}
+              onReminderMinutesChange={setReminderMinutes}
+            />
             {/* Subtasks */}
             <div className="space-y-1.5">
               <Label>Subtasks {subtasks.length > 0 && `(${subtasks.filter(s => s.done).length}/${subtasks.length})`}</Label>
