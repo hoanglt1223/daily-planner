@@ -86,6 +86,9 @@ export function DashboardPage() {
               <Button variant="outline" asChild>
                 <Link to="/planner">Open Planner</Link>
               </Button>
+              <Button variant="outline" asChild>
+                <Link to="/priority-matrix">Priority Matrix</Link>
+              </Button>
             </div>
           </CardContent>
         </Card>

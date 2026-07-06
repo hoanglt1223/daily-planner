@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Flame, Target, TrendingUp, Trophy } from 'lucide-react';
+import { Flame, Target, TrendingUp, Trophy, Grid3x3 } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { apiFetch } from '@/lib/api-client';
 import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { addDays, startOfDay, fmtIsoDate } from '@/lib/time-utils';
@@ -132,6 +134,14 @@ export function ProductivityInsights() {
             </span>
           </div>
         )}
+
+        {/* Priority Matrix link */}
+        <Button asChild variant="outline" size="sm" className="w-full gap-2">
+          <Link to="/priority-matrix">
+            <Grid3x3 className="size-4" />
+            Open Priority Matrix
+          </Link>
+        </Button>
       </CardContent>
     </Card>
   );
