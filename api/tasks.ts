@@ -73,6 +73,21 @@ export default async function handler(req: AuthedRequest, res: VercelResponse) {
     if (req.method === 'POST' && !id) {
       const body = req.body ?? {};
       if (!body.title) return res.status(400).json({ error: 'title_required' });
+
+      // Validate dependencies if provided
+      const blockedByTaskIds = Array.isArray(body.blockedByTaskIds) ? body.blockedByTaskIds : [];
+      if (blockedByTaskIds.length > 0) {
+        // Verify all blocking tasks exist and belong to user
+        const blockingTasks = await db.select().from(tasks).where(
+          and(eq(tasks.userId, user.sub))
+        );
+        const validIds = new Set(blockingTasks.map(t => t.id));
+        const invalidIds = blockedByTaskIds.filter((id: string) => !validIds.has(id));
+        if (invalidIds.length > 0) {
+          return res.status(400).json({ error: 'invalid_dependencies', invalidIds });
+        }
+      }
+
       const [row] = await db.insert(tasks).values({
         userId: user.sub,
         title: body.title,
@@ -85,6 +100,7 @@ export default async function handler(req: AuthedRequest, res: VercelResponse) {
         dueDate: body.dueDate ? new Date(body.dueDate) : null,
         subtasks: body.subtasks ?? [],
         labels: Array.isArray(body.labels) ? body.labels : [],
+        blockedByTaskIds,
         reminderEnabled: body.reminderEnabled ?? false,
         reminderMinutes: body.reminderMinutes ?? null,
       }).returning();
@@ -104,6 +120,38 @@ export default async function handler(req: AuthedRequest, res: VercelResponse) {
           ? body.labels.filter((l: unknown) => typeof l === 'string')
           : [];
       }
+      // blockedByTaskIds: validate and check for circular dependencies
+      if ('blockedByTaskIds' in body) {
+        const blockedBy = Array.isArray(body.blockedByTaskIds) ? body.blockedByTaskIds : [];
+        // Verify all blocking tasks exist and belong to user
+        const allTasks = await db.select().from(tasks).where(eq(tasks.userId, user.sub));
+        const validIds = new Set(allTasks.map(t => t.id));
+        const invalidIds = blockedBy.filter((depId: string) => !validIds.has(depId));
+        if (invalidIds.length > 0) {
+          return res.status(400).json({ error: 'invalid_dependencies', invalidIds });
+        }
+
+        // Check for circular dependencies
+        const visited = new Set<string>();
+        const stack = [...blockedBy];
+
+        while (stack.length > 0) {
+          const currentId = stack.pop()!;
+          if (currentId === id) {
+            return res.status(400).json({ error: 'circular_dependency', message: 'Cannot create circular dependencies' });
+          }
+          if (visited.has(currentId)) continue;
+          visited.add(currentId);
+
+          const currentTask = allTasks.find(t => t.id === currentId);
+          if (currentTask?.blockedByTaskIds) {
+            stack.push(...currentTask.blockedByTaskIds);
+          }
+        }
+
+        patch.blockedByTaskIds = blockedBy;
+      }
+
       const [row] = await db.update(tasks)
         .set(patch)
         .where(and(eq(tasks.id, id), eq(tasks.userId, user.sub)))

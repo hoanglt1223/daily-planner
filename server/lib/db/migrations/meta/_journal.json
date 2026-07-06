@@ -8,6 +8,13 @@
       "when": 1778662774749,
       "tag": "0000_strong_zodiak",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1783376338880,
+      "tag": "0001_clean_king_bedlam",
+      "breakpoints": true
     }
   ]
 }

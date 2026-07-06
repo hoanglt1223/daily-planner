@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertTriangle, Archive, ArrowUpDown, CheckCircle2, CheckSquare, ChevronDown, ChevronRight,
-  Clock, Copy, Edit3, FileSpreadsheet, ListChecks, Palette, Pencil, Pin, PinOff, PlayCircle, Plus, Search, Square, Tag, Trash2, X,
+  Clock, Copy, Edit3, FileSpreadsheet, Link2, ListChecks, Palette, Pencil, Pin, PinOff, PlayCircle, Plus, Search, Square, Tag, Trash2, X,
   Zap,
 } from 'lucide-react';
 import { apiFetch } from '@/lib/api-client';
@@ -20,6 +20,7 @@ import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { BulkImportDialog } from '@/components/bulk-import-dialog';
 import { TaskReminderSettings } from '@/components/task-reminder-settings';
+import { TaskDependencySelector } from '@/components/task-dependency-selector';
 
 /* ─── Types ─── */
 
@@ -34,6 +35,7 @@ interface Task {
   dueDate: string | null; categoryId: string | null; isPinned: boolean;
   subtasks: Subtask[];
   labels: string[];
+  blockedByTaskIds: string[];
   reminderEnabled: boolean;
   reminderMinutes: number | null;
   createdAt: string; updatedAt: string;
@@ -782,9 +784,14 @@ function TaskRow({ task, category, busy, selected, isHighlighted, isExpanded, on
                 'text-[10px] flex items-center gap-0.5',
                 overdue ? 'text-red-600 font-medium' : 'text-muted-foreground',
               )}>
-                {overdue && <AlertTriangle className="size-3" />}
-                Due {fmtShortDate(new Date(task.dueDate))}
+                {new Date(task.dueDate).toLocaleDateString()}
               </span>
+            )}
+            {task.blockedByTaskIds && task.blockedByTaskIds.length > 0 && (
+              <Badge variant="outline" className="text-[10px] px-1.5 py-0 gap-1 bg-amber-50 border-amber-200 text-amber-700">
+                <Link2 className="size-3" />
+                Blocked by {task.blockedByTaskIds.length}
+              </Badge>
             )}
             {category && (
               <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
@@ -852,6 +859,18 @@ function TaskRow({ task, category, busy, selected, isHighlighted, isExpanded, on
         <div className="divider-t px-4 py-3 pl-14 space-y-2 text-sm">
           {task.description && (
             <p className="text-muted-foreground whitespace-pre-wrap">{task.description}</p>
+          )}
+          {/* Dependencies section */}
+          {task.blockedByTaskIds && task.blockedByTaskIds.length > 0 && (
+            <div className="space-y-1">
+              <div className="flex items-center gap-1.5 text-xs font-medium text-amber-700">
+                <Link2 className="size-3" />
+                <span>Blocked by {task.blockedByTaskIds.length} task{task.blockedByTaskIds.length > 1 ? 's' : ''}</span>
+              </div>
+              <div className="text-xs text-muted-foreground pl-4">
+                This task cannot be started until the blocking tasks are completed.
+              </div>
+            </div>
           )}
           {/* Subtasks checklist */}
           {task.subtasks && task.subtasks.length > 0 && (
@@ -964,6 +983,7 @@ function NewTaskDialog({ open, onOpenChange, categories, onCreated }: {
   const [dueDate, setDueDate] = useState('');
   const [repeatFreq, setRepeatFreq] = useState<'none' | 'daily' | 'weekly'>('none');
   const [labels, setLabels] = useState<string[]>([]);
+  const [blockedByTaskIds, setBlockedByTaskIds] = useState<string[]>([]);
   const [reminderEnabled, setReminderEnabled] = useState(false);
   const [reminderMinutes, setReminderMinutes] = useState<number | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -971,6 +991,7 @@ function NewTaskDialog({ open, onOpenChange, categories, onCreated }: {
   function reset() {
     setTitle(''); setMinutes(60); setPriority(3); setCategoryId(null);
     setDueDate(''); setRepeatFreq('none'); setLabels([]);
+    setBlockedByTaskIds([]);
     setReminderEnabled(false); setReminderMinutes(null);
   }
 
@@ -984,7 +1005,7 @@ function NewTaskDialog({ open, onOpenChange, categories, onCreated }: {
         body: JSON.stringify({
           title: title.trim(), estimatedMinutes: minutes, priority,
           categoryId, dueDate: dueDate || null, status: 'todo',
-          labels,
+          labels, blockedByTaskIds,
           reminderEnabled, reminderMinutes,
           recurringRule: repeatFreq === 'none' ? null : {
             freq: repeatFreq,
@@ -1093,6 +1114,10 @@ function NewTaskDialog({ open, onOpenChange, categories, onCreated }: {
               <Label>Labels</Label>
               <LabelsInput value={labels} onChange={setLabels} />
             </div>
+            <TaskDependencySelector
+              value={blockedByTaskIds}
+              onChange={setBlockedByTaskIds}
+            />
             {/* Task Reminders */}
             <TaskReminderSettings
               reminderEnabled={reminderEnabled}
@@ -1125,6 +1150,7 @@ function EditTaskDialog({ task, categories, onClose, onSaved }: {
   const [dueDate, setDueDate] = useState(task.dueDate ? task.dueDate.slice(0, 10) : '');
   const [subtasks, setSubtasks] = useState<Subtask[]>(task.subtasks ?? []);
   const [labels, setLabels] = useState<string[]>(task.labels ?? []);
+  const [blockedByTaskIds, setBlockedByTaskIds] = useState<string[]>(task.blockedByTaskIds ?? []);
   const [reminderEnabled, setReminderEnabled] = useState(task.reminderEnabled ?? false);
   const [reminderMinutes, setReminderMinutes] = useState<number | null>(task.reminderMinutes ?? null);
   const [newSubtask, setNewSubtask] = useState('');
@@ -1156,7 +1182,7 @@ function EditTaskDialog({ task, categories, onClose, onSaved }: {
         body: JSON.stringify({
           title: title.trim(), description: description || null,
           estimatedMinutes: minutes, priority, status, categoryId,
-          dueDate: dueDate || null, subtasks, labels,
+          dueDate: dueDate || null, subtasks, labels, blockedByTaskIds,
           reminderEnabled, reminderMinutes,
         }),
       });
@@ -1305,6 +1331,11 @@ function EditTaskDialog({ task, categories, onClose, onSaved }: {
               <Label>Labels</Label>
               <LabelsInput value={labels} onChange={setLabels} />
             </div>
+            <TaskDependencySelector
+              value={blockedByTaskIds}
+              onChange={setBlockedByTaskIds}
+              excludeTaskId={task.id}
+            />
           </div>
           <DialogFooter>
             <Button type="button" variant="ghost" onClick={onClose}>Cancel</Button>
