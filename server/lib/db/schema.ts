@@ -149,6 +149,39 @@ export const dailyNotes = pgTable('daily_notes', {
   index('daily_notes_user_date_idx').on(t.userId, t.noteDate),
 ]);
 
+export const habitFrequency = pgEnum('habit_frequency', ['daily', 'weekly']);
+
+export const habits = pgTable('habits', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  name: text('name').notNull(),
+  description: text('description'),
+  frequency: habitFrequency('frequency').notNull().default('daily'),
+  targetDays: jsonb('target_days').$type<number[]>().default([]), // 0=Sunday ... 6=Saturday
+  color: text('color').notNull().default('#10b981'),
+  icon: text('icon').notNull().default('✓'),
+  targetPerPeriod: integer('target_per_period').notNull().default(1),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, (t) => [
+  index('habits_user_idx').on(t.userId),
+]);
+
+export const habitEntries = pgTable('habit_entries', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  habitId: uuid('habit_id').notNull().references(() => habits.id, { onDelete: 'cascade' }),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  entryDate: timestamp('entry_date', { withTimezone: true }).notNull(),
+  completed: boolean('completed').notNull().default(false),
+  note: text('note'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, (t) => [
+  index('habit_entries_habit_date_idx').on(t.habitId, t.entryDate),
+  index('habit_entries_user_date_idx').on(t.userId, t.entryDate),
+  uniqueIndex('habit_entries_habit_date_unique').on(t.habitId, t.entryDate),
+]);
+
 export type User = typeof users.$inferSelect;
 export type Task = typeof tasks.$inferSelect;
 export type TimeBlock = typeof timeBlocks.$inferSelect;
@@ -158,3 +191,5 @@ export type BookingEventType = typeof bookingEventTypes.$inferSelect;
 export type BookingAvailability = typeof bookingAvailability.$inferSelect;
 export type ManagerUser = typeof managerUsers.$inferSelect;
 export type DailyNote = typeof dailyNotes.$inferSelect;
+export type Habit = typeof habits.$inferSelect;
+export type HabitEntry = typeof habitEntries.$inferSelect;

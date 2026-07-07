@@ -20,6 +20,7 @@ const SettingsPage = lazy(() => import('@/pages/settings-page').then(m => ({ def
 const ManagerPage = lazy(() => import('@/pages/manager-page').then(m => ({ default: m.ManagerPage })));
 const AdminPage = lazy(() => import('@/pages/admin-page').then(m => ({ default: m.AdminPage })));
 const PriorityMatrixPage = lazy(() => import('@/pages/priority-matrix-page').then(m => ({ default: m.PriorityMatrixPage })));
+const HabitsPage = lazy(() => import('@/pages/habits-page').then(m => ({ default: m.default })));
 
 /** Suspense wrapper for the standalone (non-AppLayout) routes. */
 function page(node: ReactNode): ReactNode {
@@ -47,6 +48,7 @@ export const router = createBrowserRouter([
       { path: '/dashboard', element: <DashboardPage /> },
       { path: '/tasks', element: <TasksPage /> },
       { path: '/planner', element: <PlannerPage /> },
+      { path: '/habits', element: <HabitsPage /> },
       { path: '/priority-matrix', element: <PriorityMatrixPage /> },
       { path: '/settings', element: <SettingsPage /> },
       { path: '/manager', element: <ManagerPage /> },

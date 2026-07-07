@@ -70,3 +70,57 @@ export async function apiFetch<T = unknown>(path: string, init: RequestInit = {}
   const text = await res.text();
   return (text ? JSON.parse(text) : undefined) as T;
 }
+
+/* ─── Habit API helpers ─── */
+
+export async function fetchHabits() {
+  return apiFetch('/api/habits');
+}
+
+export async function createHabit(data: {
+  name: string;
+  description?: string;
+  frequency?: 'daily' | 'weekly';
+  targetDays?: number[];
+  color?: string;
+  icon?: string;
+  targetPerPeriod?: number;
+}) {
+  return apiFetch('/api/habits', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function updateHabit(habitId: string, data: {
+  name?: string;
+  description?: string;
+  frequency?: 'daily' | 'weekly';
+  targetDays?: number[];
+  color?: string;
+  icon?: string;
+  targetPerPeriod?: number;
+}) {
+  return apiFetch(`/api/habits?id=${habitId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function deleteHabit(habitId: string) {
+  return apiFetch(`/api/habits?id=${habitId}`, { method: 'DELETE' });
+}
+
+export async function toggleHabitEntry(habitId: string, entryDate: string, completed?: boolean, note?: string) {
+  return apiFetch('/api/habits?action=toggle', {
+    method: 'POST',
+    body: JSON.stringify({ habitId, entryDate, completed, note }),
+  });
+}
+
+export async function fetchHabitEntries(habitId: string, from?: string, to?: string) {
+  const params = new URLSearchParams({ habitId });
+  if (from) params.set('from', from);
+  if (to) params.set('to', to);
+  return apiFetch(`/api/habits?action=entries&${params.toString()}`);
+}

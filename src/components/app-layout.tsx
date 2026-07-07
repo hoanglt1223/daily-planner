@@ -1,6 +1,6 @@
 import { Suspense, useEffect, useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { CalendarDays, LayoutDashboard, ListTodo, Loader2, LogOut, Moon, Settings, ShieldCheck, Sun, Users } from 'lucide-react';
+import { CalendarDays, CheckCircle, LayoutDashboard, ListTodo, Loader2, LogOut, Moon, Settings, ShieldCheck, Sun, Users } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { apiFetch, clearAuthToken, getAuthToken } from '@/lib/api-client';
 import { setActiveTimeZone } from '@/lib/time-utils';
@@ -27,6 +27,7 @@ const ICONS = {
   '/dashboard': LayoutDashboard,
   '/tasks': ListTodo,
   '/planner': CalendarDays,
+  '/habits': CheckCircle,
   '/manager': Users,
   '/admin': ShieldCheck,
 } as const;
@@ -69,6 +70,7 @@ export function AppLayout() {
     { to: '/dashboard', label: 'Dashboard', show: true },
     { to: '/tasks', label: 'Tasks', show: true },
     { to: '/planner', label: 'Planner', show: true },
+    { to: '/habits', label: 'Habits', show: true },
     { to: '/manager', label: 'Manager', show: me?.role === 'manager' || me?.role === 'admin' },
     { to: '/admin', label: 'Admin', show: me?.role === 'admin' },
   ];
