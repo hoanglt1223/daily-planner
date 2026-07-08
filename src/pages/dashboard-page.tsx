@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
-import { CalendarCheck2, Clock4, ListTodo, RefreshCw, TrendingUp } from 'lucide-react';
+import { CalendarCheck2, Clock4, ListTodo, RefreshCw, TrendingUp, Sparkles } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { apiFetch } from '@/lib/api-client';
+import { useQuickCaptureContext } from '@/components/quick-capture-provider';
 import { SharePanel } from '@/components/dashboard/share-panel';
 import { BookingsInbox } from '@/components/dashboard/bookings-inbox';
 import { WeeklyChart } from '@/components/dashboard/weekly-chart';
@@ -27,6 +28,7 @@ import { cn } from '@/lib/utils';
 type Block = { startAt: string; endAt: string };
 
 export function DashboardPage() {
+  const { open: openQuickCapture } = useQuickCaptureContext();
   const [todayMin, setTodayMin] = useState<number | null>(null);
   const [weekMin, setWeekMin] = useState<number | null>(null);
   const [weekBlocks, setWeekBlocks] = useState<Block[]>([]);
@@ -62,9 +64,20 @@ export function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Today's overview</h1>
-        <p className="text-sm text-muted-foreground">Workload, capacity, and pending requests at a glance.</p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Today's overview</h1>
+          <p className="text-sm text-muted-foreground">Workload, capacity, and pending requests at a glance.</p>
+        </div>
+        <Button
+          size="sm"
+          onClick={openQuickCapture}
+          className="gap-2 shrink-0"
+        >
+          <Sparkles className="size-4" />
+          Quick Capture
+          <kbd className="ml-1.5 rounded bg-primary/20 px-1.5 py-0.5 text-xs font-medium">⌘K</kbd>
+        </Button>
       </div>
 
       {isEmpty && !fetchError && (
