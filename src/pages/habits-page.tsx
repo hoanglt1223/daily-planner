@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Plus, Trash2, Edit3, Calendar } from 'lucide-react';
-import { apiFetch, createHabit, deleteHabit, toggleHabitEntry, updateHabit } from '@/lib/api-client';
+import { apiFetch, createHabit, deleteHabit, toggleHabitEntry, updateHabit, fetchHabitInsights } from '@/lib/api-client';
 import { HabitGrid } from '@/components/habit-grid';
+import { HabitInsights } from '@/components/habit-insights';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -40,6 +41,8 @@ const ICON_OPTIONS = ['✓', '⭐', '💪', '📚', '🏃', '🧘', '💧', '�
 export default function HabitsPage() {
   const [habits, setHabits] = useState<Habit[]>([]);
   const [loading, setLoading] = useState(true);
+  const [insights, setInsights] = useState<any[]>([]);
+  const [insightsLoading, setInsightsLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingHabit, setEditingHabit] = useState<Habit | null>(null);
   const [formData, setFormData] = useState({
@@ -54,6 +57,7 @@ export default function HabitsPage() {
 
   useEffect(() => {
     loadHabits();
+    loadInsights();
   }, []);
 
   const loadHabits = async () => {
@@ -68,11 +72,24 @@ export default function HabitsPage() {
     }
   };
 
+  const loadInsights = async () => {
+    try {
+      setInsightsLoading(true);
+      const data = await fetchHabitInsights(undefined, 30) as any[];
+      setInsights(data);
+    } catch (error) {
+      console.error('Failed to load insights:', error);
+    } finally {
+      setInsightsLoading(false);
+    }
+  };
+
   const handleToggle = async (habitId: string, date: Date, completed: boolean) => {
     try {
       const entryDate = date.toISOString();
       await toggleHabitEntry(habitId, entryDate, completed);
       await loadHabits();
+      await loadInsights();
     } catch (error) {
       toast.error('Failed to update habit entry');
     }
@@ -105,6 +122,7 @@ export default function HabitsPage() {
         targetPerPeriod: 1,
       });
       await loadHabits();
+      await loadInsights();
     } catch (error) {
       toast.error('Failed to save habit');
     }
@@ -133,6 +151,7 @@ export default function HabitsPage() {
       await deleteHabit(habitId);
       toast.success('Habit deleted');
       await loadHabits();
+      await loadInsights();
     } catch (error) {
       toast.error('Failed to delete habit');
     }
@@ -167,6 +186,11 @@ export default function HabitsPage() {
           New Habit
         </Button>
       </div>
+
+      {/* Insights Section - Show when habits exist */}
+      {!insightsLoading && insights.length > 0 && (
+        <HabitInsights insights={insights} loading={insightsLoading} />
+      )}
 
       {habits.length === 0 ? (
         <Card>

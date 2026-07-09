@@ -124,3 +124,10 @@ export async function fetchHabitEntries(habitId: string, from?: string, to?: str
   if (to) params.set('to', to);
   return apiFetch(`/api/habits?action=entries&${params.toString()}`);
 }
+
+export async function fetchHabitInsights(habitId?: string, days?: number) {
+  const params = new URLSearchParams({ action: 'insights' });
+  if (habitId) params.set('habitId', habitId);
+  if (days) params.set('days', String(days));
+  return apiFetch(`/api/habits?${params.toString()}`);
+}

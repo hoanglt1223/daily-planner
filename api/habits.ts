@@ -12,7 +12,7 @@ export default async function handler(req: AuthedRequest, res: VercelResponse) {
   const habitId = req.query.id ? String(req.query.id) : null;
 
   try {
-    // GET habits or entries
+    // GET habits or entries or insights
     if (req.method === 'GET') {
       if (action === 'entries') {
         const targetHabitId = req.query.habitId ? String(req.query.habitId) : null;
@@ -50,6 +50,145 @@ export default async function handler(req: AuthedRequest, res: VercelResponse) {
 
         const entries = await query.orderBy(desc(habitEntries.entryDate));
         return res.status(200).json(entries);
+      }
+
+      if (action === 'insights') {
+        const targetHabitId = req.query.habitId ? String(req.query.habitId) : null;
+        const days = req.query.days ? parseInt(String(req.query.days)) : 30;
+
+        const fromDate = new Date();
+        fromDate.setDate(fromDate.getDate() - days);
+        fromDate.setHours(0, 0, 0, 0);
+
+        let targetHabits = [];
+        if (targetHabitId) {
+          const habitData = await db.select().from(habits)
+            .where(and(eq(habits.id, targetHabitId), eq(habits.userId, user.sub)))
+            .limit(1);
+          if (habitData.length === 0) {
+            return res.status(404).json({ error: 'habit_not_found' });
+          }
+          targetHabits = habitData;
+        } else {
+          targetHabits = await db.select().from(habits)
+            .where(eq(habits.userId, user.sub));
+        }
+
+        const habitIds = targetHabits.map(h => h.id);
+        const relevantEntries = habitIds.length > 0
+          ? await db.select().from(habitEntries)
+              .where(
+                and(
+                  eq(habitEntries.userId, user.sub),
+                  gte(habitEntries.entryDate, fromDate)
+                )
+              )
+          : [];
+
+        const insights = targetHabits.map(habit => {
+          const habitEntries = relevantEntries.filter(e => e.habitId === habit.id);
+          const completedEntries = habitEntries.filter(e => e.completed);
+
+          // Calculate streaks
+          const sortedEntries = [...habitEntries].sort((a, b) =>
+            new Date(a.entryDate).getTime() - new Date(b.entryDate).getTime()
+          );
+
+          let currentStreak = 0;
+          let longestStreak = 0;
+          let tempStreak = 0;
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+
+          // Calculate current and longest streak
+          for (let i = sortedEntries.length - 1; i >= 0; i--) {
+            const entry = sortedEntries[i];
+            const entryDate = new Date(entry.entryDate);
+            entryDate.setHours(0, 0, 0, 0);
+
+            if (entry.completed) {
+              tempStreak++;
+              // Check if this entry is consecutive with the next one
+              if (i < sortedEntries.length - 1) {
+                const nextDate = new Date(sortedEntries[i + 1].entryDate);
+                nextDate.setHours(0, 0, 0, 0);
+                const dayDiff = (entryDate.getTime() - nextDate.getTime()) / (1000 * 60 * 60 * 24);
+                if (dayDiff !== 1) {
+                  longestStreak = Math.max(longestStreak, tempStreak);
+                  tempStreak = 1;
+                }
+              }
+
+              // Update current streak (consecutive from today backwards)
+              const daysFromToday = (today.getTime() - entryDate.getTime()) / (1000 * 60 * 60 * 24);
+              if (daysFromToday === currentStreak) {
+                currentStreak++;
+              }
+            } else {
+              longestStreak = Math.max(longestStreak, tempStreak);
+              tempStreak = 0;
+            }
+          }
+          longestStreak = Math.max(longestStreak, tempStreak);
+
+          // Best day of week
+          const dayOfWeekCounts = [0, 0, 0, 0, 0, 0, 0];
+          const dayOfWeekCompleted = [0, 0, 0, 0, 0, 0, 0];
+
+          habitEntries.forEach(entry => {
+            const dayOfWeek = new Date(entry.entryDate).getDay();
+            dayOfWeekCounts[dayOfWeek]++;
+            if (entry.completed) {
+              dayOfWeekCompleted[dayOfWeek]++;
+            }
+          });
+
+          const completionRates = dayOfWeekCounts.map((total, idx) =>
+            total > 0 ? (dayOfWeekCompleted[idx] / total) * 100 : 0
+          );
+          const bestDayIndex = completionRates.indexOf(Math.max(...completionRates));
+          const bestDay = bestDayIndex >= 0 ? ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][bestDayIndex] : null;
+          const bestDayRate = completionRates[bestDayIndex];
+
+          // Trend (last 7 days vs previous 7 days)
+          const sevenDaysAgo = new Date(today);
+          sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+          const fourteenDaysAgo = new Date(today);
+          fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
+
+          const recentEntries = habitEntries.filter(e => new Date(e.entryDate) >= sevenDaysAgo);
+          const olderEntries = habitEntries.filter(e => {
+            const d = new Date(e.entryDate);
+            return d >= fourteenDaysAgo && d < sevenDaysAgo;
+          });
+
+          const recentRate = recentEntries.length > 0
+            ? (recentEntries.filter(e => e.completed).length / recentEntries.length) * 100
+            : 0;
+          const olderRate = olderEntries.length > 0
+            ? (olderEntries.filter(e => e.completed).length / olderEntries.length) * 100
+            : 0;
+          const trend = recentRate - olderRate;
+
+          return {
+            habitId: habit.id,
+            habitName: habit.name,
+            currentStreak,
+            longestStreak,
+            totalEntries: habitEntries.length,
+            completedEntries: completedEntries.length,
+            completionRate: habitEntries.length > 0
+              ? Math.round((completedEntries.length / habitEntries.length) * 100)
+              : 0,
+            bestDay: bestDay || 'N/A',
+            bestDayRate: bestDayRate ? Math.round(bestDayRate) : 0,
+            trend: Math.round(trend),
+            lastDays: days,
+          };
+        });
+
+        // If single habit, return single object, else return array
+        return res.status(200).json(targetHabitId ? insights[0] : insights);
       }
 
       // Get all habits with entries
