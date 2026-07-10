@@ -21,6 +21,7 @@ import { toast } from 'sonner';
 import { BulkImportDialog } from '@/components/bulk-import-dialog';
 import { TaskReminderSettings } from '@/components/task-reminder-settings';
 import { TaskDependencySelector } from '@/components/task-dependency-selector';
+import { LabelInput } from '@/components/label-input';
 
 /* ─── Types ─── */
 
@@ -670,13 +671,14 @@ export function TasksPage() {
       )}
 
       {/* New task dialog */}
-      <NewTaskDialog open={newOpen} onOpenChange={setNewOpen} categories={categories} onCreated={load} />
+      <NewTaskDialog open={newOpen} onOpenChange={setNewOpen} categories={categories} availableLabels={allLabels} onCreated={load} />
 
       {/* Edit task dialog */}
       {editTask && (
         <EditTaskDialog
           task={editTask}
           categories={categories}
+          availableLabels={allLabels}
           onClose={() => setEditTask(null)}
           onSaved={load}
         />
@@ -929,52 +931,10 @@ function TaskRow({ task, category, busy, selected, isHighlighted, isExpanded, on
 
 /* ─── Label input component ─── */
 
-function LabelsInput({ value, onChange }: { value: string[]; onChange: (v: string[]) => void }) {
-  const [input, setInput] = useState('');
-
-  function addLabel() {
-    const l = input.trim().replace(/^@/, '').replace(/\s+/g, '-');
-    if (!l || value.includes(l)) { setInput(''); return; }
-    onChange([...value, l]);
-    setInput('');
-  }
-
-  function removeLabel(l: string) {
-    onChange(value.filter(x => x !== l));
-  }
-
-  return (
-    <div className="space-y-1.5">
-      <div className="flex flex-wrap gap-1 min-h-[24px]">
-        {value.map(l => (
-          <span key={l} className="flex items-center gap-0.5 rounded-full bg-muted border border-border px-2 py-0.5 text-[10px] text-muted-foreground">
-            @{l}
-            <button type="button" onClick={() => removeLabel(l)} className="hover:text-destructive ml-0.5" aria-label={`Remove label ${l}`}>
-              <X className="size-2.5" />
-            </button>
-          </span>
-        ))}
-      </div>
-      <div className="flex gap-1.5">
-        <Input
-          placeholder="Add label..."
-          value={input}
-          onChange={e => setInput(e.target.value)}
-          onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addLabel(); } }}
-          className="h-7 text-xs"
-        />
-        <Button type="button" size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={addLabel} disabled={!input.trim()}>
-          <Plus className="size-3" />
-        </Button>
-      </div>
-    </div>
-  );
-}
-
 /* ─── New Task Dialog ─── */
 
-function NewTaskDialog({ open, onOpenChange, categories, onCreated }: {
-  open: boolean; onOpenChange: (o: boolean) => void; categories: Category[]; onCreated: () => void;
+function NewTaskDialog({ open, onOpenChange, categories, availableLabels, onCreated }: {
+  open: boolean; onOpenChange: (o: boolean) => void; categories: Category[]; availableLabels: string[]; onCreated: () => void;
 }) {
   const [title, setTitle] = useState('');
   const [minutes, setMinutes] = useState(60);
@@ -1112,7 +1072,7 @@ function NewTaskDialog({ open, onOpenChange, categories, onCreated }: {
             </div>
             <div className="space-y-1">
               <Label>Labels</Label>
-              <LabelsInput value={labels} onChange={setLabels} />
+              <LabelInput labels={labels} onChange={setLabels} availableLabels={availableLabels} />
             </div>
             <TaskDependencySelector
               value={blockedByTaskIds}
@@ -1138,8 +1098,8 @@ function NewTaskDialog({ open, onOpenChange, categories, onCreated }: {
 
 /* ─── Edit Task Dialog ─── */
 
-function EditTaskDialog({ task, categories, onClose, onSaved }: {
-  task: Task; categories: Category[]; onClose: () => void; onSaved: () => void;
+function EditTaskDialog({ task, categories, availableLabels, onClose, onSaved }: {
+  task: Task; categories: Category[]; availableLabels: string[]; onClose: () => void; onSaved: () => void;
 }) {
   const [title, setTitle] = useState(task.title);
   const [description, setDescription] = useState(task.description ?? '');
@@ -1329,7 +1289,7 @@ function EditTaskDialog({ task, categories, onClose, onSaved }: {
             {/* Labels */}
             <div className="space-y-1">
               <Label>Labels</Label>
-              <LabelsInput value={labels} onChange={setLabels} />
+              <LabelInput labels={labels} onChange={setLabels} availableLabels={availableLabels} />
             </div>
             <TaskDependencySelector
               value={blockedByTaskIds}
