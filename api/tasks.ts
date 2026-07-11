@@ -1,7 +1,7 @@
 import type { VercelResponse } from '@vercel/node';
 import { and, eq, or, gte, lt } from 'drizzle-orm';
 import { db } from '../server/lib/db/client.js';
-import { tasks } from '../server/lib/db/schema.js';
+import { tasks, taskTemplates } from '../server/lib/db/schema.js';
 import { requireAuth, type AuthedRequest } from '../server/lib/auth-middleware.js';
 
 // ─── Smart-view date helpers ──────────────────────────────────────────────
@@ -22,8 +22,96 @@ export default async function handler(req: AuthedRequest, res: VercelResponse) {
   const user = requireAuth(req, res);
   if (!user) return;
   const id = req.query.id ? String(req.query.id) : null;
+  const action = req.query.action ? String(req.query.action) : null;
+  const templateId = req.query.templateId ? String(req.query.templateId) : null;
 
   try {
+    // Template listing
+    if (req.method === 'GET' && action === 'templates' && !id) {
+      const templates = await db.select().from(taskTemplates).where(eq(taskTemplates.userId, user.sub));
+      return res.status(200).json(templates);
+    }
+
+    // Create task from template
+    if (req.method === 'POST' && action === 'apply-template' && templateId) {
+      const [template] = await db.select().from(taskTemplates).where(
+        and(eq(taskTemplates.id, templateId), eq(taskTemplates.userId, user.sub))
+      );
+      if (!template) return res.status(404).json({ error: 'template_not_found' });
+
+      const body = req.body ?? {};
+      const [row] = await db.insert(tasks).values({
+        userId: user.sub,
+        title: body.title ?? template.defaultTitle,
+        description: body.description ?? template.defaultDescription ?? null,
+        categoryId: body.categoryId ?? template.defaultCategoryId ?? null,
+        status: body.status ?? template.defaultStatus,
+        priority: body.priority ?? template.defaultPriority,
+        estimatedMinutes: body.estimatedMinutes ?? template.defaultEstimatedMinutes,
+        recurringRule: body.recurringRule ?? template.defaultRecurringRule ?? null,
+        dueDate: body.dueDate ? new Date(body.dueDate) : null,
+        subtasks: body.subtasks ?? template.defaultSubtasks ?? [],
+        labels: Array.isArray(body.labels) ? body.labels : (template.defaultLabels ?? []),
+        blockedByTaskIds: [],
+        reminderEnabled: body.reminderEnabled ?? false,
+        reminderMinutes: body.reminderMinutes ?? null,
+      }).returning();
+      return res.status(201).json(row);
+    }
+
+    // Create template
+    if (req.method === 'POST' && action === 'templates' && !id) {
+      const body = req.body ?? {};
+      if (!body.name || !body.defaultTitle) {
+        return res.status(400).json({ error: 'name_and_default_title_required' });
+      }
+
+      const [row] = await db.insert(taskTemplates).values({
+        userId: user.sub,
+        name: body.name,
+        description: body.description ?? null,
+        defaultCategoryId: body.defaultCategoryId ?? null,
+        defaultTitle: body.defaultTitle,
+        defaultDescription: body.defaultDescription ?? null,
+        defaultEstimatedMinutes: body.defaultEstimatedMinutes ?? 60,
+        defaultPriority: body.defaultPriority ?? 3,
+        defaultStatus: body.defaultStatus ?? 'todo',
+        defaultRecurringRule: body.defaultRecurringRule ?? null,
+        defaultLabels: Array.isArray(body.defaultLabels) ? body.defaultLabels : [],
+        defaultSubtasks: body.defaultSubtasks ?? [],
+        isPinned: body.isPinned ?? false,
+      }).returning();
+      return res.status(201).json(row);
+    }
+
+    // Update template
+    if (req.method === 'PATCH' && action === 'templates' && id) {
+      const body = req.body ?? {};
+      const patch: Record<string, unknown> = { updatedAt: new Date() };
+      for (const key of [
+        'name', 'description', 'defaultCategoryId', 'defaultTitle', 'defaultDescription',
+        'defaultEstimatedMinutes', 'defaultPriority', 'defaultStatus', 'defaultRecurringRule',
+        'defaultLabels', 'defaultSubtasks', 'isPinned'
+      ]) {
+        if (key in body) patch[key] = body[key];
+      }
+
+      const [row] = await db.update(taskTemplates)
+        .set(patch)
+        .where(and(eq(taskTemplates.id, id), eq(taskTemplates.userId, user.sub)))
+        .returning();
+      if (!row) return res.status(404).json({ error: 'not_found' });
+      return res.status(200).json(row);
+    }
+
+    // Delete template
+    if (req.method === 'DELETE' && action === 'templates' && id) {
+      await db.delete(taskTemplates).where(
+        and(eq(taskTemplates.id, id), eq(taskTemplates.userId, user.sub))
+      );
+      return res.status(204).end();
+    }
+
     if (req.method === 'GET' && !id) {
       // Optional query params for smart views + label filter
       const view = req.query.view ? String(req.query.view) : null; // today | upcoming | overdue

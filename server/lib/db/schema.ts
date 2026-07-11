@@ -182,6 +182,34 @@ export const habitEntries = pgTable('habit_entries', {
   uniqueIndex('habit_entries_habit_date_unique').on(t.habitId, t.entryDate),
 ]);
 
+export const taskTemplates = pgTable('task_templates', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  name: text('name').notNull(),
+  description: text('description'),
+  defaultCategoryId: uuid('default_category_id').references(() => categories.id, { onDelete: 'set null' }),
+  defaultTitle: text('default_title').notNull(),
+  defaultDescription: text('default_description'),
+  defaultEstimatedMinutes: integer('default_estimated_minutes').notNull().default(60),
+  defaultPriority: integer('default_priority').notNull().default(3),
+  defaultStatus: taskStatus('default_status').notNull().default('todo'),
+  defaultRecurringRule: jsonb('default_recurring_rule').$type<{
+    freq: 'daily' | 'weekly' | 'monthly';
+    byDay?: string[];
+    interval?: number;
+    until?: string;
+    defaultTime?: string;
+    defaultDurationMinutes?: number;
+  } | null>(),
+  defaultLabels: jsonb('default_labels').$type<string[]>().default([]),
+  defaultSubtasks: jsonb('default_subtasks').$type<Array<{ id: string; title: string; done: boolean }>>().default([]),
+  isPinned: boolean('is_pinned').notNull().default(false),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, (t) => [
+  index('task_templates_user_idx').on(t.userId),
+]);
+
 export type User = typeof users.$inferSelect;
 export type Task = typeof tasks.$inferSelect;
 export type TimeBlock = typeof timeBlocks.$inferSelect;
@@ -193,3 +221,4 @@ export type ManagerUser = typeof managerUsers.$inferSelect;
 export type DailyNote = typeof dailyNotes.$inferSelect;
 export type Habit = typeof habits.$inferSelect;
 export type HabitEntry = typeof habitEntries.$inferSelect;
+export type TaskTemplate = typeof taskTemplates.$inferSelect;

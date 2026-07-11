@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertTriangle, Archive, ArrowUpDown, CheckCircle2, CheckSquare, ChevronDown, ChevronRight,
   Clock, Copy, Edit3, FileSpreadsheet, Link2, ListChecks, Palette, Pencil, Pin, PinOff, PlayCircle, Plus, Search, Square, Tag, Trash2, X,
-  Zap,
+  Zap, Sparkles,
 } from 'lucide-react';
 import { apiFetch } from '@/lib/api-client';
 import { parseQuickAdd } from '@/lib/parse-quick-add';
@@ -22,6 +22,7 @@ import { BulkImportDialog } from '@/components/bulk-import-dialog';
 import { TaskReminderSettings } from '@/components/task-reminder-settings';
 import { TaskDependencySelector } from '@/components/task-dependency-selector';
 import { LabelInput } from '@/components/label-input';
+import { TaskTemplates } from '@/components/task-templates';
 
 /* ─── Types ─── */
 
@@ -118,6 +119,7 @@ export function TasksPage() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [catManagerOpen, setCatManagerOpen] = useState(false);
   const [bulkImportOpen, setBulkImportOpen] = useState(false);
+  const [templatesOpen, setTemplatesOpen] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkBusy, setBulkBusy] = useState(false);
@@ -246,6 +248,18 @@ export function TasksPage() {
       load();
     } catch (e) { toast.error((e as Error).message); }
     finally { setBusyId(null); }
+  }
+
+  async function createTaskFromTemplate(templateId: string) {
+    try {
+      await apiFetch('/api/tasks?action=apply-template&templateId=' + templateId, {
+        method: 'POST',
+        body: JSON.stringify({}),
+      });
+      toast.success('Task created from template');
+      setTemplatesOpen(false);
+      load();
+    } catch (e) { toast.error((e as Error).message); }
   }
 
   // Quick-add submit: parse NL input and create task
@@ -431,6 +445,9 @@ export function TasksPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={() => setTemplatesOpen(true)}>
+            <Sparkles className="size-4 mr-1.5" /> Templates
+          </Button>
           <Button variant="outline" onClick={() => setBulkImportOpen(true)}>
             <FileSpreadsheet className="size-4 mr-1.5" /> Bulk import
           </Button>
@@ -699,6 +716,19 @@ export function TasksPage() {
         categories={categories}
         onSaved={load}
       />
+
+      {/* Templates dialog */}
+      <Dialog open={templatesOpen} onOpenChange={setTemplatesOpen}>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle>Task Templates</DialogTitle>
+            <DialogDescription>
+              Create reusable task templates for common workflows like daily standups, weekly reviews, or monthly reports.
+            </DialogDescription>
+          </DialogHeader>
+          <TaskTemplates onSelectTemplate={(template) => createTaskFromTemplate(template.id)} />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
