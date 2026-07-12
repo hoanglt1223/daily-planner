@@ -131,3 +131,62 @@ export async function fetchHabitInsights(habitId?: string, days?: number) {
   if (days) params.set('days', String(days));
   return apiFetch(`/api/habits?${params.toString()}`);
 }
+
+/* ─── Goals API helpers ─── */
+
+export async function fetchGoals() {
+  return apiFetch('/api/goals');
+}
+
+export async function fetchGoal(goalId: string) {
+  return apiFetch(`/api/goals?id=${goalId}`);
+}
+
+export async function createGoal(data: {
+  title: string;
+  description?: string;
+  period?: 'weekly' | 'monthly' | 'quarterly' | 'yearly';
+  targetValue: number;
+  currentValue?: number;
+  unit?: string;
+  color?: string;
+  category?: string;
+  startDate: string;
+  endDate: string;
+  linkedTaskIds?: string[];
+  linkedHabitIds?: string[];
+}) {
+  return apiFetch('/api/goals', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function updateGoal(goalId: string, data: {
+  title?: string;
+  description?: string;
+  period?: 'weekly' | 'monthly' | 'quarterly' | 'yearly';
+  status?: 'active' | 'completed' | 'paused' | 'archived';
+  targetValue?: number;
+  currentValue?: number;
+  unit?: string;
+  color?: string;
+  category?: string;
+  startDate?: string;
+  endDate?: string;
+  linkedTaskIds?: string[];
+  linkedHabitIds?: string[];
+}) {
+  return apiFetch(`/api/goals?id=${goalId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function deleteGoal(goalId: string) {
+  return apiFetch(`/api/goals?id=${goalId}`, { method: 'DELETE' });
+}
+
+export async function fetchGoalProgress(goalId: string) {
+  return apiFetch(`/api/goals?action=progress&id=${goalId}`);
+}

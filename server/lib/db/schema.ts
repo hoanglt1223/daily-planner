@@ -210,6 +210,32 @@ export const taskTemplates = pgTable('task_templates', {
   index('task_templates_user_idx').on(t.userId),
 ]);
 
+export const goalPeriod = pgEnum('goal_period', ['weekly', 'monthly', 'quarterly', 'yearly']);
+export const goalStatus = pgEnum('goal_status', ['active', 'completed', 'paused', 'archived']);
+
+export const goals = pgTable('goals', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  title: text('title').notNull(),
+  description: text('description'),
+  period: goalPeriod('period').notNull().default('quarterly'),
+  status: goalStatus('status').notNull().default('active'),
+  targetValue: integer('target_value').notNull(), // Numeric target (e.g., 12 books, 1000 sales)
+  currentValue: integer('current_value').notNull().default(0), // Current progress
+  unit: text('unit'), // Unit label (e.g., "books", "km", "$")
+  color: text('color').notNull().default('#3b82f6'),
+  category: text('category'), // Optional category for grouping
+  startDate: timestamp('start_date', { withTimezone: true }).notNull(),
+  endDate: timestamp('end_date', { withTimezone: true }).notNull(),
+  linkedTaskIds: jsonb('linked_task_ids').$type<string[]>().default([]), // Tasks that contribute to this goal
+  linkedHabitIds: jsonb('linked_habit_ids').$type<string[]>().default([]), // Habits that contribute to this goal
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, (t) => [
+  index('goals_user_status_idx').on(t.userId, t.status),
+  index('goals_user_period_idx').on(t.userId, t.period),
+]);
+
 export type User = typeof users.$inferSelect;
 export type Task = typeof tasks.$inferSelect;
 export type TimeBlock = typeof timeBlocks.$inferSelect;
@@ -222,3 +248,4 @@ export type DailyNote = typeof dailyNotes.$inferSelect;
 export type Habit = typeof habits.$inferSelect;
 export type HabitEntry = typeof habitEntries.$inferSelect;
 export type TaskTemplate = typeof taskTemplates.$inferSelect;
+export type Goal = typeof goals.$inferSelect;

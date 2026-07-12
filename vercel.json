@@ -11,6 +11,8 @@
     { "source": "/api/share/:token", "destination": "/api/share?token=:token" },
     { "source": "/api/bookings/:action", "destination": "/api/bookings?action=:action" },
     { "source": "/api/bookings/:action/:id", "destination": "/api/bookings?action=:action&id=:id" },
+    { "source": "/api/goals/:id", "destination": "/api/goals?id=:id" },
+    { "source": "/api/goals/:id/:action", "destination": "/api/goals?id=:id&action=:action" },
     { "source": "/((?!api/).*)", "destination": "/index.html" }
   ]
 }

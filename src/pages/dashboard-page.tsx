@@ -19,6 +19,7 @@ import { StreakCalendar } from '@/components/dashboard/streak-calendar';
 import { TimeAllocation } from '@/components/dashboard/time-allocation';
 import { PomodoroTimer } from '@/components/dashboard/pomodoro-timer';
 import { EnergyPatterns } from '@/components/dashboard/energy-patterns';
+import { GoalProgress } from '@/components/dashboard/goal-progress';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -149,6 +150,7 @@ export function DashboardPage() {
         </div>
         <div className="space-y-4">
           <PomodoroTimer />
+          <GoalProgress />
           <DailyFocus />
           <DailyReview />
           <EnergyPatterns />
