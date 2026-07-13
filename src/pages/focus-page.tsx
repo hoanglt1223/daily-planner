@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, SkipForward, Coffee, Maximize2, Minimize2 } from 'lucide-react';
+import { ArrowLeft, SkipForward, Coffee, Maximize2, Minimize2, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { apiFetch } from '@/lib/api-client';
+import { toast } from 'sonner';
 
 interface FocusTask {
   id: string;
@@ -18,6 +20,9 @@ export function FocusPage() {
   const [pomodoroTime, setPomodoroTime] = useState(25 * 60); // 25 minutes in seconds
   const [isBreak, setIsBreak] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
+  const [completedSessions, setCompletedSessions] = useState(0);
+  const [totalMinutes, setTotalMinutes] = useState(0);
+  const [sessionStartTime] = useState(() => new Date());
 
   useEffect(() => {
     // Load current task from localStorage (set from planner/dashboard)
@@ -48,7 +53,11 @@ export function FocusPage() {
       }, 1000);
       return () => clearInterval(timer);
     } else if (pomodoroTime === 0 && !isBreak) {
-      // Pomodoro complete, start break
+      // Pomodoro complete, log the session and start break
+      const sessionMinutes = 25;
+      setCompletedSessions(prev => prev + 1);
+      setTotalMinutes(prev => prev + sessionMinutes);
+      logFocusSession(sessionMinutes);
       setIsBreak(true);
       setPomodoroTime(5 * 60);
       if (Notification.permission === 'granted') {
@@ -57,6 +66,7 @@ export function FocusPage() {
           icon: '/favicon.ico'
         });
       }
+      toast.success(`Focus session complete! ${completedSessions + 1} pomodoro${completedSessions > 0 ? 's' : ''} done today.`);
     } else if (pomodoroTime === 0 && isBreak) {
       // Break complete, start new pomodoro
       setIsBreak(false);
@@ -68,13 +78,38 @@ export function FocusPage() {
         });
       }
     }
-  }, [pomodoroTime, isPaused, isBreak]);
+  }, [pomodoroTime, isPaused, isBreak, completedSessions]);
 
   const togglePause = () => setIsPaused(!isPaused);
 
   const skipBreak = () => {
     setIsBreak(false);
     setPomodoroTime(25 * 60);
+  };
+
+  const logFocusSession = async (minutes: number) => {
+    if (!task) return;
+
+    const now = new Date();
+    const startAt = new Date(now.getTime() - minutes * 60_000);
+    const endAt = now;
+
+    try {
+      await apiFetch('/api/time-blocks', {
+        method: 'POST',
+        body: JSON.stringify({
+          title: `Focus: ${task.title}`,
+          startAt: startAt.toISOString(),
+          endAt: endAt.toISOString(),
+          actualMinutes: minutes,
+          status: 'completed',
+          note: `Focus session • Priority ${task.priority} • ${completedSessions + 1} pomodoro${completedSessions > 0 ? 's' : ''} completed`,
+        }),
+      });
+    } catch (err) {
+      console.error('Failed to log focus session:', err);
+      toast.error('Failed to log focus session to timeline');
+    }
   };
 
   const formatTime = (seconds: number) => {
@@ -179,6 +214,16 @@ export function FocusPage() {
           <p className="text-sm text-muted-foreground">
             {isBreak ? '🍵 Break time' : isPaused ? '⏸️ Paused (Space to resume)' : '⏱️ Focus session (Space to pause)'}
           </p>
+
+          {/* Session counter */}
+          {completedSessions > 0 && (
+            <div className="flex items-center justify-center gap-2 text-sm">
+              <Check className="size-4 text-green-500" />
+              <span className="text-muted-foreground">
+                {completedSessions} pomodoro{completedSessions > 1 ? 's' : ''} completed • {totalMinutes}min focused
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Controls */}
@@ -197,6 +242,10 @@ export function FocusPage() {
                 variant="default"
                 size="lg"
                 onClick={() => {
+                  const sessionMinutes = 25;
+                  setCompletedSessions(prev => prev + 1);
+                  setTotalMinutes(prev => prev + sessionMinutes);
+                  logFocusSession(sessionMinutes);
                   setIsBreak(true);
                   setPomodoroTime(5 * 60);
                 }}
@@ -227,6 +276,25 @@ export function FocusPage() {
               </Button>
             </>
           )}
+        </div>
+
+        {/* Finish button */}
+        <div className="pt-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              localStorage.removeItem('focusTask');
+              if (completedSessions > 0) {
+                toast.success(`Great work! ${completedSessions} pomodoro${completedSessions > 1 ? 's' : ''} completed (${totalMinutes}min). Session logged to timeline.`);
+              }
+              navigate('/planner');
+            }}
+            className="text-muted-foreground hover:text-foreground"
+          >
+            <Check className="size-4 mr-2" />
+            Finish Focus Session
+          </Button>
         </div>
 
         {/* Estimated time */}
