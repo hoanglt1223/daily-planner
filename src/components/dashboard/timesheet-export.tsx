@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Download, FileSpreadsheet, Loader2, Calendar } from 'lucide-react';
+import { Download, FileSpreadsheet, Loader2, Calendar, FileText } from 'lucide-react';
 import { formatInTimeZone } from 'date-fns-tz';
 import { toast } from 'sonner';
 import { apiFetch } from '@/lib/api-client';
@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { getActiveTimeZone, addDays, startOfWeek, fmtIsoDate } from '@/lib/time-utils';
 import { generateIcs, downloadIcs } from '@/lib/ics-export';
+import { generateTimeBlocksPdf, downloadPdf } from '@/lib/pdf-export';
 
 type Block = {
   id: string; taskId: string | null; title: string;
@@ -36,7 +37,7 @@ export function TimesheetExport() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(false);
-  const [exported, setExported] = useState<'csv' | 'ics' | null>(null);
+  const [exported, setExported] = useState<'csv' | 'ics' | 'pdf' | null>(null);
 
   const fetchData = useCallback(async () => {
     if (!from || !to) return;
@@ -121,6 +122,19 @@ export function TimesheetExport() {
     downloadIcs(icsContent, `timesheet-${from}-to-${to}.ics`);
     setExported('ics');
     setTimeout(() => setExported(null), 2000);
+  }
+
+  function downloadPdfFile() {
+    try {
+      const dateRange = `${from} to ${to}`;
+      const doc = generateTimeBlocksPdf(rows, dateRange, totalMin);
+      downloadPdf(doc, `timesheet-${from}-to-${to}.pdf`);
+      setExported('pdf');
+      setTimeout(() => setExported(null), 2000);
+    } catch (e) {
+      toast.error('Failed to generate PDF');
+      console.error(e);
+    }
   }
 
   function csvEscape(val: string): string {
@@ -218,7 +232,7 @@ export function TimesheetExport() {
           </>
         )}
 
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-3 gap-2">
           <Button
             size="sm"
             className="w-full"
@@ -226,7 +240,7 @@ export function TimesheetExport() {
             onClick={downloadCsv}
           >
             <Download className="size-3.5 mr-1.5" />
-            {exported === 'csv' ? 'Downloaded!' : 'Download CSV'}
+            {exported === 'csv' ? 'Downloaded!' : 'CSV'}
           </Button>
           <Button
             size="sm"
@@ -236,7 +250,17 @@ export function TimesheetExport() {
             onClick={downloadIcsFile}
           >
             <Calendar className="size-3.5 mr-1.5" />
-            {exported === 'ics' ? 'Downloaded!' : 'Export Calendar'}
+            {exported === 'ics' ? 'Downloaded!' : 'ICS'}
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            className="w-full"
+            disabled={loading || rows.length === 0}
+            onClick={downloadPdfFile}
+          >
+            <FileText className="size-3.5 mr-1.5" />
+            {exported === 'pdf' ? 'Downloaded!' : 'PDF'}
           </Button>
         </div>
       </CardContent>

@@ -22,7 +22,6 @@ export function FocusPage() {
   const [isPaused, setIsPaused] = useState(false);
   const [completedSessions, setCompletedSessions] = useState(0);
   const [totalMinutes, setTotalMinutes] = useState(0);
-  const [sessionStartTime] = useState(() => new Date());
 
   useEffect(() => {
     // Load current task from localStorage (set from planner/dashboard)
