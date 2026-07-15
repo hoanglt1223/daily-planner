@@ -20,6 +20,7 @@ import { TimeAllocation } from '@/components/dashboard/time-allocation';
 import { PomodoroTimer } from '@/components/dashboard/pomodoro-timer';
 import { EnergyPatterns } from '@/components/dashboard/energy-patterns';
 import { GoalProgress } from '@/components/dashboard/goal-progress';
+import { SmartPrioritization } from '@/components/dashboard/smart-prioritization';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -141,6 +142,8 @@ export function DashboardPage() {
         <ProductivityInsights />
         <CompletedTasks />
       </div>
+
+      <SmartPrioritization />
 
       <div className="grid gap-4 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-4">
