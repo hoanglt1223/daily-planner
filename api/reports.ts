@@ -1,7 +1,7 @@
 import type { VercelResponse } from '@vercel/node';
 import { and, eq, gte, inArray, lte } from 'drizzle-orm';
 import { db } from '../server/lib/db/client.js';
-import { managerUsers, timeBlocks, users } from '../server/lib/db/schema.js';
+import { managerUsers, tasks, timeBlocks, users } from '../server/lib/db/schema.js';
 import { requireAuth, type AuthedRequest } from '../server/lib/auth-middleware.js';
 
 // Capacity baseline: 8 work-hours per day, matching WORKDAY_HOURS in src/lib/time-utils.ts
@@ -42,6 +42,10 @@ export default async function handler(req: AuthedRequest, res: VercelResponse) {
       return res.status(200).json({ from, to, byDay, blocks: rows });
     }
 
+    if (kind === 'estimation-accuracy') {
+      return await handleEstimationAccuracy(req, res, me, from, to);
+    }
+
     return res.status(404).json({ error: 'unknown_kind' });
   } catch (e) {
     console.error(e);
@@ -70,6 +74,32 @@ export type TeamCapacityResponse = {
   to: string;
   workdayMinutes: number;
   users: TeamCapacityUser[];
+};
+
+export type EstimationAccuracyTask = {
+  taskId: string;
+  taskTitle: string;
+  estimatedMinutes: number;
+  actualMinutes: number;
+  accuracyPercent: number;
+  varianceMinutes: number;
+  completedAt: string;
+};
+
+export type EstimationAccuracyResponse = {
+  from: string;
+  to: string;
+  overall: {
+    totalTasks: number;
+    avgAccuracyPercent: number;
+    totalEstimatedMinutes: number;
+    totalActualMinutes: number;
+    overestimatedTasks: number;
+    underestimatedTasks: number;
+    accurateTasks: number;
+  };
+  tasks: EstimationAccuracyTask[];
+  insights: string[];
 };
 
 async function handleTeamCapacity(
@@ -211,6 +241,130 @@ async function handleTeamCapacity(
     workdayMinutes: WORKDAY_MINUTES,
     users: result,
   } satisfies TeamCapacityResponse);
+}
+
+// ── Estimation Accuracy handler ─────────────────────────────────────────────────
+
+async function handleEstimationAccuracy(
+  req: AuthedRequest,
+  res: VercelResponse,
+  me: { sub: string },
+  from: Date,
+  to: Date,
+) {
+  // Fetch completed tasks with time blocks in the date range
+  const taskData = await db
+    .select({
+      taskId: tasks.id,
+      taskTitle: tasks.title,
+      estimatedMinutes: tasks.estimatedMinutes,
+      actualMinutes: timeBlocks.actualMinutes,
+      blockStartAt: timeBlocks.startAt,
+    })
+    .from(tasks)
+    .innerJoin(timeBlocks, eq(timeBlocks.taskId, tasks.id))
+    .where(and(
+      eq(tasks.userId, me.sub),
+      eq(timeBlocks.status, 'completed'),
+      gte(timeBlocks.startAt, from),
+      lte(timeBlocks.startAt, to),
+    ))
+    .orderBy(timeBlocks.startAt);
+
+  if (taskData.length === 0) {
+    return res.status(200).json({
+      from: from.toISOString(),
+      to: to.toISOString(),
+      overall: {
+        totalTasks: 0,
+        avgAccuracyPercent: 0,
+        totalEstimatedMinutes: 0,
+        totalActualMinutes: 0,
+        overestimatedTasks: 0,
+        underestimatedTasks: 0,
+        accurateTasks: 0,
+      },
+      tasks: [],
+      insights: ['No completed tasks found in this date range.'],
+    } satisfies EstimationAccuracyResponse);
+  }
+
+  // Calculate per-task accuracy
+  const accuracyTasks: EstimationAccuracyTask[] = [];
+  let totalEstimated = 0;
+  let totalActual = 0;
+  let overestimated = 0;
+  let underestimated = 0;
+  let accurate = 0;
+
+  for (const task of taskData) {
+    if (!task.actualMinutes || task.actualMinutes <= 0) continue;
+
+    const estimated = task.estimatedMinutes || 60;
+    const actual = task.actualMinutes;
+    const variance = actual - estimated;
+    const accuracyPercent = Math.max(0, 100 - Math.abs(variance) / estimated * 100);
+
+    totalEstimated += estimated;
+    totalActual += actual;
+
+    if (variance > 0) overestimated++;
+    else if (variance < 0) underestimated++;
+    else accurate++;
+
+    accuracyTasks.push({
+      taskId: task.taskId,
+      taskTitle: task.taskTitle,
+      estimatedMinutes: estimated,
+      actualMinutes: actual,
+      accuracyPercent: Math.round(accuracyPercent),
+      varianceMinutes: variance,
+      completedAt: task.blockStartAt.toISOString(),
+    });
+  }
+
+  const avgAccuracy = accuracyTasks.length > 0
+    ? accuracyTasks.reduce((sum, t) => sum + t.accuracyPercent, 0) / accuracyTasks.length
+    : 0;
+
+  // Generate insights
+  const insights: string[] = [];
+  if (avgAccuracy < 60) {
+    insights.push('Your time estimations need improvement. Consider adding buffer time.');
+  } else if (avgAccuracy < 80) {
+    insights.push('Your estimations are fairly accurate but could be more consistent.');
+  } else {
+    insights.push('Great job! Your time estimations are quite accurate.');
+  }
+
+  if (underestimated > overestimated) {
+    insights.push('You tend to underestimate tasks. Try multiplying your estimates by 1.5x.');
+  } else if (overestimated > underestimated) {
+    insights.push('You tend to overestimate tasks. This is good for buffer management, but may affect planning.');
+  }
+
+  const varianceFromAvg = totalActual - totalEstimated;
+  if (varianceFromAvg > 0) {
+    insights.push(`Overall, you spent ${Math.round(varianceFromAvg / 60 * 10) / 10}h more than estimated in this period.`);
+  } else if (varianceFromAvg < 0) {
+    insights.push(`Overall, you spent ${Math.round(Math.abs(varianceFromAvg) / 60 * 10) / 10}h less than estimated in this period.`);
+  }
+
+  return res.status(200).json({
+    from: from.toISOString(),
+    to: to.toISOString(),
+    overall: {
+      totalTasks: accuracyTasks.length,
+      avgAccuracyPercent: Math.round(avgAccuracy),
+      totalEstimatedMinutes: totalEstimated,
+      totalActualMinutes: totalActual,
+      overestimatedTasks: overestimated,
+      underestimatedTasks: underestimated,
+      accurateTasks: accurate,
+    },
+    tasks: accuracyTasks,
+    insights,
+  } satisfies EstimationAccuracyResponse);
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
