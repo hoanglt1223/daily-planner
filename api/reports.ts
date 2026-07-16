@@ -1,7 +1,7 @@
 import type { VercelResponse } from '@vercel/node';
-import { and, eq, gte, inArray, lte } from 'drizzle-orm';
+import { and, eq, gte, inArray, lte, count, desc } from 'drizzle-orm';
 import { db } from '../server/lib/db/client.js';
-import { managerUsers, tasks, timeBlocks, users } from '../server/lib/db/schema.js';
+import { goals, habitEntries, habits, managerUsers, tasks, timeBlocks, users } from '../server/lib/db/schema.js';
 import { requireAuth, type AuthedRequest } from '../server/lib/auth-middleware.js';
 
 // Capacity baseline: 8 work-hours per day, matching WORKDAY_HOURS in src/lib/time-utils.ts
@@ -44,6 +44,10 @@ export default async function handler(req: AuthedRequest, res: VercelResponse) {
 
     if (kind === 'estimation-accuracy') {
       return await handleEstimationAccuracy(req, res, me, from, to);
+    }
+
+    if (kind === 'weekly-review') {
+      return await handleWeeklyReview(req, res, me, from, to);
     }
 
     return res.status(404).json({ error: 'unknown_kind' });
@@ -243,6 +247,49 @@ async function handleTeamCapacity(
   } satisfies TeamCapacityResponse);
 }
 
+export type WeeklyReviewResponse = {
+  from: string;
+  to: string;
+  timeSummary: {
+    totalPlannedMinutes: number;
+    totalActualMinutes: number;
+    totalCompletedMinutes: number;
+    utilizationPercent: number;
+    completionRate: number;
+    daysWorked: number;
+  };
+  taskSummary: {
+    totalTasks: number;
+    completedTasks: number;
+    inProgressTasks: number;
+    backlogTasks: number;
+    highPriorityCompleted: number;
+  };
+  habitSummary: {
+    totalHabits: number;
+    activeHabits: number;
+    totalEntries: number;
+    completedEntries: number;
+    streakData: Array<{ habitId: string; habitName: string; currentStreak: number }>;
+  };
+  goalProgress: Array<{
+    goalId: string;
+    title: string;
+    targetValue: number;
+    currentValue: number;
+    progressPercent: number;
+    status: string;
+  }>;
+  topTasks: Array<{
+    taskId: string;
+    title: string;
+    status: string;
+    priority: number;
+    completedAt?: string;
+  }>;
+  insights: string[];
+};
+
 // ── Estimation Accuracy handler ─────────────────────────────────────────────────
 
 async function handleEstimationAccuracy(
@@ -365,6 +412,166 @@ async function handleEstimationAccuracy(
     tasks: accuracyTasks,
     insights,
   } satisfies EstimationAccuracyResponse);
+}
+
+// ── Weekly Review handler ───────────────────────────────────────────────────────
+
+async function handleWeeklyReview(
+  req: AuthedRequest,
+  res: VercelResponse,
+  me: { sub: string },
+  from: Date,
+  to: Date,
+) {
+  // Fetch time blocks for the period
+  const blocks = await db.select().from(timeBlocks).where(and(
+    eq(timeBlocks.userId, me.sub),
+    gte(timeBlocks.startAt, from),
+    lte(timeBlocks.startAt, to),
+  ));
+
+  // Fetch tasks for the period
+  const allTasks = await db.select().from(tasks).where(eq(tasks.userId, me.sub));
+
+  // Fetch habit entries for the period
+  const habitEntriesData = await db.select().from(habitEntries).where(and(
+    eq(habitEntries.userId, me.sub),
+    gte(habitEntries.entryDate, from),
+    lte(habitEntries.entryDate, to),
+  ));
+
+  // Fetch user's habits
+  const userHabits = await db.select().from(habits).where(eq(habits.userId, me.sub));
+
+  // Fetch active goals
+  const activeGoals = await db.select().from(goals).where(and(
+    eq(goals.userId, me.sub),
+    eq(goals.status, 'active'),
+  ));
+
+  // Calculate time summary
+  const totalPlannedMinutes = blocks.reduce((sum, b) =>
+    sum + Math.round((new Date(b.endAt).getTime() - new Date(b.startAt).getTime()) / 60000), 0);
+
+  const totalActualMinutes = blocks
+    .filter(b => b.actualMinutes && b.actualMinutes > 0)
+    .reduce((sum, b) => sum + (b.actualMinutes || 0), 0);
+
+  const totalCompletedMinutes = blocks
+    .filter(b => b.status === 'completed')
+    .reduce((sum, b) => sum + Math.round((new Date(b.endAt).getTime() - new Date(b.startAt).getTime()) / 60000), 0);
+
+  const uniqueDays = new Set(blocks.map(b => b.startAt.toISOString().slice(0, 10)));
+  const daysWorked = uniqueDays.size;
+
+  const workdayCapacity = daysWorked * WORKDAY_MINUTES;
+  const utilizationPercent = workdayCapacity > 0 ? Math.round((totalCompletedMinutes / workdayCapacity) * 100) : 0;
+  const completionRate = blocks.length > 0 ? Math.round((blocks.filter(b => b.status === 'completed').length / blocks.length) * 100) : 0;
+
+  // Calculate task summary
+  const taskSummary = {
+    totalTasks: allTasks.length,
+    completedTasks: allTasks.filter(t => t.status === 'done').length,
+    inProgressTasks: allTasks.filter(t => t.status === 'doing').length,
+    backlogTasks: allTasks.filter(t => t.status === 'backlog' || t.status === 'todo').length,
+    highPriorityCompleted: allTasks.filter(t => t.status === 'done' && t.priority <= 2).length,
+  };
+
+  // Calculate habit summary
+  const activeHabits = userHabits.filter(h => h.frequency === 'daily' ||
+    (h.frequency === 'weekly' && h.targetDays && h.targetDays.length > 0));
+
+  const habitSummary = {
+    totalHabits: userHabits.length,
+    activeHabits: activeHabits.length,
+    totalEntries: habitEntriesData.length,
+    completedEntries: habitEntriesData.filter(e => e.completed).length,
+    streakData: [], // Could be enhanced with actual streak calculation
+  };
+
+  // Calculate goal progress
+  const goalProgress = activeGoals.map(g => ({
+    goalId: g.id,
+    title: g.title,
+    targetValue: g.targetValue,
+    currentValue: g.currentValue,
+    progressPercent: g.targetValue > 0 ? Math.round((g.currentValue / g.targetValue) * 100) : 0,
+    status: g.status,
+  }));
+
+  // Get top tasks (recently completed or high priority)
+  const topTasks = allTasks
+    .filter(t => t.status === 'done' || t.status === 'doing' || t.priority <= 2)
+    .slice(0, 10)
+    .map(t => ({
+      taskId: t.id,
+      title: t.title,
+      status: t.status,
+      priority: t.priority,
+      completedAt: t.updatedAt, // Using updatedAt as proxy for completion
+    }))
+    .sort((a, b) => b.priority - a.priority)
+    .slice(0, 5);
+
+  // Generate insights
+  const insights: string[] = [];
+
+  if (utilizationPercent < 50) {
+    insights.push('Your work utilization was low this week. Consider planning more focused work time.');
+  } else if (utilizationPercent > 90) {
+    insights.push('You operated at high capacity this week. Ensure you\'re maintaining balance.');
+  }
+
+  if (completionRate < 70) {
+    insights.push('Many planned blocks weren\'t completed. Review your planning and consider more realistic estimates.');
+  } else if (completionRate >= 90) {
+    insights.push('Excellent completion rate! You\'re following through on planned commitments.');
+  }
+
+  if (taskSummary.highPriorityCompleted > 0) {
+    insights.push(`Great progress on ${taskSummary.highPriorityCompleted} high-priority tasks.`);
+  }
+
+  if (habitSummary.totalEntries > 0) {
+    const habitCompletionRate = Math.round((habitSummary.completedEntries / habitSummary.totalEntries) * 100);
+    if (habitCompletionRate >= 80) {
+      insights.push(`Strong habit consistency at ${habitCompletionRate}% completion.`);
+    } else if (habitCompletionRate < 50) {
+      insights.push('Habit consistency was low. Focus on small wins to build momentum.');
+    }
+  }
+
+  if (goalProgress.length > 0) {
+    const goalsOnTrack = goalProgress.filter(g => g.progressPercent >= 50).length;
+    if (goalsOnTrack === goalProgress.length) {
+      insights.push('All goals are making solid progress!');
+    } else {
+      insights.push(`${goalsOnTrack}/${goalProgress.length} goals are on track. Review goal alignment.`);
+    }
+  }
+
+  if (totalActualMinutes > totalPlannedMinutes) {
+    const overtime = Math.round((totalActualMinutes - totalPlannedMinutes) / 60);
+    insights.push(`You worked ${overtime}h more than planned. Review your estimation accuracy.`);
+  }
+
+  return res.status(200).json({
+    from: from.toISOString(),
+    to: to.toISOString(),
+    timeSummary: {
+      totalPlannedMinutes,
+      totalActualMinutes,
+      totalCompletedMinutes,
+      utilizationPercent,
+      completionRate,
+      daysWorked,
+    },
+    taskSummary,
+    habitSummary,
+    goalProgress,
+    topTasks,
+    insights,
+  } satisfies WeeklyReviewResponse);
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────────

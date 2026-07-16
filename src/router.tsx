@@ -23,6 +23,7 @@ const PriorityMatrixPage = lazy(() => import('@/pages/priority-matrix-page').the
 const HabitsPage = lazy(() => import('@/pages/habits-page').then(m => ({ default: m.default })));
 const GoalsPage = lazy(() => import('@/pages/goals-page').then(m => ({ default: m.default })));
 const FocusPage = lazy(() => import('@/pages/focus-page').then(m => ({ default: m.default })));
+const WeeklyReviewPage = lazy(() => import('@/pages/weekly-review-page').then(m => ({ default: m.default })));
 
 /** Suspense wrapper for the standalone (non-AppLayout) routes. */
 function page(node: ReactNode): ReactNode {
@@ -53,6 +54,7 @@ export const router = createBrowserRouter([
       { path: '/habits', element: <HabitsPage /> },
       { path: '/goals', element: <GoalsPage /> },
       { path: '/focus', element: <FocusPage /> },
+      { path: '/weekly-review', element: <WeeklyReviewPage /> },
       { path: '/priority-matrix', element: <PriorityMatrixPage /> },
       { path: '/settings', element: <SettingsPage /> },
       { path: '/manager', element: <ManagerPage /> },
