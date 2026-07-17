@@ -508,7 +508,7 @@ async function handleWeeklyReview(
       title: t.title,
       status: t.status,
       priority: t.priority,
-      completedAt: t.updatedAt, // Using updatedAt as proxy for completion
+      completedAt: t.updatedAt ? new Date(t.updatedAt).toISOString() : undefined,
     }))
     .sort((a, b) => b.priority - a.priority)
     .slice(0, 5);

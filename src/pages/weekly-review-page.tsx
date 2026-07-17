@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ChevronLeft, ChevronRight, Calendar, CheckCircle2, Clock, Target, TrendingUp, Lightbulb, ArrowRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar, CheckCircle2, Clock, Target, TrendingUp, Lightbulb } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { apiFetch } from '@/lib/api-client';
 import { Button } from '@/components/ui/button';

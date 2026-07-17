@@ -23,11 +23,13 @@ import { TaskReminderSettings } from '@/components/task-reminder-settings';
 import { TaskDependencySelector } from '@/components/task-dependency-selector';
 import { LabelInput } from '@/components/label-input';
 import { TaskTemplates } from '@/components/task-templates';
+import { DependencyGraph } from '@/components/tasks/dependency-graph';
+import { DependencyList } from '@/components/tasks/dependency-list';
 
 /* ─── Types ─── */
 
 type TaskStatus = 'backlog' | 'todo' | 'doing' | 'done' | 'archived';
-type SmartView = 'all' | 'active' | 'done' | 'archived' | 'today' | 'upcoming' | 'overdue';
+type SmartView = 'all' | 'active' | 'done' | 'archived' | 'today' | 'upcoming' | 'overdue' | 'dependencies';
 
 interface Subtask { id: string; title: string; done: boolean }
 
@@ -129,6 +131,7 @@ export function TasksPage() {
   const [quickPreview, setQuickPreview] = useState<ReturnType<typeof parseQuickAdd> | null>(null);
   const [highlightedId, setHighlightedId] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [depsFullscreen, setDepsFullscreen] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
 
   const load = useCallback(async () => {
@@ -429,6 +432,7 @@ export function TasksPage() {
     { key: 'today',    label: 'Today',     count: counts.today },
     { key: 'upcoming', label: 'Upcoming',  count: counts.upcoming },
     { key: 'overdue',  label: 'Overdue',   count: counts.overdue },
+    { key: 'dependencies', label: 'Dependencies', count: tasks.filter(t => t.blockedByTaskIds && t.blockedByTaskIds.length > 0).length },
     { key: 'done',     label: 'Done',      count: counts.done },
     { key: 'archived', label: 'Archived',  count: counts.archived },
     { key: 'all',      label: 'All',       count: tasks.length },
@@ -632,6 +636,28 @@ export function TasksPage() {
               <Trash2 className="size-3" /> Delete
             </Button>
           </div>
+        </div>
+      )}
+
+      {/* Dependencies view */}
+      {smartView === 'dependencies' && (
+        <div className="space-y-6">
+          <DependencyGraph
+            tasks={tasks}
+            onTaskClick={(id) => {
+              const task = tasks.find(t => t.id === id);
+              if (task) setEditTask(task);
+            }}
+            fullscreen={depsFullscreen}
+            onToggleFullscreen={() => setDepsFullscreen(!depsFullscreen)}
+          />
+          <DependencyList
+            tasks={tasks}
+            onTaskClick={(id) => {
+              const task = tasks.find(t => t.id === id);
+              if (task) setEditTask(task);
+            }}
+          />
         </div>
       )}
 
