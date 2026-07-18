@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import {
   Globe, Lock, Save, Shield, Link2, Copy, RefreshCw, KeyRound, Loader2, ExternalLink,
-  CalendarClock, Plus, Pencil, Trash2,
+  CalendarClock, Plus, Pencil, Trash2, Calendar,
 } from 'lucide-react';
 import { apiFetch } from '@/lib/api-client';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -272,6 +272,7 @@ function ShareLinkSection({ profile, onUpdated }: {
   const appUrl = import.meta.env.VITE_APP_URL || window.location.origin;
   const shareUrl = profile.shareToken ? `${appUrl}/u/${profile.shareToken}` : null;
   const bookingUrl = profile.shareToken ? `${appUrl}/book/${profile.shareToken}` : null;
+  const icsFeedUrl = profile.shareToken ? `${appUrl}/api/share?token=${profile.shareToken}&action=ics` : null;
 
   function copyUrl(url: string) {
     navigator.clipboard.writeText(url).then(
@@ -328,6 +329,34 @@ function ShareLinkSection({ profile, onUpdated }: {
                       <ExternalLink className="size-3.5" />
                     </a>
                   </Button>
+                </div>
+              </div>
+            )}
+            {icsFeedUrl && (
+              <div className="space-y-3">
+                <Separator />
+                <div className="space-y-2">
+                  <Label className="text-xs flex items-center gap-1.5">
+                    <Calendar className="size-3" />
+                    Calendar subscription feed
+                  </Label>
+                  <p className="text-[10px] text-muted-foreground">
+                    Subscribe to see your planned time blocks in Google Calendar, Apple Calendar, Outlook, or any calendar app that supports ICS feeds.
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <Input value={icsFeedUrl} readOnly className="text-xs font-mono" />
+                    <Button size="icon" variant="outline" className="shrink-0" onClick={() => copyUrl(icsFeedUrl)} title="Copy">
+                      <Copy className="size-3.5" />
+                    </Button>
+                  </div>
+                </div>
+                <div className="text-[10px] text-muted-foreground space-y-1">
+                  <p className="font-medium">How to subscribe:</p>
+                  <ul className="space-y-0.5 ml-4 list-disc">
+                    <li><strong>Google Calendar:</strong> Settings → Add calendar → From URL → paste feed URL</li>
+                    <li><strong>Apple Calendar:</strong> File → New Calendar Subscription → paste feed URL</li>
+                    <li><strong>Outlook:</strong> Add calendar → Subscribe from web → paste feed URL</li>
+                  </ul>
                 </div>
               </div>
             )}
