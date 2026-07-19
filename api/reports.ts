@@ -50,6 +50,18 @@ export default async function handler(req: AuthedRequest, res: VercelResponse) {
       return await handleWeeklyReview(req, res, me, from, to);
     }
 
+    if (kind === 'insights') {
+      return await handleInsights(req, res, me, from, to);
+    }
+
+    if (kind === 'energy-patterns') {
+      return await handleEnergyPatterns(req, res, me, from, to);
+    }
+
+    if (kind === 'completion-rates') {
+      return await handleCompletionRates(req, res, me);
+    }
+
     return res.status(404).json({ error: 'unknown_kind' });
   } catch (e) {
     console.error(e);
@@ -572,6 +584,505 @@ async function handleWeeklyReview(
     topTasks,
     insights,
   } satisfies WeeklyReviewResponse);
+}
+
+// ── Insights handlers ───────────────────────────────────────────────────────────
+
+export type InsightsResponse = {
+  from: string;
+  to: string;
+  productivityScore: number;
+  peakHours: Array<{ hour: number; productivity: number; taskCount: number }>;
+  completionTrends: Array<{ date: string; completionRate: number; taskCount: number }>;
+  recommendations: string[];
+};
+
+async function handleInsights(
+  req: AuthedRequest,
+  res: VercelResponse,
+  me: { sub: string },
+  from: Date,
+  to: Date,
+) {
+  // Fetch all time blocks for the period
+  const blocks = await db.select().from(timeBlocks).where(and(
+    eq(timeBlocks.userId, me.sub),
+    gte(timeBlocks.startAt, from),
+    lte(timeBlocks.startAt, to),
+  ));
+
+  // Fetch tasks for completion analysis
+  const userTasks = await db.select().from(tasks).where(eq(tasks.userId, me.sub));
+
+  // Calculate peak hours (hour of day 0-23)
+  const hourlyStats = new Map<number, { completed: number; total: number; energySum: number }>();
+
+  for (const block of blocks) {
+    const hour = block.startAt.getUTCHours();
+    const existing = hourlyStats.get(hour) || { completed: 0, total: 0, energySum: 0 };
+
+    existing.total++;
+    if (block.status === 'completed') existing.completed++;
+    if (block.energyLevel) existing.energySum += block.energyLevel;
+
+    hourlyStats.set(hour, existing);
+  }
+
+  // Convert to peak hours array with productivity score
+  const peakHours = Array.from(hourlyStats.entries())
+    .map(([hour, stats]) => ({
+      hour,
+      productivity: stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : 0,
+      taskCount: stats.total,
+    }))
+    .filter(h => h.taskCount >= 3) // Only hours with meaningful data
+    .sort((a, b) => b.productivity - a.productivity)
+    .slice(0, 8);
+
+  // Calculate completion trends by day
+  const dailyStats = new Map<string, { completed: number; total: number }>();
+
+  for (const block of blocks) {
+    const date = block.startAt.toISOString().slice(0, 10);
+    const existing = dailyStats.get(date) || { completed: 0, total: 0 };
+
+    existing.total++;
+    if (block.status === 'completed') existing.completed++;
+
+    dailyStats.set(date, existing);
+  }
+
+  const completionTrends = Array.from(dailyStats.entries())
+    .map(([date, stats]) => ({
+      date,
+      completionRate: stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : 0,
+      taskCount: stats.total,
+    }))
+    .sort((a, b) => a.date.localeCompare(b.date));
+
+  // Calculate overall productivity score
+  const totalBlocks = blocks.length;
+  const completedBlocks = blocks.filter(b => b.status === 'completed').length;
+  const avgCompletionRate = totalBlocks > 0 ? (completedBlocks / totalBlocks) * 100 : 0;
+
+  const productivityScore = Math.round(
+    (avgCompletionRate * 0.6) + // 60% weight on completion
+    (Math.min(100, (totalBlocks / 30) * 20)) + // Activity bonus (max 20%)
+    (peakHours.length > 0 ? Math.min(20, peakHours[0].productivity * 0.2) : 0) // Peak performance (max 20%)
+  );
+
+  // Generate recommendations
+  const recommendations: string[] = [];
+
+  if (peakHours.length > 0) {
+    const bestHour = peakHours[0].hour;
+    const timePeriod = bestHour >= 6 && bestHour < 12 ? 'morning'
+      : bestHour >= 12 && bestHour < 17 ? 'afternoon'
+      : bestHour >= 17 && bestHour < 22 ? 'evening'
+      : 'night';
+    recommendations.push(`Your peak productivity is in the ${timePeriod} (${bestHour}:00-${bestHour+1}:00). Schedule important tasks then.`);
+  }
+
+  if (avgCompletionRate < 60) {
+    recommendations.push('Your completion rate is below 60%. Try breaking down large tasks into smaller chunks.');
+  } else if (avgCompletionRate >= 85) {
+    recommendations.push('Excellent completion rate! Consider taking on more challenging projects.');
+  }
+
+  const recentTrends = completionTrends.slice(-7);
+  if (recentTrends.length >= 5) {
+    const avgRecent = recentTrends.reduce((sum, t) => sum + t.completionRate, 0) / recentTrends.length;
+    if (avgRecent > 80) {
+      recommendations.push('You\'re on a productivity roll! Maintain your current workflow.');
+    } else if (avgRecent < 50) {
+      recommendations.push('Recent productivity has dipped. Consider reviewing your workload and energy management.');
+    }
+  }
+
+  if (totalBlocks < 20) {
+    recommendations.push('Try to be more consistent with time blocking. Aim for at least 5-6 blocks per day.');
+  }
+
+  return res.status(200).json({
+    from: from.toISOString(),
+    to: to.toISOString(),
+    productivityScore,
+    peakHours,
+    completionTrends,
+    recommendations,
+  } satisfies InsightsResponse);
+}
+
+export type EnergyPatternsResponse = {
+  from: string;
+  to: string;
+  hourlyAnalysis: Array<{
+    hour: number;
+    avgEnergyLevel: number;
+    taskCount: number;
+    completionRate: number;
+  }>;
+  optimalSchedule: Array<{
+    hour: number;
+    recommendedTaskType: string;
+    reasoning: string;
+  }>;
+  insights: string[];
+};
+
+async function handleEnergyPatterns(
+  req: AuthedRequest,
+  res: VercelResponse,
+  me: { sub: string },
+  from: Date,
+  to: Date,
+) {
+  // Fetch completed time blocks with energy levels
+  const blocks = await db.select().from(timeBlocks).where(and(
+    eq(timeBlocks.userId, me.sub),
+    gte(timeBlocks.startAt, from),
+    lte(timeBlocks.startAt, to),
+    eq(timeBlocks.status, 'completed'),
+  ));
+
+  // Filter blocks with valid energy levels
+  const blocksWithEnergy = blocks.filter(b => b.energyLevel && b.energyLevel > 0);
+
+  if (blocksWithEnergy.length < 5) {
+    return res.status(200).json({
+      from: from.toISOString(),
+      to: to.toISOString(),
+      hourlyAnalysis: [],
+      optimalSchedule: [],
+      insights: [
+        'Not enough data yet. Keep logging your energy levels during tasks to unlock energy pattern analysis.',
+        'Tip: Rate your energy (1-5) when completing tasks to build your personal productivity profile.'
+      ],
+    } satisfies EnergyPatternsResponse);
+  }
+
+  // Analyze by hour
+  const hourlyData = new Map<number, { energySum: number; count: number; completed: number; total: number }>();
+
+  for (const block of blocks) {
+    const hour = block.startAt.getUTCHours();
+    const existing = hourlyData.get(hour) || { energySum: 0, count: 0, completed: 0, total: 0 };
+
+    existing.total++;
+    if (block.status === 'completed') existing.completed++;
+
+    if (block.energyLevel) {
+      existing.energySum += block.energyLevel;
+      existing.count++;
+    }
+
+    hourlyData.set(hour, existing);
+  }
+
+  const hourlyAnalysis = Array.from(hourlyData.entries())
+    .map(([hour, data]) => ({
+      hour,
+      avgEnergyLevel: data.count > 0 ? Math.round((data.energySum / data.count) * 10) / 10 : 0,
+      taskCount: data.total,
+      completionRate: data.total > 0 ? Math.round((data.completed / data.total) * 100) : 0,
+    }))
+    .filter(h => h.taskCount >= 2)
+    .sort((a, b) => a.hour - b.hour);
+
+  // Generate optimal schedule recommendations
+  const highEnergyHours = hourlyAnalysis
+    .filter(h => h.avgEnergyLevel >= 4)
+    .sort((a, b) => b.avgEnergyLevel - a.avgEnergyLevel);
+
+  const lowEnergyHours = hourlyAnalysis
+    .filter(h => h.avgEnergyLevel <= 2.5)
+    .sort((a, b) => a.avgEnergyLevel - b.avgEnergyLevel);
+
+  const optimalSchedule: Array<{
+    hour: number;
+    recommendedTaskType: string;
+    reasoning: string;
+  }> = [];
+
+  for (const hourData of highEnergyHours.slice(0, 3)) {
+    optimalSchedule.push({
+      hour: hourData.hour,
+      recommendedTaskType: 'Deep Work / Creative Tasks',
+      reasoning: `High energy period (${hourData.avgEnergyLevel}/5). Best for focused, challenging work.`,
+    });
+  }
+
+  for (const hourData of lowEnergyHours.slice(0, 2)) {
+    optimalSchedule.push({
+      hour: hourData.hour,
+      recommendedTaskType: 'Admin / Routine Tasks',
+      reasoning: `Lower energy period (${hourData.avgEnergyLevel}/5). Good for emails, planning, or routine work.`,
+    });
+  }
+
+  // Generate insights
+  const insights: string[] = [];
+
+  if (highEnergyHours.length > 0) {
+    const peakHour = highEnergyHours[0];
+    insights.push(`Your peak energy is around ${peakHour.hour}:00 with average level ${peakHour.avgEnergyLevel}/5.`);
+  }
+
+  const avgEnergy = blocksWithEnergy.reduce((sum, b) => sum + (b.energyLevel || 0), 0) / blocksWithEnergy.length;
+  if (avgEnergy >= 3.5) {
+    insights.push('Your overall energy levels are healthy. You\'re maintaining good work-life balance.');
+  } else if (avgEnergy < 2.5) {
+    insights.push('Your energy levels seem consistently low. Consider rest, exercise, or workload adjustments.');
+  }
+
+  if (highEnergyHours.length >= 3) {
+    insights.push(`You have ${highEnergyHours.length} high-energy hours identified. Protect these times for important work.`);
+  }
+
+  return res.status(200).json({
+    from: from.toISOString(),
+    to: to.toISOString(),
+    hourlyAnalysis,
+    optimalSchedule,
+    insights,
+  } satisfies EnergyPatternsResponse);
+}
+
+export type CompletionRatesResponse = {
+  taskCompletion: {
+    totalTasks: number;
+    completedTasks: number;
+    completionRate: number;
+    avgCompletionTime: number; // hours from creation to completion
+    byPriority: Array<{ priority: number; total: number; completed: number; rate: number }>;
+  };
+  habitCompletion: {
+    totalHabits: number;
+    activeHabits: number;
+    totalEntries: number;
+    completedEntries: number;
+    completionRate: number;
+    streakData: Array<{ habitId: string; habitName: string; currentStreak: number; bestStreak: number }>;
+  };
+  weeklyTrends: Array<{ week: string; taskRate: number; habitRate: number }>;
+  insights: string[];
+};
+
+async function handleCompletionRates(
+  req: AuthedRequest,
+  res: VercelResponse,
+  me: { sub: string },
+) {
+  const now = new Date();
+  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+  // Fetch all user tasks
+  const allTasks = await db.select().from(tasks).where(eq(tasks.userId, me.sub));
+
+  // Fetch habit entries from last 30 days
+  const habitEntriesData = await db.select().from(habitEntries).where(and(
+    eq(habitEntries.userId, me.sub),
+    gte(habitEntries.entryDate, thirtyDaysAgo),
+  ));
+
+  // Fetch user's habits
+  const userHabits = await db.select().from(habits).where(eq(habits.userId, me.sub));
+
+  // Calculate task completion metrics
+  const totalTasks = allTasks.length;
+  const completedTasks = allTasks.filter(t => t.status === 'done').length;
+  const taskCompletionRate = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+
+  // Calculate average completion time
+  const completedTasksWithDates = allTasks.filter(t =>
+    t.status === 'done' && t.createdAt && t.updatedAt
+  );
+
+  const avgCompletionTime = completedTasksWithDates.length > 0
+    ? completedTasksWithDates.reduce((sum, t) => {
+        const created = new Date(t.createdAt).getTime();
+        const completed = new Date(t.updatedAt).getTime();
+        return sum + (completed - created) / (1000 * 60 * 60); // hours
+      }, 0) / completedTasksWithDates.length
+    : 0;
+
+  // Analyze by priority
+  const priorityBuckets = new Map<number, { total: number; completed: number }>();
+  for (const task of allTasks) {
+    const existing = priorityBuckets.get(task.priority) || { total: 0, completed: 0 };
+    existing.total++;
+    if (task.status === 'done') existing.completed++;
+    priorityBuckets.set(task.priority, existing);
+  }
+
+  const byPriority = Array.from(priorityBuckets.entries())
+    .map(([priority, data]) => ({
+      priority,
+      total: data.total,
+      completed: data.completed,
+      rate: data.total > 0 ? Math.round((data.completed / data.total) * 100) : 0,
+    }))
+    .sort((a, b) => a.priority - b.priority);
+
+  // Calculate habit completion
+  const totalHabits = userHabits.length;
+  const activeHabits = userHabits.filter(h => h.frequency === 'daily' ||
+    (h.frequency === 'weekly' && h.targetDays && h.targetDays.length > 0)).length;
+
+  const totalEntries = habitEntriesData.length;
+  const completedEntries = habitEntriesData.filter(e => e.completed).length;
+  const habitCompletionRate = totalEntries > 0 ? Math.round((completedEntries / totalEntries) * 100) : 0;
+
+  // Calculate streaks for each habit
+  const streakData = await Promise.all(
+    userHabits.map(async (habit) => {
+      const entries = await db.select().from(habitEntries).where(and(
+        eq(habitEntries.habitId, habit.id),
+        eq(habitEntries.userId, me.sub),
+        gte(habitEntries.entryDate, thirtyDaysAgo),
+      ));
+
+      // Calculate current streak (consecutive days)
+      let currentStreak = 0;
+      let bestStreak = 0;
+      let tempStreak = 0;
+
+      const sortedEntries = entries.sort((a, b) =>
+        new Date(b.entryDate).getTime() - new Date(a.entryDate).getTime()
+      );
+
+      for (let i = 0; i < sortedEntries.length; i++) {
+        if (sortedEntries[i].completed) {
+          tempStreak++;
+          bestStreak = Math.max(bestStreak, tempStreak);
+
+          // Check if consecutive day
+          if (i > 0) {
+            const currentDay = new Date(sortedEntries[i].entryDate).getDate();
+            const prevDay = new Date(sortedEntries[i - 1].entryDate).getDate();
+            if (currentDay !== prevDay - 1) {
+              tempStreak = 1; // Reset if not consecutive
+            }
+          }
+        } else {
+          tempStreak = 0;
+        }
+      }
+
+      // Get current streak (most recent consecutive days)
+      const today = new Date();
+      let streak = 0;
+      for (let i = 0; i < 30; i++) {
+        const checkDate = new Date(today);
+        checkDate.setDate(checkDate.getDate() - i);
+
+        const entry = entries.find(e =>
+          new Date(e.entryDate).toDateString() === checkDate.toDateString()
+        );
+
+        if (entry && entry.completed) {
+          streak++;
+        } else {
+          break;
+        }
+      }
+
+      return {
+        habitId: habit.id,
+        habitName: habit.name,
+        currentStreak: streak,
+        bestStreak,
+      };
+    })
+  );
+
+  // Generate weekly trends
+  const weeklyTrends: Array<{ week: string; taskRate: number; habitRate: number }> = [];
+
+  for (let i = 0; i < 4; i++) {
+    const weekStart = new Date(now);
+    weekStart.setDate(weekStart.getDate() - (i * 7) - 6);
+    const weekEnd = new Date(now);
+    weekEnd.setDate(weekEnd.getDate() - (i * 7));
+
+    const weekKey = `${weekStart.toISOString().slice(0, 10)}`;
+
+    const weekTasks = allTasks.filter(t => {
+      if (!t.updatedAt) return false;
+      const updated = new Date(t.updatedAt);
+      return updated >= weekStart && updated <= weekEnd;
+    });
+
+    const weekHabits = habitEntriesData.filter(e => {
+      const entryDate = new Date(e.entryDate);
+      return entryDate >= weekStart && entryDate <= weekEnd;
+    });
+
+    const weekTaskRate = weekTasks.length > 0
+      ? Math.round((weekTasks.filter(t => t.status === 'done').length / weekTasks.length) * 100)
+      : 0;
+
+    const weekHabitRate = weekHabits.length > 0
+      ? Math.round((weekHabits.filter(e => e.completed).length / weekHabits.length) * 100)
+      : 0;
+
+    weeklyTrends.unshift({
+      week: weekKey,
+      taskRate: weekTaskRate,
+      habitRate: weekHabitRate,
+    });
+  }
+
+  // Generate insights
+  const insights: string[] = [];
+
+  if (taskCompletionRate >= 85) {
+    insights.push(`Excellent task completion rate of ${taskCompletionRate}%. You're consistently delivering results.`);
+  } else if (taskCompletionRate < 60) {
+    insights.push(`Task completion rate is ${taskCompletionRate}%. Focus on finishing existing tasks before starting new ones.`);
+  }
+
+  if (avgCompletionTime > 168) { // More than a week
+    insights.push(`Tasks take an average of ${Math.round(avgCompletionTime / 24)} days to complete. Consider breaking down larger projects.`);
+  } else if (avgCompletionTime < 24) {
+    insights.push('Great turnaround time! You complete tasks within a day on average.');
+  }
+
+  if (habitCompletionRate >= 80) {
+    insights.push(`Strong habit consistency at ${habitCompletionRate}% completion. Keep it up!`);
+  } else if (habitCompletionRate < 50) {
+    insights.push('Habit completion could improve. Start with smaller, easier habits to build momentum.');
+  }
+
+  const bestStreakHabit = streakData.find(h => h.currentStreak >= 7);
+  if (bestStreakHabit) {
+    insights.push(`You're on a ${bestStreakHabit.currentStreak}-day streak with "${bestStreakHabit.habitName}"!`);
+  }
+
+  const priority1Rate = byPriority.find(p => p.priority === 1)?.rate || 0;
+  if (priority1Rate < 70) {
+    insights.push('High-priority tasks need more attention. Focus on completing urgent items first.');
+  }
+
+  return res.status(200).json({
+    taskCompletion: {
+      totalTasks,
+      completedTasks,
+      completionRate: taskCompletionRate,
+      avgCompletionTime: Math.round(avgCompletionTime * 10) / 10,
+      byPriority,
+    },
+    habitCompletion: {
+      totalHabits,
+      activeHabits,
+      totalEntries,
+      completedEntries,
+      completionRate: habitCompletionRate,
+      streakData,
+    },
+    weeklyTrends,
+    insights,
+  } satisfies CompletionRatesResponse);
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
