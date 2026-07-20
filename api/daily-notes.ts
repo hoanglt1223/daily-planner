@@ -29,6 +29,7 @@ export default async function handler(req: AuthedRequest, res: VercelResponse) {
 
       const noteDate = new Date(body.date + 'T00:00:00');
       const content = body.content ?? '';
+      const reflectionData = body.reflectionData ?? null;
 
       // Try to find existing note for this date
       const existing = await db.select().from(dailyNotes).where(
@@ -37,7 +38,7 @@ export default async function handler(req: AuthedRequest, res: VercelResponse) {
 
       if (existing.length > 0) {
         const [updated] = await db.update(dailyNotes)
-          .set({ content, updatedAt: new Date() })
+          .set({ content, reflectionData, updatedAt: new Date() })
           .where(eq(dailyNotes.id, existing[0].id))
           .returning();
         return res.status(200).json(updated);
@@ -47,6 +48,7 @@ export default async function handler(req: AuthedRequest, res: VercelResponse) {
         userId: user.sub,
         content,
         noteDate,
+        reflectionData,
       }).returning();
       return res.status(201).json(created);
     }

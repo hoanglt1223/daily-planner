@@ -143,6 +143,12 @@ export const dailyNotes = pgTable('daily_notes', {
   userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
   content: text('content').notNull().default(''),
   noteDate: timestamp('note_date', { withTimezone: true }).notNull(),
+  reflectionData: jsonb('reflection_data').$type<{
+    mood?: string;
+    wentWell?: string;
+    toImprove?: string;
+    tomorrowPriorities?: string;
+  } | null>(),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 }, (t) => [
