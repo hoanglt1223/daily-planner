@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+import { EstimationAccuracy } from '@/components/dashboard/estimation-accuracy';
 
 type InsightsData = {
   from: string;
@@ -423,6 +424,9 @@ export function InsightsPage() {
           </CardContent>
         </Card>
       )}
+
+      {/* Time Estimation Accuracy */}
+      <EstimationAccuracy />
     </div>
   );
 }
