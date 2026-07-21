@@ -36,7 +36,7 @@ interface Subtask { id: string; title: string; done: boolean }
 interface Task {
   id: string; title: string; description: string | null;
   status: TaskStatus; priority: number; estimatedMinutes: number;
-  dueDate: string | null; categoryId: string | null; isPinned: boolean;
+  dueDate: string | null; categoryId: string | null; projectId: string | null; isPinned: boolean;
   subtasks: Subtask[];
   labels: string[];
   blockedByTaskIds: string[];
@@ -46,6 +46,7 @@ interface Task {
 }
 
 interface Category { id: string; name: string; color: string }
+interface Project { id: string; name: string; color: string; status: string }
 
 /* ─── Constants ─── */
 
@@ -110,6 +111,7 @@ function isOverdue(task: Task): boolean {
 export function TasksPage() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [smartView, setSmartView] = useState<SmartView>('active');
@@ -138,12 +140,14 @@ export function TasksPage() {
     setLoading(true);
     setLoadError(null);
     try {
-      const [t, c] = await Promise.all([
+      const [t, c, p] = await Promise.all([
         apiFetch<Task[]>('/api/tasks'),
         apiFetch<Category[]>('/api/categories'),
+        apiFetch<Project[]>('/api/projects?action=list'),
       ]);
       setTasks(t);
       setCategories(c);
+      setProjects(p);
     } catch (e) { setLoadError((e as Error).message || 'Failed to load tasks'); }
     finally { setLoading(false); }
   }, []);
@@ -714,13 +718,14 @@ export function TasksPage() {
       )}
 
       {/* New task dialog */}
-      <NewTaskDialog open={newOpen} onOpenChange={setNewOpen} categories={categories} availableLabels={allLabels} onCreated={load} />
+      <NewTaskDialog open={newOpen} onOpenChange={setNewOpen} categories={categories} projects={projects} availableLabels={allLabels} onCreated={load} />
 
       {/* Edit task dialog */}
       {editTask && (
         <EditTaskDialog
           task={editTask}
           categories={categories}
+          projects={projects}
           availableLabels={allLabels}
           onClose={() => setEditTask(null)}
           onSaved={load}
@@ -989,13 +994,14 @@ function TaskRow({ task, category, busy, selected, isHighlighted, isExpanded, on
 
 /* ─── New Task Dialog ─── */
 
-function NewTaskDialog({ open, onOpenChange, categories, availableLabels, onCreated }: {
-  open: boolean; onOpenChange: (o: boolean) => void; categories: Category[]; availableLabels: string[]; onCreated: () => void;
+function NewTaskDialog({ open, onOpenChange, categories, projects, availableLabels, onCreated }: {
+  open: boolean; onOpenChange: (o: boolean) => void; categories: Category[]; projects: Project[]; availableLabels: string[]; onCreated: () => void;
 }) {
   const [title, setTitle] = useState('');
   const [minutes, setMinutes] = useState(60);
   const [priority, setPriority] = useState(3);
   const [categoryId, setCategoryId] = useState<string | null>(null);
+  const [projectId, setProjectId] = useState<string | null>(null);
   const [dueDate, setDueDate] = useState('');
   const [repeatFreq, setRepeatFreq] = useState<'none' | 'daily' | 'weekly'>('none');
   const [labels, setLabels] = useState<string[]>([]);
@@ -1005,7 +1011,7 @@ function NewTaskDialog({ open, onOpenChange, categories, availableLabels, onCrea
   const [submitting, setSubmitting] = useState(false);
 
   function reset() {
-    setTitle(''); setMinutes(60); setPriority(3); setCategoryId(null);
+    setTitle(''); setMinutes(60); setPriority(3); setCategoryId(null); setProjectId(null);
     setDueDate(''); setRepeatFreq('none'); setLabels([]);
     setBlockedByTaskIds([]);
     setReminderEnabled(false); setReminderMinutes(null);
@@ -1020,7 +1026,7 @@ function NewTaskDialog({ open, onOpenChange, categories, availableLabels, onCrea
         method: 'POST',
         body: JSON.stringify({
           title: title.trim(), estimatedMinutes: minutes, priority,
-          categoryId, dueDate: dueDate || null, status: 'todo',
+          categoryId, projectId, dueDate: dueDate || null, status: 'todo',
           labels, blockedByTaskIds,
           reminderEnabled, reminderMinutes,
           recurringRule: repeatFreq === 'none' ? null : {
@@ -1081,7 +1087,7 @@ function NewTaskDialog({ open, onOpenChange, categories, availableLabels, onCrea
             </div>
             {categories.length > 0 && (
               <div className="space-y-1">
-                <Label id="nt-cat-label">Project</Label>
+                <Label id="nt-cat-label">Category</Label>
                 <div role="radiogroup" aria-labelledby="nt-cat-label" className="flex flex-wrap gap-1">
                   <button type="button"
                     role="radio"
@@ -1102,6 +1108,34 @@ function NewTaskDialog({ open, onOpenChange, categories, availableLabels, onCrea
                       onClick={() => setCategoryId(c.id)}>
                       <span className="size-2 rounded-full" style={{ backgroundColor: c.color }} />
                       {c.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+            {projects.length > 0 && (
+              <div className="space-y-1">
+                <Label id="nt-proj-label">Project</Label>
+                <div role="radiogroup" aria-labelledby="nt-proj-label" className="flex flex-wrap gap-1">
+                  <button type="button"
+                    role="radio"
+                    aria-checked={projectId === null}
+                    className={cn(
+                      'rounded-full border px-2 py-0.5 text-[10px] font-medium transition-colors',
+                      projectId === null ? 'border-primary bg-primary text-primary-foreground' : 'border-border text-muted-foreground hover:border-foreground/30',
+                    )}
+                    onClick={() => setProjectId(null)}>None</button>
+                  {projects.filter(p => p.status === 'active').map(p => (
+                    <button key={p.id} type="button"
+                      role="radio"
+                      aria-checked={projectId === p.id}
+                      className={cn(
+                        'rounded-full border px-2 py-0.5 text-[10px] font-medium transition-colors flex items-center gap-1',
+                        projectId === p.id ? 'border-primary bg-primary text-primary-foreground' : 'border-border text-muted-foreground hover:border-foreground/30',
+                      )}
+                      onClick={() => setProjectId(p.id)}>
+                      <span className="size-2 rounded-full" style={{ backgroundColor: p.color }} />
+                      {p.name}
                     </button>
                   ))}
                 </div>
@@ -1154,8 +1188,8 @@ function NewTaskDialog({ open, onOpenChange, categories, availableLabels, onCrea
 
 /* ─── Edit Task Dialog ─── */
 
-function EditTaskDialog({ task, categories, availableLabels, onClose, onSaved }: {
-  task: Task; categories: Category[]; availableLabels: string[]; onClose: () => void; onSaved: () => void;
+function EditTaskDialog({ task, categories, projects, availableLabels, onClose, onSaved }: {
+  task: Task; categories: Category[]; projects: Project[]; availableLabels: string[]; onClose: () => void; onSaved: () => void;
 }) {
   const [title, setTitle] = useState(task.title);
   const [description, setDescription] = useState(task.description ?? '');
@@ -1163,6 +1197,7 @@ function EditTaskDialog({ task, categories, availableLabels, onClose, onSaved }:
   const [priority, setPriority] = useState(task.priority);
   const [status, setStatus] = useState<TaskStatus>(task.status);
   const [categoryId, setCategoryId] = useState<string | null>(task.categoryId);
+  const [projectId, setProjectId] = useState<string | null>(task.projectId);
   const [dueDate, setDueDate] = useState(task.dueDate ? task.dueDate.slice(0, 10) : '');
   const [subtasks, setSubtasks] = useState<Subtask[]>(task.subtasks ?? []);
   const [labels, setLabels] = useState<string[]>(task.labels ?? []);
@@ -1197,7 +1232,7 @@ function EditTaskDialog({ task, categories, availableLabels, onClose, onSaved }:
         method: 'PATCH',
         body: JSON.stringify({
           title: title.trim(), description: description || null,
-          estimatedMinutes: minutes, priority, status, categoryId,
+          estimatedMinutes: minutes, priority, status, categoryId, projectId,
           dueDate: dueDate || null, subtasks, labels, blockedByTaskIds,
           reminderEnabled, reminderMinutes,
         }),
@@ -1273,7 +1308,7 @@ function EditTaskDialog({ task, categories, availableLabels, onClose, onSaved }:
             </div>
             {categories.length > 0 && (
               <div className="space-y-1">
-                <Label id="et-cat-label">Project</Label>
+                <Label id="et-cat-label">Category</Label>
                 <div role="radiogroup" aria-labelledby="et-cat-label" className="flex flex-wrap gap-1">
                   <button type="button"
                     role="radio"
@@ -1294,6 +1329,34 @@ function EditTaskDialog({ task, categories, availableLabels, onClose, onSaved }:
                       onClick={() => setCategoryId(c.id)}>
                       <span className="size-2 rounded-full" style={{ backgroundColor: c.color }} />
                       {c.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+            {projects.length > 0 && (
+              <div className="space-y-1">
+                <Label id="et-proj-label">Project</Label>
+                <div role="radiogroup" aria-labelledby="et-proj-label" className="flex flex-wrap gap-1">
+                  <button type="button"
+                    role="radio"
+                    aria-checked={projectId === null}
+                    className={cn(
+                      'rounded-full border px-2 py-0.5 text-[10px] font-medium transition-colors',
+                      projectId === null ? 'border-primary bg-primary text-primary-foreground' : 'border-border text-muted-foreground hover:border-foreground/30',
+                    )}
+                    onClick={() => setProjectId(null)}>None</button>
+                  {projects.filter(p => p.status === 'active').map(p => (
+                    <button key={p.id} type="button"
+                      role="radio"
+                      aria-checked={projectId === p.id}
+                      className={cn(
+                        'rounded-full border px-2 py-0.5 text-[10px] font-medium transition-colors flex items-center gap-1',
+                        projectId === p.id ? 'border-primary bg-primary text-primary-foreground' : 'border-border text-muted-foreground hover:border-foreground/30',
+                      )}
+                      onClick={() => setProjectId(p.id)}>
+                      <span className="size-2 rounded-full" style={{ backgroundColor: p.color }} />
+                      {p.name}
                     </button>
                   ))}
                 </div>

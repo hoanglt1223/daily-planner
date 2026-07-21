@@ -44,6 +44,7 @@ export const tasks = pgTable('tasks', {
   id: uuid('id').defaultRandom().primaryKey(),
   userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
   categoryId: uuid('category_id').references(() => categories.id, { onDelete: 'set null' }),
+  projectId: uuid('project_id').references(() => projects.id, { onDelete: 'set null' }),
   title: text('title').notNull(),
   description: text('description'),
   status: taskStatus('status').notNull().default('todo'),
@@ -72,6 +73,7 @@ export const tasks = pgTable('tasks', {
 }, (t) => [
   index('tasks_user_status_idx').on(t.userId, t.status),
   index('tasks_user_category_idx').on(t.userId, t.categoryId),
+  index('tasks_user_project_idx').on(t.userId, t.projectId),
 ]);
 
 export const timeBlocks = pgTable('time_blocks', {
@@ -218,6 +220,22 @@ export const taskTemplates = pgTable('task_templates', {
 
 export const goalPeriod = pgEnum('goal_period', ['weekly', 'monthly', 'quarterly', 'yearly']);
 export const goalStatus = pgEnum('goal_status', ['active', 'completed', 'paused', 'archived']);
+export const projectStatus = pgEnum('project_status', ['active', 'completed', 'archived', 'on_hold']);
+
+export const projects = pgTable('projects', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  name: text('name').notNull(),
+  description: text('description'),
+  status: projectStatus('status').notNull().default('active'),
+  color: text('color').notNull().default('#6366f1'),
+  startDate: timestamp('start_date', { withTimezone: true }),
+  endDate: timestamp('end_date', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, (t) => [
+  index('projects_user_status_idx').on(t.userId, t.status),
+]);
 
 export const goals = pgTable('goals', {
   id: uuid('id').defaultRandom().primaryKey(),
@@ -246,6 +264,7 @@ export type User = typeof users.$inferSelect;
 export type Task = typeof tasks.$inferSelect;
 export type TimeBlock = typeof timeBlocks.$inferSelect;
 export type Category = typeof categories.$inferSelect;
+export type Project = typeof projects.$inferSelect;
 export type Booking = typeof bookings.$inferSelect;
 export type BookingEventType = typeof bookingEventTypes.$inferSelect;
 export type BookingAvailability = typeof bookingAvailability.$inferSelect;

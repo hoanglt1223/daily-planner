@@ -181,6 +181,7 @@ export default async function handler(req: AuthedRequest, res: VercelResponse) {
         title: body.title,
         description: body.description ?? null,
         categoryId: body.categoryId ?? null,
+        projectId: body.projectId ?? null,
         status: body.status ?? 'todo',
         priority: body.priority ?? 3,
         estimatedMinutes: body.estimatedMinutes ?? 60,
@@ -198,7 +199,7 @@ export default async function handler(req: AuthedRequest, res: VercelResponse) {
     if (req.method === 'PATCH' && id) {
       const body = req.body ?? {};
       const patch: Record<string, unknown> = { updatedAt: new Date() };
-      for (const key of ['title', 'description', 'status', 'priority', 'estimatedMinutes', 'categoryId', 'recurringRule', 'isPinned', 'subtasks', 'reminderEnabled', 'reminderMinutes']) {
+      for (const key of ['title', 'description', 'status', 'priority', 'estimatedMinutes', 'categoryId', 'projectId', 'recurringRule', 'isPinned', 'subtasks', 'reminderEnabled', 'reminderMinutes']) {
         if (key in body) patch[key] = body[key];
       }
       if ('dueDate' in body) patch.dueDate = body.dueDate ? new Date(body.dueDate) : null;

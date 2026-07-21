@@ -25,6 +25,7 @@ const GoalsPage = lazy(() => import('@/pages/goals-page').then(m => ({ default: 
 const FocusPage = lazy(() => import('@/pages/focus-page').then(m => ({ default: m.default })));
 const WeeklyReviewPage = lazy(() => import('@/pages/weekly-review-page').then(m => ({ default: m.default })));
 const InsightsPage = lazy(() => import('@/pages/insights-page').then(m => ({ default: m.default })));
+const ProjectsPage = lazy(() => import('@/pages/projects-page').then(m => ({ default: m.ProjectsPage })));
 
 /** Suspense wrapper for the standalone (non-AppLayout) routes. */
 function page(node: ReactNode): ReactNode {
@@ -52,6 +53,7 @@ export const router = createBrowserRouter([
       { path: '/dashboard', element: <DashboardPage /> },
       { path: '/tasks', element: <TasksPage /> },
       { path: '/planner', element: <PlannerPage /> },
+      { path: '/projects', element: <ProjectsPage /> },
       { path: '/habits', element: <HabitsPage /> },
       { path: '/goals', element: <GoalsPage /> },
       { path: '/focus', element: <FocusPage /> },
