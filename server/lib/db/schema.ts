@@ -20,6 +20,7 @@ export const users = pgTable('users', {
   bookingBufferMinutes: integer('booking_buffer_minutes').notNull().default(0),
   bookingMinNoticeMinutes: integer('booking_min_notice_minutes').notNull().default(0),
   bookingHorizonDays: integer('booking_horizon_days').notNull().default(14),
+  hourlyRate: integer('hourly_rate'), // Optional hourly rate for meeting cost calculations
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 });
 
@@ -87,6 +88,8 @@ export const timeBlocks = pgTable('time_blocks', {
   status: blockStatus('status').notNull().default('planned'),
   note: text('note'),
   energyLevel: integer('energy_level'), // 1-5 scale for subjective energy during task
+  isMeeting: boolean('is_meeting').notNull().default(false), // Flag for meeting vs work blocks
+  calculatedCost: integer('calculated_cost'), // Stored cost for meetings
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 }, (t) => [
   index('blocks_user_start_idx').on(t.userId, t.startAt),
@@ -134,6 +137,7 @@ export const bookings = pgTable('bookings', {
   // Single-purpose nanoid tokens for visitor self-service reschedule / cancel links.
   rescheduleToken: text('reschedule_token'),
   cancelToken: text('cancel_token'),
+  calculatedCost: integer('calculated_cost'), // Stored meeting cost in currency units
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 }, (t) => [
   index('bookings_owner_status_idx').on(t.ownerUserId, t.status),

@@ -1,7 +1,7 @@
 import type { VercelResponse } from '@vercel/node';
 import { and, eq, gte, inArray, lte, count, desc } from 'drizzle-orm';
 import { db } from '../server/lib/db/client.js';
-import { goals, habitEntries, habits, managerUsers, tasks, timeBlocks, users } from '../server/lib/db/schema.js';
+import { bookings, bookingEventTypes, goals, habitEntries, habits, managerUsers, tasks, timeBlocks, users } from '../server/lib/db/schema.js';
 import { requireAuth, type AuthedRequest } from '../server/lib/auth-middleware.js';
 
 // Capacity baseline: 8 work-hours per day, matching WORKDAY_HOURS in src/lib/time-utils.ts
@@ -60,6 +60,10 @@ export default async function handler(req: AuthedRequest, res: VercelResponse) {
 
     if (kind === 'completion-rates') {
       return await handleCompletionRates(req, res, me);
+    }
+
+    if (kind === 'meeting-costs') {
+      return await handleMeetingCosts(req, res, me, from, to);
     }
 
     return res.status(404).json({ error: 'unknown_kind' });
@@ -1083,6 +1087,224 @@ async function handleCompletionRates(
     weeklyTrends,
     insights,
   } satisfies CompletionRatesResponse);
+}
+
+export type MeetingCostsResponse = {
+  from: string;
+  to: string;
+  summary: {
+    totalMeetings: number;
+    totalMeetingMinutes: number;
+    totalCost: number;
+    avgCostPerMeeting: number;
+    avgCostPerHour: number;
+    mostExpensiveMeeting: {
+      title: string;
+      cost: number;
+      duration: number;
+      date: string;
+    } | null;
+  };
+  byPeriod: Array<{
+    date: string;
+    meetingCount: number;
+    totalMinutes: number;
+    totalCost: number;
+  }>;
+  recentMeetings: Array<{
+    id: string;
+    title: string;
+    startAt: string;
+    duration: number;
+    participantCount: number;
+    cost: number;
+    status: string;
+  }>;
+  insights: string[];
+};
+
+async function handleMeetingCosts(
+  req: AuthedRequest,
+  res: VercelResponse,
+  me: { sub: string; role: string },
+  from: Date,
+  to: Date,
+) {
+  // Fetch user's hourly rate
+  const [user] = await db.select({
+    hourlyRate: users.hourlyRate,
+  }).from(users).where(eq(users.id, me.sub)).limit(1);
+
+  const hourlyRate = user?.hourlyRate || 0;
+
+  // Fetch bookings where user is owner in the date range
+  const userBookings = await db.select({
+    id: bookings.id,
+    title: bookings.title,
+    startAt: bookings.startAt,
+    endAt: bookings.endAt,
+    status: bookings.status,
+    visitorName: bookings.visitorName,
+    calculatedCost: bookings.calculatedCost,
+  }).from(bookings).where(and(
+    eq(bookings.ownerUserId, me.sub),
+    gte(bookings.startAt, from),
+    lte(bookings.startAt, to),
+  ));
+
+  // Fetch meeting time blocks (where isMeeting is true)
+  const meetingBlocks = await db.select({
+    id: timeBlocks.id,
+    title: timeBlocks.title,
+    startAt: timeBlocks.startAt,
+    endAt: timeBlocks.endAt,
+    status: timeBlocks.status,
+    calculatedCost: timeBlocks.calculatedCost,
+  }).from(timeBlocks).where(and(
+    eq(timeBlocks.userId, me.sub),
+    eq(timeBlocks.isMeeting, true),
+    gte(timeBlocks.startAt, from),
+    lte(timeBlocks.startAt, to),
+  ));
+
+  // Combine and process all meetings
+  const allMeetings = [
+    ...userBookings.map(b => ({
+      id: b.id,
+      title: b.title,
+      startAt: b.startAt,
+      endAt: b.endAt,
+      status: b.status,
+      participantCount: 2, // Owner + visitor
+      calculatedCost: b.calculatedCost,
+    })),
+    ...meetingBlocks.map(m => ({
+      id: m.id,
+      title: m.title,
+      startAt: m.startAt,
+      endAt: m.endAt,
+      status: m.status,
+      participantCount: 1, // Just the user
+      calculatedCost: m.calculatedCost,
+    })),
+  ];
+
+  // Calculate costs for meetings without stored cost
+  const meetingsWithCost = allMeetings.map(meeting => {
+    const duration = Math.round((new Date(meeting.endAt).getTime() - new Date(meeting.startAt).getTime()) / 60000);
+    const cost = meeting.calculatedCost || (hourlyRate > 0 ? Math.round((hourlyRate / 60) * duration * meeting.participantCount) : 0);
+    return {
+      ...meeting,
+      duration,
+      cost,
+    };
+  });
+
+  // Calculate summary statistics
+  const totalMeetings = meetingsWithCost.length;
+  const totalMeetingMinutes = meetingsWithCost.reduce((sum, m) => sum + m.duration, 0);
+  const totalCost = meetingsWithCost.reduce((sum, m) => sum + m.cost, 0);
+  const avgCostPerMeeting = totalMeetings > 0 ? Math.round(totalCost / totalMeetings) : 0;
+  const totalHours = totalMeetingMinutes / 60;
+  const avgCostPerHour = totalHours > 0 ? Math.round(totalCost / totalHours) : 0;
+
+  // Find most expensive meeting
+  const mostExpensiveMeeting = meetingsWithCost.length > 0
+    ? meetingsWithCost.reduce((max, m) => m.cost > max.cost ? m : max, meetingsWithCost[0])
+    : null;
+
+  // Group by date for byPeriod analysis
+  const byPeriodMap = new Map<string, { meetingCount: number; totalMinutes: number; totalCost: number }>();
+
+  for (const meeting of meetingsWithCost) {
+    const dateKey = meeting.startAt.toISOString().slice(0, 10);
+    const existing = byPeriodMap.get(dateKey) || { meetingCount: 0, totalMinutes: 0, totalCost: 0 };
+    existing.meetingCount++;
+    existing.totalMinutes += meeting.duration;
+    existing.totalCost += meeting.cost;
+    byPeriodMap.set(dateKey, existing);
+  }
+
+  const byPeriod = Array.from(byPeriodMap.entries())
+    .map(([date, data]) => ({
+      date,
+      meetingCount: data.meetingCount,
+      totalMinutes: data.totalMinutes,
+      totalCost: data.totalCost,
+    }))
+    .sort((a, b) => a.date.localeCompare(b.date));
+
+  // Get recent meetings (last 10)
+  const recentMeetings = meetingsWithCost
+    .sort((a, b) => new Date(b.startAt).getTime() - new Date(a.startAt).getTime())
+    .slice(0, 10)
+    .map(m => ({
+      id: m.id,
+      title: m.title,
+      startAt: m.startAt.toISOString(),
+      duration: m.duration,
+      participantCount: m.participantCount,
+      cost: m.cost,
+      status: m.status,
+    }));
+
+  // Generate insights
+  const insights: string[] = [];
+
+  if (totalMeetings === 0) {
+    insights.push('No meetings found in this period. Keep up the focused work time!');
+  } else {
+    if (totalCost > 0) {
+      insights.push(`Total meeting cost: $${totalCost.toLocaleString()} for ${totalMeetings} meetings.`);
+      insights.push(`Average cost per meeting: $${avgCostPerMeeting}, average hourly cost: $${avgCostPerHour}.`);
+    }
+
+    const avgMeetingDuration = totalMeetingMinutes / totalMeetings;
+    if (avgMeetingDuration > 60) {
+      insights.push(`Average meeting length is ${Math.round(avgMeetingDuration)} minutes. Consider shorter meetings to reduce costs.`);
+    } else if (avgMeetingDuration < 30) {
+      insights.push('Good job keeping meetings concise! Average length is under 30 minutes.');
+    }
+
+    if (mostExpensiveMeeting) {
+      const expensiveDuration = Math.round((new Date(mostExpensiveMeeting.endAt).getTime() - new Date(mostExpensiveMeeting.startAt).getTime()) / 60000);
+      insights.push(`Most expensive meeting: "${mostExpensiveMeeting.title}" at $${mostExpensiveMeeting.cost} (${expensiveDuration}min).`);
+    }
+
+    // Calculate meeting intensity (meetings per day)
+    const daysWithMeetings = byPeriod.length;
+    const meetingsPerDay = daysWithMeetings > 0 ? totalMeetings / daysWithMeetings : 0;
+    if (meetingsPerDay > 4) {
+      insights.push('High meeting frequency detected. Consider consolidating or decluttering your calendar.');
+    } else if (meetingsPerDay > 0 && meetingsPerDay <= 2) {
+      insights.push('Good meeting discipline. You\'re keeping focused work time protected.');
+    }
+  }
+
+  if (hourlyRate === 0) {
+    insights.push('Set your hourly rate in settings to enable accurate meeting cost calculations.');
+  }
+
+  return res.status(200).json({
+    from: from.toISOString(),
+    to: to.toISOString(),
+    summary: {
+      totalMeetings,
+      totalMeetingMinutes,
+      totalCost,
+      avgCostPerMeeting,
+      avgCostPerHour,
+      mostExpensiveMeeting: mostExpensiveMeeting ? {
+        title: mostExpensiveMeeting.title,
+        cost: mostExpensiveMeeting.cost,
+        duration: mostExpensiveMeeting.duration,
+        date: mostExpensiveMeeting.startAt.toISOString(),
+      } : null,
+    },
+    byPeriod,
+    recentMeetings,
+    insights,
+  } satisfies MeetingCostsResponse);
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────────

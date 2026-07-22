@@ -8,12 +8,14 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Skeleton } from '@/components/ui/skeleton';
+import { MeetingCostBadge } from '@/components/meeting-cost-badge';
 
 type Booking = {
   id: string; visitorName: string; visitorEmail: string;
   title: string; note: string | null;
   startAt: string; endAt: string;
   status: 'pending' | 'approved' | 'rejected' | 'cancelled';
+  calculatedCost: number | null;
 };
 
 export function BookingsInbox() {
@@ -66,14 +68,20 @@ export function BookingsInbox() {
           <ul className="space-y-2">
             {pending.map(b => {
               const busy = busyIds.has(b.id);
+              const duration = Math.round((new Date(b.endAt).getTime() - new Date(b.startAt).getTime()) / 60000);
               return (
                 <li key={b.id} className="rounded-md ring-hairline p-2 text-sm">
-                  <p className="font-medium">{b.title}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {fmtDay(new Date(b.startAt))} {fmtHour(new Date(b.startAt))}–{fmtHour(new Date(b.endAt))}
-                  </p>
-                  <p className="text-xs">From {b.visitorName} &lt;{b.visitorEmail}&gt;</p>
-                  {b.note && <p className="mt-1 text-xs italic text-muted-foreground">"{b.note}"</p>}
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1">
+                      <p className="font-medium">{b.title}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {fmtDay(new Date(b.startAt))} {fmtHour(new Date(b.startAt))}–{fmtHour(new Date(b.endAt))}
+                      </p>
+                      <p className="text-xs">From {b.visitorName} &lt;{b.visitorEmail}&gt;</p>
+                      {b.note && <p className="mt-1 text-xs italic text-muted-foreground">"{b.note}"</p>}
+                    </div>
+                    <MeetingCostBadge cost={b.calculatedCost} duration={duration} />
+                  </div>
                   <div className="mt-2 flex gap-2">
                     <Button size="sm" disabled={busy} onClick={() => act(b.id, 'approve')}>
                       {busy ? 'Saving…' : 'Approve'}
@@ -98,12 +106,21 @@ export function BookingsInbox() {
             </CollapsibleTrigger>
             <CollapsibleContent>
               <ul className="mt-1 space-y-1 text-xs">
-                {recent.map(b => (
-                  <li key={b.id} className="flex items-center justify-between px-2">
-                    <span>{b.title} — {b.visitorName}</span>
-                    <Badge variant={b.status === 'approved' ? 'default' : 'secondary'}>{b.status}</Badge>
-                  </li>
-                ))}
+                {recent.map(b => {
+                  const duration = Math.round((new Date(b.endAt).getTime() - new Date(b.startAt).getTime()) / 60000);
+                  return (
+                    <li key={b.id} className="flex items-center justify-between gap-2 px-2 py-1">
+                      <div className="flex-1 truncate">
+                        <span className="truncate">{b.title}</span>
+                        <span className="text-muted-foreground"> — {b.visitorName}</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <MeetingCostBadge cost={b.calculatedCost} duration={duration} />
+                        <Badge variant={b.status === 'approved' ? 'default' : 'secondary'} className="text-xs">{b.status}</Badge>
+                      </div>
+                    </li>
+                  );
+                })}
               </ul>
             </CollapsibleContent>
           </Collapsible>

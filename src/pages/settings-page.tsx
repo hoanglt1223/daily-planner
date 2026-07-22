@@ -36,6 +36,7 @@ interface UserProfile {
   bookingBufferMinutes: number;
   bookingMinNoticeMinutes: number;
   bookingHorizonDays: number;
+  hourlyRate: number | null;
 }
 
 /* ─── Constants ─── */
@@ -137,16 +138,28 @@ function ProfileSection({ profile, onUpdated }: {
 }) {
   const [name, setName] = useState(profile.name);
   const [timezone, setTimezone] = useState(profile.timezone);
+  const [hourlyRate, setHourlyRate] = useState(profile.hourlyRate === null ? '' : profile.hourlyRate.toString());
   const [saving, setSaving] = useState(false);
 
-  const dirty = name !== profile.name || timezone !== profile.timezone;
+  const dirty = name !== profile.name || timezone !== profile.timezone || hourlyRate !== (profile.hourlyRate === null ? '' : profile.hourlyRate.toString());
 
   async function save() {
     setSaving(true);
     try {
+      const rateValue = hourlyRate ? parseInt(hourlyRate, 10) : null;
+      if (hourlyRate && (isNaN(rateValue!) || rateValue! < 0)) {
+        toast.error('Hourly rate must be a positive number');
+        setSaving(false);
+        return;
+      }
+
       const updated = await apiFetch<UserProfile>('/api/auth/update', {
         method: 'PATCH',
-        body: JSON.stringify({ name, timezone }),
+        body: JSON.stringify({
+          name,
+          timezone,
+          hourlyRate: rateValue !== null ? rateValue : null,
+        }),
       });
       onUpdated(updated);
       toast.success('Profile updated');
@@ -187,6 +200,21 @@ function ProfileSection({ profile, onUpdated }: {
           </Select>
           <p className="text-[10px] text-muted-foreground">
             Used for recurring task expansion and display formatting.
+          </p>
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="settings-hourly-rate">Hourly rate (optional)</Label>
+          <Input
+            id="settings-hourly-rate"
+            type="number"
+            min="0"
+            step="1"
+            value={hourlyRate}
+            onChange={e => setHourlyRate(e.target.value)}
+            placeholder="e.g., 100"
+          />
+          <p className="text-[10px] text-muted-foreground">
+            Used to calculate meeting costs. Leave blank to disable cost tracking.
           </p>
         </div>
         <div className="flex items-center gap-2">

@@ -73,6 +73,10 @@ function publicUser(u: typeof users.$inferSelect) {
     id: u.id, email: u.email, name: u.name, role: u.role,
     privacy: u.privacy, timezone: u.timezone,
     shareToken: u.shareToken,
+    hourlyRate: u.hourlyRate,
+    bookingBufferMinutes: u.bookingBufferMinutes,
+    bookingMinNoticeMinutes: u.bookingMinNoticeMinutes,
+    bookingHorizonDays: u.bookingHorizonDays,
   };
 }
 
@@ -80,7 +84,7 @@ async function updateProfile(req: AuthedRequest, res: VercelResponse) {
   const authed = requireAuth(req, res);
   if (!authed) return;
 
-  const { name, timezone, privacy } = req.body ?? {};
+  const { name, timezone, privacy, hourlyRate } = req.body ?? {};
   const patch: Record<string, unknown> = {};
 
   if (typeof name === 'string' && name.trim().length >= 1 && name.trim().length <= 100) {
@@ -92,6 +96,17 @@ async function updateProfile(req: AuthedRequest, res: VercelResponse) {
   const validPrivacy = ['details_to_managers', 'busy_only_to_managers', 'private'];
   if (typeof privacy === 'string' && validPrivacy.includes(privacy)) {
     patch.privacy = privacy;
+  }
+  // Handle hourlyRate: null, undefined, or a non-negative integer
+  if (hourlyRate === null || hourlyRate === undefined) {
+    // Explicitly set to null to clear the value
+    patch.hourlyRate = null;
+  } else if (typeof hourlyRate === 'number') {
+    if (hourlyRate >= 0) {
+      patch.hourlyRate = hourlyRate;
+    } else {
+      return res.status(400).json({ error: 'invalid_hourly_rate' });
+    }
   }
 
   if (Object.keys(patch).length === 0) {
