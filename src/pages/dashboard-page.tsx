@@ -22,6 +22,7 @@ import { EnergyPatterns } from '@/components/dashboard/energy-patterns';
 import { GoalProgress } from '@/components/dashboard/goal-progress';
 import { SmartPrioritization } from '@/components/dashboard/smart-prioritization';
 import { EstimationAccuracy } from '@/components/dashboard/estimation-accuracy';
+import { MeetingCostAnalytics } from '@/components/dashboard/meeting-cost-analytics';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -169,6 +170,8 @@ export function DashboardPage() {
       </div>
 
       <EstimationAccuracy />
+
+      <MeetingCostAnalytics />
 
       <TimesheetExport />
     </div>
