@@ -90,7 +90,6 @@ export function InsightsPage() {
       setEnergyPatterns(energyData);
       setCompletionRates(completionData);
     } catch (err) {
-      console.error('Failed to fetch insights:', err);
       setError('Failed to load insights. Please try again.');
     } finally {
       setLoading(false);
