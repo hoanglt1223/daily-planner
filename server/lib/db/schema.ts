@@ -21,6 +21,11 @@ export const users = pgTable('users', {
   bookingMinNoticeMinutes: integer('booking_min_notice_minutes').notNull().default(0),
   bookingHorizonDays: integer('booking_horizon_days').notNull().default(14),
   hourlyRate: integer('hourly_rate'), // Optional hourly rate for meeting cost calculations
+  // Vacation/time-off balance tracking
+  vacationDaysAvailable: integer('vacation_days_available').notNull().default(20),
+  vacationDaysUsed: integer('vacation_days_used').notNull().default(0),
+  vacationDaysAccrualRate: integer('vacation_days_accrual_rate').notNull().default(0), // Days per month
+  vacationAccrualLastReset: timestamp('vacation_accrual_last_reset', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 });
 
@@ -89,6 +94,7 @@ export const timeBlocks = pgTable('time_blocks', {
   note: text('note'),
   energyLevel: integer('energy_level'), // 1-5 scale for subjective energy during task
   isMeeting: boolean('is_meeting').notNull().default(false), // Flag for meeting vs work blocks
+  isVacation: boolean('is_vacation').notNull().default(false), // Flag for vacation/time-off blocks
   calculatedCost: integer('calculated_cost'), // Stored cost for meetings
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 }, (t) => [
