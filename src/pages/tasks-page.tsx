@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertTriangle, Archive, ArrowUpDown, CheckCircle2, CheckSquare, ChevronDown, ChevronRight,
   Clock, Copy, Edit3, FileSpreadsheet, Link2, ListChecks, Palette, Pencil, Pin, PinOff, PlayCircle, Plus, Search, Square, Tag, Trash2, X,
-  Zap, Sparkles,
+  Zap, Sparkles, Filter, FilterX, SlidersHorizontal,
 } from 'lucide-react';
 import { apiFetch } from '@/lib/api-client';
 import { parseQuickAdd } from '@/lib/parse-quick-add';
@@ -16,6 +16,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { BulkImportDialog } from '@/components/bulk-import-dialog';
@@ -118,6 +119,16 @@ export function TasksPage() {
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
   const [labelFilter, setLabelFilter] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<SortKey>('smart');
+
+  // Advanced filters
+  const [advancedFiltersOpen, setAdvancedFiltersOpen] = useState(false);
+  const [priorityFilters, setPriorityFilters] = useState<number[]>([]);
+  const [projectFilter, setProjectFilter] = useState<string | null>(null);
+  const [estimatedTimeMin, setEstimatedTimeMin] = useState<number | null>(null);
+  const [estimatedTimeMax, setEstimatedTimeMax] = useState<number | null>(null);
+  const [pinnedOnly, setPinnedOnly] = useState(false);
+  const [hasSubtasksOnly, setHasSubtasksOnly] = useState(false);
+  const [overdueOnly, setOverdueOnly] = useState(false);
   const [editTask, setEditTask] = useState<Task | null>(null);
   const [newOpen, setNewOpen] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -196,6 +207,14 @@ export function TasksPage() {
       .filter(t => categoryFilter === null || t.categoryId === categoryFilter)
       .filter(t => labelFilter === null || (t.labels ?? []).includes(labelFilter))
       .filter(t => !q || t.title.toLowerCase().includes(q) || (t.description ?? '').toLowerCase().includes(q))
+      // Advanced filters
+      .filter(t => priorityFilters.length === 0 || priorityFilters.includes(t.priority))
+      .filter(t => projectFilter === null || t.projectId === projectFilter)
+      .filter(t => estimatedTimeMin === null || t.estimatedMinutes >= estimatedTimeMin)
+      .filter(t => estimatedTimeMax === null || t.estimatedMinutes <= estimatedTimeMax)
+      .filter(t => !pinnedOnly || t.isPinned)
+      .filter(t => !hasSubtasksOnly || (t.subtasks && t.subtasks.length > 0))
+      .filter(t => !overdueOnly || isOverdue(t))
       .sort((a, b) => {
         if (a.isPinned !== b.isPinned) return a.isPinned ? -1 : 1;
         if (sortBy === 'priority') return a.priority - b.priority || a.title.localeCompare(b.title);
@@ -213,7 +232,7 @@ export function TasksPage() {
         if (aD !== bD) return aD - bD;
         return a.priority - b.priority || a.title.localeCompare(b.title);
       });
-  }, [tasks, search, smartView, categoryFilter, labelFilter, sortBy]);
+  }, [tasks, search, smartView, categoryFilter, labelFilter, sortBy, priorityFilters, projectFilter, estimatedTimeMin, estimatedTimeMax, pinnedOnly, hasSubtasksOnly, overdueOnly]);
 
   async function updateTask(id: string, patch: Partial<Task>) {
     setBusyId(id);
@@ -234,6 +253,46 @@ export function TasksPage() {
     } catch (e) { toast.error((e as Error).message); }
     finally { setBusyId(null); }
   }
+
+  // Helper functions for advanced filters
+  const hasAdvancedFilters = useMemo(() => {
+    return priorityFilters.length > 0 ||
+           projectFilter !== null ||
+           estimatedTimeMin !== null ||
+           estimatedTimeMax !== null ||
+           pinnedOnly ||
+           hasSubtasksOnly ||
+           overdueOnly;
+  }, [priorityFilters, projectFilter, estimatedTimeMin, estimatedTimeMax, pinnedOnly, hasSubtasksOnly, overdueOnly]);
+
+  const activeAdvancedFilterCount = useMemo(() => {
+    let count = 0;
+    if (priorityFilters.length > 0) count++;
+    if (projectFilter !== null) count++;
+    if (estimatedTimeMin !== null || estimatedTimeMax !== null) count++;
+    if (pinnedOnly) count++;
+    if (hasSubtasksOnly) count++;
+    if (overdueOnly) count++;
+    return count;
+  }, [priorityFilters, projectFilter, estimatedTimeMin, estimatedTimeMax, pinnedOnly, hasSubtasksOnly, overdueOnly]);
+
+  const clearAdvancedFilters = useCallback(() => {
+    setPriorityFilters([]);
+    setProjectFilter(null);
+    setEstimatedTimeMin(null);
+    setEstimatedTimeMax(null);
+    setPinnedOnly(false);
+    setHasSubtasksOnly(false);
+    setOverdueOnly(false);
+  }, []);
+
+  const togglePriorityFilter = useCallback((priority: number) => {
+    setPriorityFilters(prev =>
+      prev.includes(priority)
+        ? prev.filter(p => p !== priority)
+        : [...prev, priority]
+    );
+  }, []);
 
   async function duplicateTask(task: Task) {
     setBusyId(task.id);
@@ -593,7 +652,222 @@ export function TasksPage() {
             ))}
           </SelectContent>
         </Select>
+
+        {/* Advanced Filters Toggle */}
+        <Collapsible open={advancedFiltersOpen} onOpenChange={setAdvancedFiltersOpen}>
+          <CollapsibleTrigger asChild>
+            <Button
+              size="sm"
+              variant={hasAdvancedFilters ? "default" : "outline"}
+              className="h-9 relative"
+            >
+              <SlidersHorizontal className="size-3.5 mr-1.5" />
+              Advanced
+              {hasAdvancedFilters && (
+                <Badge className="ml-1.5 h-5 px-1.5 text-xs">{activeAdvancedFilterCount}</Badge>
+              )}
+            </Button>
+          </CollapsibleTrigger>
+        </Collapsible>
       </div>
+
+      {/* Advanced Filters Panel */}
+      <Collapsible open={advancedFiltersOpen} onOpenChange={setAdvancedFiltersOpen}>
+        <CollapsibleContent className="space-y-4">
+          <Card className="border-border/50">
+            <CardContent className="p-4 space-y-4">
+              {/* Header with clear button */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Filter className="size-4 text-muted-foreground" />
+                  <span className="font-medium">Advanced Filters</span>
+                  {hasAdvancedFilters && (
+                    <Badge variant="secondary" className="text-xs">
+                      {activeAdvancedFilterCount} active
+                    </Badge>
+                  )}
+                </div>
+                {hasAdvancedFilters && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 text-xs"
+                    onClick={clearAdvancedFilters}
+                  >
+                    <FilterX className="size-3 mr-1" />
+                    Clear all
+                  </Button>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                {/* Priority Filter */}
+                <div className="space-y-2">
+                  <Label className="text-xs font-medium">Priority</Label>
+                  <div className="flex flex-wrap gap-1.5">
+                    {[1, 2, 3, 4, 5].map(p => (
+                      <button
+                        key={p}
+                        onClick={() => togglePriorityFilter(p)}
+                        className={cn(
+                          "px-2 py-1 rounded-md text-xs font-medium border transition-all",
+                          priorityFilters.includes(p)
+                            ? PRIORITY_LABEL[p].cls + " border-current"
+                            : "bg-background hover:bg-muted/50"
+                        )
+                      }
+                      >
+                        {PRIORITY_LABEL[p].label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Project Filter */}
+                <div className="space-y-2">
+                  <Label className="text-xs font-medium">Project</Label>
+                  <Select
+                    value={projectFilter ?? 'all'}
+                    onValueChange={v => setProjectFilter(v === 'all' ? null : v)}
+                  >
+                    <SelectTrigger className="h-8 text-sm">
+                      <SelectValue placeholder="All projects" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All projects</SelectItem>
+                      {projects.map(p => (
+                        <SelectItem key={p.id} value={p.id}>
+                          <div className="flex items-center gap-2">
+                            <span
+                              className="size-2 rounded-full"
+                              style={{ backgroundColor: p.color }}
+                            />
+                            {p.name}
+                            {p.status !== 'active' && (
+                              <Badge variant="outline" className="text-xs py-0 px-1">
+                                {p.status}
+                              </Badge>
+                            )}
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Estimated Time Range */}
+                <div className="space-y-2">
+                  <Label className="text-xs font-medium">Estimated Time (min)</Label>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      type="number"
+                      placeholder="Min"
+                      min={0}
+                      value={estimatedTimeMin ?? ''}
+                      onChange={e => setEstimatedTimeMin(e.target.value ? parseInt(e.target.value) : null)}
+                      className="h-8 text-sm"
+                    />
+                    <span className="text-muted-foreground">-</span>
+                    <Input
+                      type="number"
+                      placeholder="Max"
+                      min={0}
+                      value={estimatedTimeMax ?? ''}
+                      onChange={e => setEstimatedTimeMax(e.target.value ? parseInt(e.target.value) : null)}
+                      className="h-8 text-sm"
+                    />
+                  </div>
+                </div>
+
+                {/* Quick Filters */}
+                <div className="space-y-2">
+                  <Label className="text-xs font-medium">Quick Filters</Label>
+                  <div className="flex flex-wrap gap-2">
+                    <label className="flex items-center gap-2 text-sm cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={pinnedOnly}
+                        onChange={e => setPinnedOnly(e.target.checked)}
+                        className="rounded"
+                      />
+                      <Pin className="size-3" /> Pinned
+                    </label>
+                    <label className="flex items-center gap-2 text-sm cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={hasSubtasksOnly}
+                        onChange={e => setHasSubtasksOnly(e.target.checked)}
+                        className="rounded"
+                      />
+                      <ListChecks className="size-3" /> Subtasks
+                    </label>
+                    <label className="flex items-center gap-2 text-sm cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={overdueOnly}
+                        onChange={e => setOverdueOnly(e.target.checked)}
+                        className="rounded"
+                      />
+                      <AlertTriangle className="size-3" /> Overdue
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              {/* Active Filters Display */}
+              {hasAdvancedFilters && (
+                <div className="flex flex-wrap gap-2 pt-2 border-t">
+                  {priorityFilters.length > 0 && (
+                    <Badge variant="secondary" className="gap-1">
+                      Priority: {priorityFilters.map(p => PRIORITY_LABEL[p].label).join(', ')}
+                      <X
+                        className="size-3 cursor-pointer"
+                        onClick={() => setPriorityFilters([])}
+                      />
+                    </Badge>
+                  )}
+                  {projectFilter && (
+                    <Badge variant="secondary" className="gap-1">
+                      Project: {projects.find(p => p.id === projectFilter)?.name}
+                      <X
+                        className="size-3 cursor-pointer"
+                        onClick={() => setProjectFilter(null)}
+                      />
+                    </Badge>
+                  )}
+                  {(estimatedTimeMin !== null || estimatedTimeMax !== null) && (
+                    <Badge variant="secondary" className="gap-1">
+                      Time: {estimatedTimeMin ?? '0'} - {estimatedTimeMax ?? '∞'} min
+                      <X
+                        className="size-3 cursor-pointer"
+                        onClick={() => { setEstimatedTimeMin(null); setEstimatedTimeMax(null); }}
+                      />
+                    </Badge>
+                  )}
+                  {pinnedOnly && (
+                    <Badge variant="secondary" className="gap-1">
+                      <Pin className="size-3" /> Pinned
+                      <X className="size-3 cursor-pointer" onClick={() => setPinnedOnly(false)} />
+                    </Badge>
+                  )}
+                  {hasSubtasksOnly && (
+                    <Badge variant="secondary" className="gap-1">
+                      <ListChecks className="size-3" /> Has subtasks
+                      <X className="size-3 cursor-pointer" onClick={() => setHasSubtasksOnly(false)} />
+                    </Badge>
+                  )}
+                  {overdueOnly && (
+                    <Badge variant="secondary" className="gap-1">
+                      <AlertTriangle className="size-3" /> Overdue
+                      <X className="size-3 cursor-pointer" onClick={() => setOverdueOnly(false)} />
+                    </Badge>
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </CollapsibleContent>
+      </Collapsible>
 
       {/* Active label filter chip */}
       {labelFilter && (
