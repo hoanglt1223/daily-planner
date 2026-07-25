@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Plus, Trash2, Edit3, Calendar } from 'lucide-react';
+import { Plus, Trash2, Edit3, Calendar, BarChart3 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { apiFetch, createHabit, deleteHabit, toggleHabitEntry, updateHabit, fetchHabitInsights } from '@/lib/api-client';
 import { HabitGrid } from '@/components/habit-grid';
 import { HabitInsights } from '@/components/habit-insights';
@@ -39,6 +40,7 @@ const COLOR_OPTIONS = ['#10b981', '#3b82f6', '#8b5cf6', '#f59e0b', '#ef4444', '#
 const ICON_OPTIONS = ['✓', '⭐', '💪', '📚', '🏃', '🧘', '💧', '🎯'];
 
 export default function HabitsPage() {
+  const navigate = useNavigate();
   const [habits, setHabits] = useState<Habit[]>([]);
   const [loading, setLoading] = useState(true);
   const [insights, setInsights] = useState<any[]>([]);
@@ -181,10 +183,18 @@ export default function HabitsPage() {
           <h1 className="text-3xl font-bold">Habit Tracker</h1>
           <p className="text-muted-foreground">Build consistency and track your daily habits</p>
         </div>
-        <Button onClick={() => setDialogOpen(true)}>
-          <Plus className="w-4 h-4 mr-2" />
-          New Habit
-        </Button>
+        <div className="flex items-center gap-2">
+          {habits.length > 0 && (
+            <Button variant="outline" onClick={() => navigate('/habits/analytics')}>
+              <BarChart3 className="w-4 h-4 mr-2" />
+              Analytics
+            </Button>
+          )}
+          <Button onClick={() => setDialogOpen(true)}>
+            <Plus className="w-4 h-4 mr-2" />
+            New Habit
+          </Button>
+        </div>
       </div>
 
       {/* Insights Section - Show when habits exist */}

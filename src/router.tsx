@@ -21,6 +21,7 @@ const ManagerPage = lazy(() => import('@/pages/manager-page').then(m => ({ defau
 const AdminPage = lazy(() => import('@/pages/admin-page').then(m => ({ default: m.AdminPage })));
 const PriorityMatrixPage = lazy(() => import('@/pages/priority-matrix-page').then(m => ({ default: m.PriorityMatrixPage })));
 const HabitsPage = lazy(() => import('@/pages/habits-page').then(m => ({ default: m.default })));
+const HabitAnalyticsPage = lazy(() => import('@/pages/habit-analytics-page').then(m => ({ default: m.default })));
 const GoalsPage = lazy(() => import('@/pages/goals-page').then(m => ({ default: m.default })));
 const FocusPage = lazy(() => import('@/pages/focus-page').then(m => ({ default: m.default })));
 const WeeklyReviewPage = lazy(() => import('@/pages/weekly-review-page').then(m => ({ default: m.default })));
@@ -57,6 +58,7 @@ export const router = createBrowserRouter([
       { path: '/projects', element: <ProjectsPage /> },
       { path: '/vacation', element: <VacationPage /> },
       { path: '/habits', element: <HabitsPage /> },
+      { path: '/habits/analytics', element: <HabitAnalyticsPage /> },
       { path: '/goals', element: <GoalsPage /> },
       { path: '/focus', element: <FocusPage /> },
       { path: '/weekly-review', element: <WeeklyReviewPage /> },

@@ -191,6 +191,164 @@ export default async function handler(req: AuthedRequest, res: VercelResponse) {
         return res.status(200).json(targetHabitId ? insights[0] : insights);
       }
 
+      // Enhanced analytics with time-series data
+      if (action === 'analytics') {
+        const targetHabitId = req.query.habitId ? String(req.query.habitId) : null;
+        const days = req.query.days ? parseInt(String(req.query.days)) : 90;
+
+        const fromDate = new Date();
+        fromDate.setDate(fromDate.getDate() - days);
+        fromDate.setHours(0, 0, 0, 0);
+
+        let targetHabits = [];
+        if (targetHabitId) {
+          const habitData = await db.select().from(habits)
+            .where(and(eq(habits.id, targetHabitId), eq(habits.userId, user.sub)))
+            .limit(1);
+          if (habitData.length === 0) {
+            return res.status(404).json({ error: 'habit_not_found' });
+          }
+          targetHabits = habitData;
+        } else {
+          targetHabits = await db.select().from(habits)
+            .where(eq(habits.userId, user.sub));
+        }
+
+        const habitIds = targetHabits.map(h => h.id);
+        const relevantEntries = habitIds.length > 0
+          ? await db.select().from(habitEntries)
+              .where(
+                and(
+                  eq(habitEntries.userId, user.sub),
+                  gte(habitEntries.entryDate, fromDate)
+                )
+              )
+          : [];
+
+        // Generate time series data (daily completion rates)
+        const timeSeriesData = [];
+        for (let i = days - 1; i >= 0; i--) {
+          const date = new Date();
+          date.setDate(date.getDate() - i);
+          date.setHours(0, 0, 0, 0);
+
+          const dayEntries = relevantEntries.filter(e => {
+            const entryDate = new Date(e.entryDate);
+            entryDate.setHours(0, 0, 0, 0);
+            return entryDate.getTime() === date.getTime();
+          });
+
+          const habitCompletionData: any = {
+            date: date.toISOString(),
+            formattedDate: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+          };
+
+          targetHabits.forEach(habit => {
+            const habitEntriesForDay = dayEntries.filter(e => e.habitId === habit.id);
+            const completedForDay = habitEntriesForDay.filter(e => e.completed).length;
+            const completionRate = habitEntriesForDay.length > 0
+              ? (completedForDay / habitEntriesForDay.length) * 100
+              : 0;
+            habitCompletionData[habit.id] = Math.round(completionRate);
+          });
+
+          timeSeriesData.push(habitCompletionData);
+        }
+
+        // Weekly aggregations
+        const weeklyData = [];
+        for (let week = 0; week < Math.ceil(days / 7); week++) {
+          const weekStart = new Date();
+          weekStart.setDate(weekStart.getDate() - ((week + 1) * 7) + 1);
+          weekStart.setHours(0, 0, 0, 0);
+
+          const weekEnd = new Date(weekStart);
+          weekEnd.setDate(weekEnd.getDate() + 6);
+          weekEnd.setHours(23, 59, 59, 999);
+
+          const weekEntries = relevantEntries.filter(e => {
+            const entryDate = new Date(e.entryDate);
+            return entryDate >= weekStart && entryDate <= weekEnd;
+          });
+
+          const weekData: any = {
+            weekStart: weekStart.toISOString(),
+            weekEnd: weekEnd.toISOString(),
+            weekLabel: `Week of ${weekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`,
+          };
+
+          targetHabits.forEach(habit => {
+            const habitWeekEntries = weekEntries.filter(e => e.habitId === habit.id);
+            const completedWeek = habitWeekEntries.filter(e => e.completed).length;
+            const weekCompletionRate = habitWeekEntries.length > 0
+              ? (completedWeek / habitWeekEntries.length) * 100
+              : 0;
+            weekData[habit.id] = Math.round(weekCompletionRate);
+          });
+
+          weeklyData.push(weekData);
+        }
+
+        // Monthly aggregations
+        const monthlyData = [];
+        for (let month = 0; month < Math.ceil(days / 30); month++) {
+          const monthStart = new Date();
+          monthStart.setDate(monthStart.getDate() - ((month + 1) * 30) + 1);
+          monthStart.setDate(1); // Start of month
+          monthStart.setHours(0, 0, 0, 0);
+
+          const monthEnd = new Date(monthStart);
+          monthEnd.setMonth(monthEnd.getMonth() + 1);
+          monthEnd.setDate(0); // End of month
+          monthEnd.setHours(23, 59, 59, 999);
+
+          const monthEntries = relevantEntries.filter(e => {
+            const entryDate = new Date(e.entryDate);
+            return entryDate >= monthStart && entryDate <= monthEnd;
+          });
+
+          const monthData: any = {
+            monthStart: monthStart.toISOString(),
+            monthEnd: monthEnd.toISOString(),
+            monthLabel: monthStart.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
+          };
+
+          targetHabits.forEach(habit => {
+            const habitMonthEntries = monthEntries.filter(e => e.habitId === habit.id);
+            const completedMonth = habitMonthEntries.filter(e => e.completed).length;
+            const monthCompletionRate = habitMonthEntries.length > 0
+              ? (completedMonth / habitMonthEntries.length) * 100
+              : 0;
+            monthData[habit.id] = Math.round(monthCompletionRate);
+          });
+
+          monthlyData.push(monthData);
+        }
+
+        const analytics = {
+          habits: targetHabits.map(h => ({
+            id: h.id,
+            name: h.name,
+            color: h.color,
+            icon: h.icon,
+            frequency: h.frequency,
+          })),
+          timeSeries: timeSeriesData,
+          weekly: weeklyData,
+          monthly: monthlyData,
+          summary: {
+            totalHabits: targetHabits.length,
+            daysAnalyzed: days,
+            dateRange: {
+              from: fromDate.toISOString(),
+              to: new Date().toISOString(),
+            },
+          },
+        };
+
+        return res.status(200).json(analytics);
+      }
+
       // Get all habits with entries
       const userHabits = await db.select().from(habits)
         .where(eq(habits.userId, user.sub))

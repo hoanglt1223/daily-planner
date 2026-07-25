@@ -132,6 +132,13 @@ export async function fetchHabitInsights(habitId?: string, days?: number) {
   return apiFetch(`/api/habits?${params.toString()}`);
 }
 
+export async function fetchHabitAnalytics(habitId?: string, days?: number) {
+  const params = new URLSearchParams({ action: 'analytics' });
+  if (habitId) params.set('habitId', habitId);
+  if (days) params.set('days', String(days));
+  return apiFetch(`/api/habits?${params.toString()}`);
+}
+
 /* ─── Goals API helpers ─── */
 
 export async function fetchGoals() {
