@@ -28,6 +28,7 @@ const WeeklyReviewPage = lazy(() => import('@/pages/weekly-review-page').then(m 
 const InsightsPage = lazy(() => import('@/pages/insights-page').then(m => ({ default: m.default })));
 const ProjectsPage = lazy(() => import('@/pages/projects-page').then(m => ({ default: m.ProjectsPage })));
 const VacationPage = lazy(() => import('@/pages/vacation-page').then(m => ({ default: m.VacationPage })));
+const WorkloadPage = lazy(() => import('@/pages/workload-page').then(m => ({ default: m.default })));
 
 /** Suspense wrapper for the standalone (non-AppLayout) routes. */
 function page(node: ReactNode): ReactNode {
@@ -57,6 +58,7 @@ export const router = createBrowserRouter([
       { path: '/planner', element: <PlannerPage /> },
       { path: '/projects', element: <ProjectsPage /> },
       { path: '/vacation', element: <VacationPage /> },
+      { path: '/workload', element: <WorkloadPage /> },
       { path: '/habits', element: <HabitsPage /> },
       { path: '/habits/analytics', element: <HabitAnalyticsPage /> },
       { path: '/goals', element: <GoalsPage /> },
