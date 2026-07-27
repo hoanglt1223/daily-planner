@@ -13,6 +13,8 @@
     { "source": "/api/bookings/:action/:id", "destination": "/api/bookings?action=:action&id=:id" },
     { "source": "/api/goals/:id", "destination": "/api/goals?id=:id" },
     { "source": "/api/goals/:id/:action", "destination": "/api/goals?id=:id&action=:action" },
+    { "source": "/api/music/:id", "destination": "/api/music?id=:id" },
+    { "source": "/api/music/:id/:action", "destination": "/api/music?id=:id&action=:action" },
     { "source": "/((?!api/).*)", "destination": "/index.html" }
   ]
 }

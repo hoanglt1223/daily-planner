@@ -270,6 +270,38 @@ export const goals = pgTable('goals', {
   index('goals_user_period_idx').on(t.userId, t.period),
 ]);
 
+export const musicPlaylists = pgTable('music_playlists', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  name: text('name').notNull(),
+  description: text('description'),
+  isDefault: boolean('is_default').notNull().default(false),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, (t) => [
+  index('music_playlists_user_idx').on(t.userId),
+]);
+
+export const musicTracks = pgTable('music_tracks', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  playlistId: uuid('playlist_id').notNull().references(() => musicPlaylists.id, { onDelete: 'cascade' }),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  title: text('title').notNull(),
+  artist: text('artist'),
+  album: text('album'),
+  duration: integer('duration'), // Duration in seconds
+  fileData: text('file_data').notNull(), // Base64 encoded audio data or external URL
+  fileType: text('file_type').notNull().default('audio/mp3'), // MIME type
+  fileSize: integer('file_size'), // File size in bytes
+  order: integer('order').notNull().default(0), // For playlist ordering
+  playCount: integer('play_count').notNull().default(0),
+  lastPlayedAt: timestamp('last_played_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+}, (t) => [
+  index('music_tracks_playlist_idx').on(t.playlistId),
+  index('music_tracks_user_idx').on(t.userId),
+]);
+
 export type User = typeof users.$inferSelect;
 export type Task = typeof tasks.$inferSelect;
 export type TimeBlock = typeof timeBlocks.$inferSelect;
@@ -284,3 +316,5 @@ export type Habit = typeof habits.$inferSelect;
 export type HabitEntry = typeof habitEntries.$inferSelect;
 export type TaskTemplate = typeof taskTemplates.$inferSelect;
 export type Goal = typeof goals.$inferSelect;
+export type MusicPlaylist = typeof musicPlaylists.$inferSelect;
+export type MusicTrack = typeof musicTracks.$inferSelect;

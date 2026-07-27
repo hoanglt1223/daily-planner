@@ -24,6 +24,7 @@ import { SmartPrioritization } from '@/components/dashboard/smart-prioritization
 import { EstimationAccuracy } from '@/components/dashboard/estimation-accuracy';
 import { MeetingCostAnalytics } from '@/components/dashboard/meeting-cost-analytics';
 import { VacationStatus } from '@/components/dashboard/vacation-status';
+import { MusicPlayer } from '@/components/music-player';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -156,6 +157,7 @@ export function DashboardPage() {
         </div>
         <div className="space-y-4">
           <PomodoroTimer />
+          <MusicPlayer />
           <GoalProgress />
           <DailyFocus />
           <DailyReview />
