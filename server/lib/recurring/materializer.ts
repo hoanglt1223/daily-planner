@@ -1,4 +1,4 @@
-import { and, eq, isNotNull, sql } from 'drizzle-orm';
+import { and, eq, isNotNull, isNull, sql } from 'drizzle-orm';
 import { db } from '../db/client.js';
 import { tasks, timeBlocks, users } from '../db/schema.js';
 import { expand, type RecurringRule } from './expand.js';
@@ -19,12 +19,14 @@ export async function materializeIfStale(userId: string): Promise<void> {
   if (u.materializedUntil && u.materializedUntil.getTime() >= horizonEnd.getTime()) return;
 
   const from = u.materializedUntil ?? new Date();
-  const recurring = await db.select().from(tasks).where(and(
+
+  // Materialize recurring tasks
+  const recurringTasks = await db.select().from(tasks).where(and(
     eq(tasks.userId, userId),
     isNotNull(tasks.recurringRule),
   ));
 
-  for (const t of recurring) {
+  for (const t of recurringTasks) {
     const rule = t.recurringRule as RecurringRule | null;
     if (!rule) continue;
     const occs = expand(rule, from, horizonEnd, u.timezone);
@@ -37,6 +39,47 @@ export async function materializeIfStale(userId: string): Promise<void> {
           startAt: o.start,
           endAt: o.end,
           status: 'planned',
+        }).onConflictDoNothing();
+      } catch (e) {
+        // unique-constraint conflicts are expected and ignored
+        console.warn('materialize conflict', e);
+      }
+    }
+  }
+
+  // Materialize recurring time blocks (standalone, not from tasks)
+  const recurringBlocks = await db.select().from(timeBlocks).where(and(
+    eq(timeBlocks.userId, userId),
+    isNotNull(timeBlocks.recurringRule),
+    isNull(timeBlocks.taskId), // Only blocks not already from recurring tasks
+  ));
+
+  for (const block of recurringBlocks) {
+    const rule = block.recurringRule as RecurringRule | null;
+    if (!rule) continue;
+
+    // For recurring time blocks, use the block's start date as the series start
+    // to avoid creating duplicates of the original block
+    const seriesStart = new Date(block.startAt);
+    const effectiveFrom = from > seriesStart ? from : seriesStart;
+
+    const occs = expand(rule, effectiveFrom, horizonEnd, u.timezone);
+    for (const o of occs) {
+      // Skip if this occurrence is the original block itself
+      if (o.start.getTime() === seriesStart.getTime()) continue;
+
+      try {
+        await db.insert(timeBlocks).values({
+          userId,
+          title: block.title,
+          startAt: o.start,
+          endAt: o.end,
+          status: 'planned',
+          note: block.note,
+          energyLevel: block.energyLevel,
+          isMeeting: block.isMeeting,
+          isVacation: block.isVacation,
+          recurringRule: rule,
         }).onConflictDoNothing();
       } catch (e) {
         // unique-constraint conflicts are expected and ignored

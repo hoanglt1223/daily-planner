@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { useDraggable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
+import { Repeat } from 'lucide-react';
 import type { TimeBlock } from './use-planner-data';
 import { fmtHour, minutesSinceMidnight, SLOT_MINUTES, WORKDAY_START_HOUR } from '@/lib/time-utils';
 import { blockColor } from '@/lib/block-color';
@@ -111,10 +112,13 @@ export function BlockCard({ block, dayStart, onResize, onClick, onStatusChange }
         <span className={cn('mt-0.5 inline-block size-1.5 shrink-0 rounded-full', color.accent)} />
         <span
           title={block.title}
-          className={cn('font-medium truncate', block.status === 'completed' && 'line-through')}
+          className={cn('font-medium truncate flex-1', block.status === 'completed' && 'line-through')}
         >
           {block.title}
         </span>
+        {block.recurringRule && (
+          <Repeat className="size-3 shrink-0 opacity-60" aria-label="Recurring" />
+        )}
       </div>
       <div className="flex items-center gap-1 text-[10px] opacity-70">
         <span>{fmtHour(start)}–{fmtHour(end)}</span>

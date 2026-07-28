@@ -22,6 +22,14 @@ export type TimeBlock = {
   status: 'planned' | 'in_progress' | 'completed' | 'skipped' | 'pending';
   note: string | null;
   energyLevel: number | null;
+  recurringRule: {
+    freq: 'daily' | 'weekly' | 'monthly';
+    byDay?: string[];
+    interval?: number;
+    until?: string;
+    defaultTime?: string;
+    defaultDurationMinutes?: number;
+  } | null;
 };
 
 export function usePlannerData(from: Date, to: Date) {
@@ -52,7 +60,7 @@ export function usePlannerData(from: Date, to: Date) {
   useEffect(() => { reload(); }, [reload]);
 
   const createBlock = useCallback(async (payload: {
-    taskId?: string; title: string; startAt: Date; endAt: Date;
+    taskId?: string; title: string; startAt: Date; endAt: Date; note?: string; energyLevel?: number; recurringRule?: TimeBlock['recurringRule'];
   }) => {
     const created = await apiFetch<TimeBlock>('/api/time-blocks', {
       method: 'POST',
@@ -61,13 +69,18 @@ export function usePlannerData(from: Date, to: Date) {
         title: payload.title,
         startAt: payload.startAt.toISOString(),
         endAt: payload.endAt.toISOString(),
+        note: payload.note ?? null,
+        energyLevel: payload.energyLevel ?? null,
+        recurringRule: payload.recurringRule ?? null,
       }),
     });
     setBlocks(prev => [...prev, created]);
     return created;
   }, []);
 
-  const updateBlock = useCallback(async (id: string, patch: { startAt?: Date; endAt?: Date; title?: string; note?: string | null; status?: TimeBlock['status'] }) => {
+  const updateBlock = useCallback(async (id: string, patch: {
+    startAt?: Date; endAt?: Date; title?: string; note?: string | null; status?: TimeBlock['status']; energyLevel?: number | null; recurringRule?: TimeBlock['recurringRule'];
+  }) => {
     const body: Record<string, unknown> = { ...patch };
     if (patch.startAt) body.startAt = patch.startAt.toISOString();
     if (patch.endAt) body.endAt = patch.endAt.toISOString();

@@ -96,6 +96,14 @@ export const timeBlocks = pgTable('time_blocks', {
   isMeeting: boolean('is_meeting').notNull().default(false), // Flag for meeting vs work blocks
   isVacation: boolean('is_vacation').notNull().default(false), // Flag for vacation/time-off blocks
   calculatedCost: integer('calculated_cost'), // Stored cost for meetings
+  recurringRule: jsonb('recurring_rule').$type<{
+    freq: 'daily' | 'weekly' | 'monthly';
+    byDay?: string[];
+    interval?: number;
+    until?: string;
+    defaultTime?: string;
+    defaultDurationMinutes?: number;
+  } | null>(),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 }, (t) => [
   index('blocks_user_start_idx').on(t.userId, t.startAt),

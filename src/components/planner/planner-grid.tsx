@@ -206,7 +206,7 @@ export function PlannerGrid({ initialView = 'week' as View }) {
                   onResizeBlock={(id, endAt) => updateBlock(id, { endAt })}
                   onBlockClick={(b) => setEditor({
                     mode: 'edit', id: b.id, title: b.title,
-                    startAt: new Date(b.startAt), endAt: new Date(b.endAt), note: b.note, energyLevel: b.energyLevel,
+                    startAt: new Date(b.startAt), endAt: new Date(b.endAt), note: b.note, energyLevel: b.energyLevel, recurringRule: b.recurringRule,
                   })}
                   onSelectRange={(s, e) => setEditor({ mode: 'create', startAt: s, endAt: e })}
                   onBlockStatusChange={async (id, status) => {

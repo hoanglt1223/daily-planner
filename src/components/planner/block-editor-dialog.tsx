@@ -13,7 +13,16 @@ import { formatInTimeZone } from 'date-fns-tz';
 
 export type BlockEditorState =
   | { mode: 'create'; startAt: Date; endAt: Date }
-  | { mode: 'edit'; id: string; title: string; startAt: Date; endAt: Date; note: string | null; energyLevel: number | null };
+  | { mode: 'edit'; id: string; title: string; startAt: Date; endAt: Date; note: string | null; energyLevel: number | null; recurringRule?: RecurringRule | null };
+
+export type RecurringRule = {
+  freq: 'daily' | 'weekly' | 'monthly';
+  byDay?: string[];
+  interval?: number;
+  until?: string;
+  defaultTime?: string;
+  defaultDurationMinutes?: number;
+};
 
 export type TaskOption = { id: string; title: string };
 
@@ -26,8 +35,8 @@ export function BlockEditorDialog({ state, tasks = [], onClose, onCreate, onUpda
   state: BlockEditorState | null;
   tasks?: TaskOption[];
   onClose: () => void;
-  onCreate: (data: { title: string; startAt: Date; endAt: Date; note: string; taskId?: string; energyLevel?: number }) => Promise<void> | void;
-  onUpdate: (id: string, data: { title?: string; startAt?: Date; endAt?: Date; note?: string; energyLevel?: number }) => Promise<void> | void;
+  onCreate: (data: { title: string; startAt: Date; endAt: Date; note: string; taskId?: string; energyLevel?: number; recurringRule?: RecurringRule | null }) => Promise<void> | void;
+  onUpdate: (id: string, data: { title?: string; startAt?: Date; endAt?: Date; note?: string; energyLevel?: number; recurringRule?: RecurringRule | null }) => Promise<void> | void;
   onDelete: (id: string) => Promise<void> | void;
 }) {
   const [title, setTitle] = useState('');
@@ -38,6 +47,13 @@ export function BlockEditorDialog({ state, tasks = [], onClose, onCreate, onUpda
   const [energyLevel, setEnergyLevel] = useState<number | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
+  // Recurring rule state
+  const [isRecurring, setIsRecurring] = useState(false);
+  const [recurFreq, setRecurFreq] = useState<'daily' | 'weekly' | 'monthly'>('weekly');
+  const [recurInterval, setRecurInterval] = useState(1);
+  const [selectedDays, setSelectedDays] = useState<string[]>(['MO', 'TU', 'WE', 'TH', 'FR']);
+  const [recurUntil, setRecurUntil] = useState<string>('');
+
   useEffect(() => {
     if (!state) return;
     setTitle(state.mode === 'edit' ? state.title : '');
@@ -46,6 +62,21 @@ export function BlockEditorDialog({ state, tasks = [], onClose, onCreate, onUpda
     setDurationMin(Math.max(15, Math.round((state.endAt.getTime() - state.startAt.getTime()) / 60_000)));
     setLinkedTaskId('');
     setEnergyLevel(state.mode === 'edit' ? state.energyLevel ?? null : null);
+
+    // Load recurring rule if editing
+    if (state.mode === 'edit' && state.recurringRule) {
+      setIsRecurring(true);
+      setRecurFreq(state.recurringRule.freq || 'weekly');
+      setRecurInterval(state.recurringRule.interval || 1);
+      setSelectedDays(state.recurringRule.byDay || ['MO', 'TU', 'WE', 'TH', 'FR']);
+      setRecurUntil(state.recurringRule.until || '');
+    } else {
+      setIsRecurring(false);
+      setRecurFreq('weekly');
+      setRecurInterval(1);
+      setSelectedDays(['MO', 'TU', 'WE', 'TH', 'FR']);
+      setRecurUntil('');
+    }
   }, [state]);
 
   if (!state) return null;
@@ -59,16 +90,39 @@ export function BlockEditorDialog({ state, tasks = [], onClose, onCreate, onUpda
     return { startAt: resolvedStart, endAt: resolvedEnd };
   }
 
+  /** Build recurring rule object from form state */
+  function buildRecurringRule(): RecurringRule | null {
+    if (!isRecurring) return null;
+
+    const rule: RecurringRule = {
+      freq: recurFreq,
+      interval: recurInterval || 1,
+      defaultTime: startTime,
+      defaultDurationMinutes: durationMin,
+    };
+
+    if (recurFreq === 'weekly' && selectedDays.length > 0) {
+      rule.byDay = selectedDays;
+    }
+
+    if (recurUntil) {
+      rule.until = recurUntil;
+    }
+
+    return rule;
+  }
+
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!state || !title.trim()) return;
     setSubmitting(true);
     try {
       const { startAt, endAt } = resolveRange();
+      const recurringRule = buildRecurringRule();
       if (state.mode === 'create') {
-        await onCreate({ title: title.trim(), startAt, endAt, note, taskId: linkedTaskId || undefined, energyLevel: energyLevel ?? undefined });
+        await onCreate({ title: title.trim(), startAt, endAt, note, taskId: linkedTaskId || undefined, energyLevel: energyLevel ?? undefined, recurringRule });
       } else {
-        await onUpdate(state.id, { title: title.trim(), startAt, endAt, note, energyLevel: energyLevel ?? undefined });
+        await onUpdate(state.id, { title: title.trim(), startAt, endAt, note, energyLevel: energyLevel ?? undefined, recurringRule });
       }
       onClose();
     } finally { setSubmitting(false); }
@@ -152,6 +206,87 @@ export function BlockEditorDialog({ state, tasks = [], onClose, onCreate, onUpda
                   </button>
                 ))}
               </div>
+            </div>
+            <div className="space-y-3 border-t pt-3">
+              <div className="flex items-center gap-2">
+                <input
+                  id="be-recurring"
+                  type="checkbox"
+                  checked={isRecurring}
+                  onChange={e => setIsRecurring(e.target.checked)}
+                  className="h-4 w-4 rounded border-gray-300"
+                />
+                <Label htmlFor="be-recurring" className="cursor-pointer">Repeat this block</Label>
+              </div>
+
+              {isRecurring && (
+                <>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <Label htmlFor="be-recur-freq">Frequency</Label>
+                      <Select value={recurFreq} onValueChange={(v: any) => setRecurFreq(v)}>
+                        <SelectTrigger id="be-recur-freq">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="daily">Daily</SelectItem>
+                          <SelectItem value="weekly">Weekly</SelectItem>
+                          <SelectItem value="monthly">Monthly</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="be-recur-interval">Every</Label>
+                      <Input
+                        id="be-recur-interval"
+                        type="number"
+                        min={1}
+                        value={recurInterval}
+                        onChange={e => setRecurInterval(Math.max(1, Number(e.target.value) || 1))}
+                        className="w-full"
+                      />
+                    </div>
+                  </div>
+
+                  {recurFreq === 'weekly' && (
+                    <div className="space-y-1">
+                      <Label>Repeat on</Label>
+                      <div className="flex gap-1 flex-wrap">
+                        {['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'].map(day => (
+                          <button
+                            key={day}
+                            type="button"
+                            onClick={() => {
+                              if (selectedDays.includes(day)) {
+                                setSelectedDays(selectedDays.filter(d => d !== day));
+                              } else {
+                                setSelectedDays([...selectedDays, day]);
+                              }
+                            }}
+                            className={`w-10 h-10 rounded-md text-sm font-medium border transition-all ${
+                              selectedDays.includes(day)
+                                ? 'border-primary bg-primary text-primary-foreground'
+                                : 'border-muted-foreground/20 hover:bg-muted'
+                            }`}
+                          >
+                            {day}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="space-y-1">
+                    <Label htmlFor="be-recur-until">Repeat until (optional)</Label>
+                    <Input
+                      id="be-recur-until"
+                      type="date"
+                      value={recurUntil}
+                      onChange={e => setRecurUntil(e.target.value)}
+                    />
+                  </div>
+                </>
+              )}
             </div>
             {state.mode === 'create' && tasks.length > 0 && (
               <div className="space-y-1">

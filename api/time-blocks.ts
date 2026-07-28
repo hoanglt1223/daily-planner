@@ -37,6 +37,7 @@ export default async function handler(req: AuthedRequest, res: VercelResponse) {
         endAt: new Date(b.endAt),
         status: b.status ?? 'planned',
         note: b.note ?? null,
+        recurringRule: b.recurringRule ?? null,
       }).returning();
       return res.status(201).json(row);
     }
