@@ -6,7 +6,7 @@ const CHORD_TIMEOUT = 800;
 
 /**
  * Global keyboard shortcuts: nav chords (g+d, g+p, g+m), Escape to close dialogs,
- * ? or Ctrl+/ to toggle help dialog, n for quick task capture.
+ * ? or Ctrl+/ to toggle help dialog, n for quick task capture, Ctrl+N for quick notes.
  * Mount once in AppLayout.
  */
 export function useGlobalShortcuts() {
@@ -43,6 +43,13 @@ export function useGlobalShortcuts() {
       if (e.key === 'l' && !e.ctrlKey && !e.metaKey && !e.altKey) {
         e.preventDefault();
         document.dispatchEvent(new CustomEvent('shortcut:quick-time-log'));
+        return;
+      }
+
+      // Ctrl+N: toggle quick notes
+      if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
+        e.preventDefault();
+        document.dispatchEvent(new CustomEvent('shortcut:quick-notes'));
         return;
       }
 

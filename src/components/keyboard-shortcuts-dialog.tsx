@@ -47,6 +47,7 @@ const SECTIONS: Array<{ title: string; items: ShortcutRow[] }> = [
 const GLOBAL_ITEMS: ShortcutRow[] = [
   { keys: 'n', description: 'Quick capture task' },
   { keys: 'l', description: 'Log time on a task' },
+  { keys: 'Ctrl+N', description: 'Toggle quick notes widget' },
   { keys: '? or Ctrl+/', description: 'Show / hide this help' },
   { keys: 'Escape', description: 'Close any dialog' },
 ];

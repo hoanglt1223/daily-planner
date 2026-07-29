@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { KeyboardShortcutsDialog } from '@/components/keyboard-shortcuts-dialog';
 import { QuickTaskDialog } from '@/components/quick-task-dialog';
 import { QuickTimeLogDialog } from '@/components/quick-time-log-dialog';
+import { GlobalQuickNotes } from '@/components/global-quick-notes';
 import { cn } from '@/lib/utils';
 
 type Me = { id: string; name: string; role: 'user' | 'manager' | 'admin'; email: string; timezone?: string };
@@ -155,6 +156,7 @@ export function AppLayout() {
       <KeyboardShortcutsDialog />
       <QuickTaskDialog />
       <QuickTimeLogDialog />
+      <GlobalQuickNotes />
     </div>
   );
 }
