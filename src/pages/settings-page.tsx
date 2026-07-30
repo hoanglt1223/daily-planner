@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import {
   Globe, Lock, Save, Shield, Link2, Copy, RefreshCw, KeyRound, Loader2, ExternalLink,
-  CalendarClock, Plus, Pencil, Trash2, Calendar,
+  CalendarClock, Plus, Pencil, Trash2, Calendar, Palette,
 } from 'lucide-react';
+import { useTheme } from 'next-themes';
 import { apiFetch } from '@/lib/api-client';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -121,6 +122,7 @@ export function SettingsPage() {
         <p className="text-sm text-muted-foreground">Manage your profile, privacy, and share link.</p>
       </div>
 
+      <AppearanceSection />
       <ProfileSection profile={profile} onUpdated={setProfile} />
       <PrivacySection profile={profile} onUpdated={setProfile} />
       <ShareLinkSection profile={profile} onUpdated={setProfile} />
@@ -226,6 +228,66 @@ function ProfileSection({ profile, onUpdated }: {
           {saving ? <Loader2 className="size-3.5 mr-1.5 animate-spin" /> : <Save className="size-3.5 mr-1.5" />}
           Save changes
         </Button>
+      </CardContent>
+    </Card>
+  );
+}
+
+/* ─── Appearance Section ─── */
+
+function AppearanceSection() {
+  const { theme, setTheme } = useTheme();
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-lg">
+          <Palette className="size-4" /> Appearance
+        </CardTitle>
+        <CardDescription>Customize your visual experience.</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <RadioGroup value={theme} onValueChange={(v) => setTheme(v as 'light' | 'dark' | 'system')} className="gap-2">
+          <label
+            className={`flex items-start gap-3 rounded-lg p-3 cursor-pointer transition-colors ${
+              theme === 'light'
+                ? 'border border-primary bg-primary/5 ring-1 ring-primary/20'
+                : 'ring-hairline hover:bg-muted/50'
+            }`}
+          >
+            <RadioGroupItem value="light" id="theme-light" className="mt-0.5" />
+            <div>
+              <p className="text-sm font-medium">Light mode</p>
+              <p className="text-xs text-muted-foreground">Clean and bright interface for daytime use.</p>
+            </div>
+          </label>
+          <label
+            className={`flex items-start gap-3 rounded-lg p-3 cursor-pointer transition-colors ${
+              theme === 'dark'
+                ? 'border border-primary bg-primary/5 ring-1 ring-primary/20'
+                : 'ring-hairline hover:bg-muted/50'
+            }`}
+          >
+            <RadioGroupItem value="dark" id="theme-dark" className="mt-0.5" />
+            <div>
+              <p className="text-sm font-medium">Dark mode</p>
+              <p className="text-xs text-muted-foreground">Easy on the eyes for evening/night work sessions.</p>
+            </div>
+          </label>
+          <label
+            className={`flex items-start gap-3 rounded-lg p-3 cursor-pointer transition-colors ${
+              theme === 'system'
+                ? 'border border-primary bg-primary/5 ring-1 ring-primary/20'
+                : 'ring-hairline hover:bg-muted/50'
+            }`}
+          >
+            <RadioGroupItem value="system" id="theme-system" className="mt-0.5" />
+            <div>
+              <p className="text-sm font-medium">System preference</p>
+              <p className="text-xs text-muted-foreground">Automatically switches based on your device settings.</p>
+            </div>
+          </label>
+        </RadioGroup>
       </CardContent>
     </Card>
   );
