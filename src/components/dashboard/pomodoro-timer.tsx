@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  Play, Pause, Square, CheckCircle2, Timer, ChevronDown, Coffee,
+  Play, Pause, Square, CheckCircle2, Timer, ChevronDown, Coffee, Music,
 } from 'lucide-react';
 import { apiFetch } from '@/lib/api-client';
 import { Card, CardContent } from '@/components/ui/card';
@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { useMusicControl } from '@/lib/music-control.tsx';
 
 /* ─── Types ─── */
 
@@ -19,6 +20,27 @@ interface Task {
   estimatedMinutes: number; categoryId: string | null;
 }
 
+interface MusicPlaylist {
+  id: string;
+  name: string;
+  description: string | null;
+  isDefault: boolean;
+  tracks: Array<{
+    id: string;
+    title: string;
+    artist: string | null;
+    album: string | null;
+    duration: number | null;
+    fileData: string;
+    fileType: string;
+    order: number;
+    playCount: number;
+    lastPlayedAt: string | null;
+  }>;
+  createdAt: string;
+  updatedAt: string;
+}
+
 interface PomodoroState {
   taskId: string;
   taskTitle: string;
@@ -27,6 +49,8 @@ interface PomodoroState {
   pausedMs: number;  // accumulated pause time
   pausedAt: number | null;
   completed: boolean;
+  focusPlaylistId: string | null;
+  musicEnabled: boolean;
 }
 
 /* ─── Constants ─── */
@@ -47,16 +71,25 @@ const PRIORITY_LABEL: Record<number, string> = {
 /* ─── Component ─── */
 
 export function PomodoroTimer() {
+  const musicControl = useMusicControl();
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [playlists, setPlaylists] = useState<MusicPlaylist[]>([]);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState(false);
+  const [musicExpanded, setMusicExpanded] = useState(false);
   const [state, setState] = useState<PomodoroState | null>(() => loadState());
   const [now, setNow] = useState(Date.now());
 
-  // Load tasks
+  // Load tasks and playlists
   useEffect(() => {
-    apiFetch<Task[]>('/api/tasks')
-      .then(t => setTasks(t.filter(x => x.status !== 'done' && x.status !== 'archived')))
+    Promise.all([
+      apiFetch<Task[]>('/api/tasks'),
+      apiFetch<MusicPlaylist[]>('/api/music'),
+    ])
+      .then(([tasksData, playlistsData]) => {
+        setTasks(tasksData.filter(x => x.status !== 'done' && x.status !== 'archived'));
+        setPlaylists(playlistsData);
+      })
       .catch(() => undefined)
       .finally(() => setLoading(false));
   }, []);
@@ -70,6 +103,44 @@ export function PomodoroTimer() {
 
   // Persist state
   useEffect(() => { saveState(state); }, [state]);
+
+  // Music integration: play/pause based on pomodoro state
+  useEffect(() => {
+    if (!state) return;
+
+    const isRunning = !state.pausedAt && !state.completed;
+    const isPaused = !!state.pausedAt && !state.completed;
+
+    if (isRunning && state.musicEnabled && state.focusPlaylistId) {
+      // Start music when pomodoro starts
+      const playlist = playlists.find(p => p.id === state.focusPlaylistId);
+      if (playlist && !musicControl.isPlaying) {
+        musicControl.playPlaylist(playlist);
+      }
+    } else if (isPaused && musicControl.isPlaying) {
+      // Pause music when pomodoro pauses
+      musicControl.pause();
+    } else if (isRunning && state.musicEnabled && musicControl.currentPlaylist?.id === state.focusPlaylistId && !musicControl.isPlaying) {
+      // Resume music when pomodoro resumes
+      musicControl.resume();
+    }
+  }, [state, playlists, musicControl]);
+
+  // Stop music when pomodoro completes or is stopped
+  useEffect(() => {
+    if (state && state.completed && musicControl.isPlaying) {
+      musicControl.stop();
+    }
+  }, [state?.completed, musicControl]);
+
+  // Clean up music when component unmounts or pomodoro is stopped
+  useEffect(() => {
+    return () => {
+      if (!state && musicControl.isPlaying) {
+        musicControl.stop();
+      }
+    };
+  }, [state, musicControl]);
 
   // Compute derived values
   const remaining = useMemo(() => {
@@ -105,9 +176,11 @@ export function PomodoroTimer() {
       pausedMs: 0,
       pausedAt: null,
       completed: false,
+      focusPlaylistId: state?.focusPlaylistId || null,
+      musicEnabled: state?.musicEnabled ?? false,
     });
     setExpanded(false);
-  }, []);
+  }, [state?.focusPlaylistId, state?.musicEnabled]);
 
   const handlePause = useCallback(() => {
     setState(s => s ? { ...s, pausedAt: Date.now() } : null);
@@ -121,8 +194,11 @@ export function PomodoroTimer() {
   }, []);
 
   const handleStop = useCallback(() => {
+    if (musicControl.isPlaying) {
+      musicControl.stop();
+    }
     setState(null);
-  }, []);
+  }, [musicControl]);
 
   const handleMarkDone = useCallback(async () => {
     if (!state) return;
@@ -137,9 +213,26 @@ export function PomodoroTimer() {
   }, [state]);
 
   const handleSkip = useCallback(() => {
+    if (musicControl.isPlaying) {
+      musicControl.stop();
+    }
     setState(null);
     toast.info('Session skipped');
+  }, [musicControl]);
+
+  const handleMusicSettingsChange = useCallback((musicEnabled: boolean, focusPlaylistId: string | null) => {
+    setState(prev => {
+      if (!prev) return null;
+      const updated: PomodoroState = { ...prev, musicEnabled, focusPlaylistId };
+      return updated;
+    });
   }, []);
+
+  // Helper to safely access music settings
+  const getMusicSettings = useCallback(() => {
+    if (!state) return { musicEnabled: false, focusPlaylistId: null };
+    return { musicEnabled: state.musicEnabled, focusPlaylistId: state.focusPlaylistId };
+  }, [state]);
 
   if (loading) {
     return (
@@ -251,6 +344,64 @@ export function PomodoroTimer() {
           </div>
         ) : (
           <div className="space-y-3">
+            {/* Music settings */}
+            {playlists.length > 0 && (
+              <div className="space-y-2">
+                <button
+                  onClick={() => setMusicExpanded(!musicExpanded)}
+                  className="flex items-center justify-between w-full rounded-md field-shadow px-3 py-2 text-sm hover:bg-muted/50 transition-colors"
+                >
+                  <span className="flex items-center gap-2 text-muted-foreground">
+                    <Music className="size-3.5" />
+                    Focus music
+                  </span>
+                  <ChevronDown className={cn('size-4 text-muted-foreground transition-transform', musicExpanded && 'rotate-180')} />
+                </button>
+
+                {musicExpanded && (
+                  <div className="space-y-2 rounded-md ring-hairline p-2">
+                    {/* Music enable toggle */}
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-muted-foreground">Enable focus music</span>
+                      <input
+                        type="checkbox"
+                        checked={getMusicSettings().musicEnabled}
+                        onChange={(e) => handleMusicSettingsChange(e.target.checked, getMusicSettings().focusPlaylistId)}
+                        className="h-4 w-4 rounded"
+                      />
+                    </div>
+
+                    {/* Playlist selector */}
+                    {getMusicSettings().musicEnabled && (
+                      <div className="space-y-1">
+                        <label className="text-xs text-muted-foreground">Focus playlist:</label>
+                        <select
+                          value={getMusicSettings().focusPlaylistId || ''}
+                          onChange={(e) => handleMusicSettingsChange(true, e.target.value || null)}
+                          className="w-full rounded-md border border-input bg-background px-2 py-1 text-sm"
+                        >
+                          <option value="">Select playlist...</option>
+                          {playlists.map(playlist => (
+                            <option key={playlist.id} value={playlist.id}>
+                              {playlist.name} ({playlist.tracks.length} tracks)
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+
+                    {/* Active music indicator */}
+                    {musicControl.isPlaying && musicControl.currentPlaylist && (
+                      <div className="flex items-center gap-2 text-xs text-emerald-600 bg-emerald-50 dark:bg-emerald-950/20 px-2 py-1 rounded">
+                        <Music className="size-3" />
+                        <span>Playing: {musicControl.currentPlaylist.name}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Task selector */}
             {tasks.length === 0 ? (
               <div className="text-center py-4">
@@ -320,7 +471,12 @@ function loadState(): PomodoroState | null {
     // If more than 4 hours have passed, discard (stale session)
     const elapsed = Date.now() - s.startedAt;
     if (elapsed > 4 * 60 * 60_000) return null;
-    return s;
+    // Ensure music fields exist (for backwards compatibility)
+    return {
+      ...s,
+      focusPlaylistId: s.focusPlaylistId || null,
+      musicEnabled: s.musicEnabled ?? false,
+    };
   } catch { return null; }
 }
 
