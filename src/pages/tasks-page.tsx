@@ -151,8 +151,23 @@ export function TasksPage() {
     setLoading(true);
     setLoadError(null);
     try {
+      // Build query parameters for server-side filtering
+      const params = new URLSearchParams();
+      if (search.trim()) {
+        params.append('search', search.trim());
+      }
+      if (smartView !== 'all') {
+        params.append('view', smartView);
+      }
+      if (labelFilter) {
+        params.append('label', labelFilter);
+      }
+
+      const queryString = params.toString();
+      const url = queryString ? `/api/tasks?${queryString}` : '/api/tasks';
+
       const [t, c, p] = await Promise.all([
-        apiFetch<Task[]>('/api/tasks'),
+        apiFetch<Task[]>(url),
         apiFetch<Category[]>('/api/categories'),
         apiFetch<Project[]>('/api/projects?action=list'),
       ]);
@@ -161,7 +176,7 @@ export function TasksPage() {
       setProjects(p);
     } catch (e) { setLoadError((e as Error).message || 'Failed to load tasks'); }
     finally { setLoading(false); }
-  }, []);
+  }, [search, smartView, labelFilter]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -205,8 +220,7 @@ export function TasksPage() {
         }
       })
       .filter(t => categoryFilter === null || t.categoryId === categoryFilter)
-      .filter(t => labelFilter === null || (t.labels ?? []).includes(labelFilter))
-      .filter(t => !q || t.title.toLowerCase().includes(q) || (t.description ?? '').toLowerCase().includes(q))
+      // Note: search and label filtering are now handled server-side
       // Advanced filters
       .filter(t => priorityFilters.length === 0 || priorityFilters.includes(t.priority))
       .filter(t => projectFilter === null || t.projectId === projectFilter)
@@ -232,7 +246,7 @@ export function TasksPage() {
         if (aD !== bD) return aD - bD;
         return a.priority - b.priority || a.title.localeCompare(b.title);
       });
-  }, [tasks, search, smartView, categoryFilter, labelFilter, sortBy, priorityFilters, projectFilter, estimatedTimeMin, estimatedTimeMax, pinnedOnly, hasSubtasksOnly, overdueOnly]);
+  }, [tasks, smartView, categoryFilter, sortBy, priorityFilters, projectFilter, estimatedTimeMin, estimatedTimeMax, pinnedOnly, hasSubtasksOnly, overdueOnly]);
 
   async function updateTask(id: string, patch: Partial<Task>) {
     setBusyId(id);
@@ -597,8 +611,23 @@ export function TasksPage() {
             placeholder="Search tasks... (press / to focus)"
             value={search}
             onChange={e => setSearch(e.target.value)}
-            className="h-9 pl-8"
+            className="h-9 pl-8 pr-16"
           />
+          {search && (
+            <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+              <Badge variant="secondary" className="text-xs">
+                {filteredTasks.length}
+              </Badge>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-5 w-5 p-0"
+                onClick={() => setSearch('')}
+              >
+                <X className="size-3" />
+              </Button>
+            </div>
+          )}
         </div>
 
         {/* Category filter */}

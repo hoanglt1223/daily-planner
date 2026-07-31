@@ -1,5 +1,5 @@
 import type { VercelResponse } from '@vercel/node';
-import { and, eq, or, gte, lt } from 'drizzle-orm';
+import { and, eq, or, gte, lt, like, sql } from 'drizzle-orm';
 import { db } from '../server/lib/db/client.js';
 import { tasks, taskTemplates } from '../server/lib/db/schema.js';
 import { requireAuth, type AuthedRequest } from '../server/lib/auth-middleware.js';
@@ -113,9 +113,10 @@ export default async function handler(req: AuthedRequest, res: VercelResponse) {
     }
 
     if (req.method === 'GET' && !id) {
-      // Optional query params for smart views + label filter
+      // Optional query params for smart views + label filter + search
       const view = req.query.view ? String(req.query.view) : null; // today | upcoming | overdue
       const labelFilter = req.query.label ? String(req.query.label) : null;
+      const searchQuery = req.query.search ? String(req.query.search).trim() : null;
 
       let whereClause = eq(tasks.userId, user.sub);
 
@@ -153,6 +154,15 @@ export default async function handler(req: AuthedRequest, res: VercelResponse) {
       // At current task volumes (personal planner) this is negligible overhead.
       if (labelFilter) {
         rows = rows.filter(t => Array.isArray(t.labels) && t.labels.includes(labelFilter));
+      }
+
+      // Search filtering: case-insensitive search in title and description
+      if (searchQuery) {
+        const searchLower = searchQuery.toLowerCase();
+        rows = rows.filter(t =>
+          t.title.toLowerCase().includes(searchLower) ||
+          (t.description && t.description.toLowerCase().includes(searchLower))
+        );
       }
 
       return res.status(200).json(rows);
