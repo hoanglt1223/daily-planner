@@ -14,6 +14,7 @@ const BookSlotPage = lazy(() => import('@/pages/book-slot-page').then(m => ({ de
 const CancelBookingPage = lazy(() => import('@/pages/cancel-booking-page').then(m => ({ default: m.CancelBookingPage })));
 const RescheduleBookingPage = lazy(() => import('@/pages/reschedule-booking-page').then(m => ({ default: m.RescheduleBookingPage })));
 const DashboardPage = lazy(() => import('@/pages/dashboard-page').then(m => ({ default: m.DashboardPage })));
+const MorningRitualPage = lazy(() => import('@/pages/morning-ritual-page').then(m => ({ default: m.MorningRitualPage })));
 const TasksPage = lazy(() => import('@/pages/tasks-page').then(m => ({ default: m.TasksPage })));
 const PlannerPage = lazy(() => import('@/pages/planner-page').then(m => ({ default: m.PlannerPage })));
 const SettingsPage = lazy(() => import('@/pages/settings-page').then(m => ({ default: m.SettingsPage })));
@@ -54,6 +55,7 @@ export const router = createBrowserRouter([
     element: <AppLayout />,
     children: [
       { path: '/dashboard', element: <DashboardPage /> },
+      { path: '/morning-ritual', element: <MorningRitualPage /> },
       { path: '/tasks', element: <TasksPage /> },
       { path: '/planner', element: <PlannerPage /> },
       { path: '/projects', element: <ProjectsPage /> },

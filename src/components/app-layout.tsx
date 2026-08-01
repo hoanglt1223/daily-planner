@@ -1,6 +1,6 @@
 import { Suspense, useEffect, useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { BarChart3, CalendarDays, CheckCircle, FolderOpen, LayoutDashboard, Lightbulb, ListTodo, Loader2, LogOut, Moon, Settings, ShieldCheck, Sun, Target, Users, Gauge } from 'lucide-react';
+import { BarChart3, CalendarDays, CheckCircle, Coffee, FolderOpen, LayoutDashboard, Lightbulb, ListTodo, Loader2, LogOut, Moon, Settings, ShieldCheck, Sun, Target, Users, Gauge } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { apiFetch, clearAuthToken, getAuthToken } from '@/lib/api-client';
 import { setActiveTimeZone } from '@/lib/time-utils';
@@ -26,6 +26,7 @@ type Task = {
 
 const ICONS = {
   '/dashboard': LayoutDashboard,
+  '/morning-ritual': Coffee,
   '/tasks': ListTodo,
   '/planner': CalendarDays,
   '/workload': Gauge,
@@ -74,6 +75,7 @@ export function AppLayout() {
 
   const links: Array<{ to: keyof typeof ICONS; label: string; show: boolean }> = [
     { to: '/dashboard', label: 'Dashboard', show: true },
+    { to: '/morning-ritual', label: 'Morning Ritual', show: true },
     { to: '/tasks', label: 'Tasks', show: true },
     { to: '/planner', label: 'Planner', show: true },
     { to: '/workload', label: 'Workload', show: true },
