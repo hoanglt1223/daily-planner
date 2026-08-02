@@ -1,6 +1,6 @@
 import { Suspense, useEffect, useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { BarChart3, CalendarDays, CheckCircle, Coffee, FolderOpen, LayoutDashboard, Lightbulb, ListTodo, Loader2, LogOut, Moon, Settings, ShieldCheck, Sun, Target, Users, Gauge } from 'lucide-react';
+import { BarChart3, CalendarDays, CheckCircle, Coffee, FolderOpen, LayoutDashboard, Lightbulb, ListTodo, Loader2, LogOut, Moon, Music, Settings, ShieldCheck, Sun, Target, Users, Gauge } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { apiFetch, clearAuthToken, getAuthToken } from '@/lib/api-client';
 import { setActiveTimeZone } from '@/lib/time-utils';
@@ -31,6 +31,7 @@ const ICONS = {
   '/planner': CalendarDays,
   '/workload': Gauge,
   '/projects': FolderOpen,
+  '/music': Music,
   '/habits': CheckCircle,
   '/goals': Target,
   '/weekly-review': BarChart3,
@@ -80,6 +81,7 @@ export function AppLayout() {
     { to: '/planner', label: 'Planner', show: true },
     { to: '/workload', label: 'Workload', show: true },
     { to: '/projects', label: 'Projects', show: true },
+    { to: '/music', label: 'Music', show: true },
     { to: '/habits', label: 'Habits', show: true },
     { to: '/goals', label: 'Goals', show: true },
     { to: '/weekly-review', label: 'Weekly Review', show: true },
