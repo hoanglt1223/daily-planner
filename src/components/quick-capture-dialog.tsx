@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Sparkles, Clock, Calendar, CheckCircle } from 'lucide-react';
+import { Sparkles, Clock, Calendar, CheckCircle, Timer } from 'lucide-react';
 import { useQuickCaptureContext } from '@/components/quick-capture-provider';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -33,7 +33,7 @@ export function QuickCaptureDialog() {
             description: null,
             status: 'todo',
             priority: parsed.priority || 3,
-            estimatedMinutes: 30,
+            estimatedMinutes: parsed.durationMinutes || 30,
             dueDate: parsed.dueDate || null,
             categoryId: null,
           }),
@@ -109,13 +109,13 @@ export function QuickCaptureDialog() {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               placeholder={type === 'task'
-                ? 'e.g., "Call John tomorrow at 2pm !p2"'
+                ? 'e.g., "Meeting with John tomorrow 2pm-4pm" or "Review docs in 3 days 30min"'
                 : 'e.g., "Morning meditation"'}
               autoFocus
               className="text-base"
             />
 
-            {(parsed.dueDate || parsed.dueTime || parsed.priority) && (
+            {(parsed.dueDate || parsed.dueTime || parsed.endTime || parsed.durationMinutes || parsed.priority) && (
               <div className="flex flex-wrap gap-1.5">
                 {parsed.dueDate && (
                   <Badge variant="secondary" className="gap-1">
@@ -127,6 +127,13 @@ export function QuickCaptureDialog() {
                   <Badge variant="secondary" className="gap-1">
                     <Clock className="size-3" />
                     {parsed.dueTime}
+                    {parsed.endTime && ` - ${parsed.endTime}`}
+                  </Badge>
+                )}
+                {parsed.durationMinutes && (
+                  <Badge variant="secondary" className="gap-1">
+                    <Timer className="size-3" />
+                    {parsed.durationMinutes} min
                   </Badge>
                 )}
                 {parsed.priority && (
