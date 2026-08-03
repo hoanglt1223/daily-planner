@@ -48,6 +48,7 @@ const GLOBAL_ITEMS: ShortcutRow[] = [
   { keys: 'n', description: 'Quick capture task' },
   { keys: 'l', description: 'Log time on a task' },
   { keys: 'Ctrl+N', description: 'Toggle quick notes widget' },
+  { keys: '/', description: 'Open global command palette' },
   { keys: '? or Ctrl+/', description: 'Show / hide this help' },
   { keys: 'Escape', description: 'Close any dialog' },
 ];
