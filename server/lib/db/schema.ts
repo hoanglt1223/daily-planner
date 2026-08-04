@@ -230,6 +230,13 @@ export const taskTemplates = pgTable('task_templates', {
   defaultLabels: jsonb('default_labels').$type<string[]>().default([]),
   defaultSubtasks: jsonb('default_subtasks').$type<Array<{ id: string; title: string; done: boolean }>>().default([]),
   isPinned: boolean('is_pinned').notNull().default(false),
+  variables: jsonb('variables').$type<Array<{
+    name: string;
+    placeholder: string;
+    defaultValue?: string;
+    type: 'text' | 'number' | 'date' | 'select';
+    options?: string[];
+  }>>().default([]),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 }, (t) => [

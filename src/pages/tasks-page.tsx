@@ -330,11 +330,13 @@ export function TasksPage() {
     finally { setBusyId(null); }
   }
 
-  async function createTaskFromTemplate(templateId: string) {
+  async function createTaskFromTemplate(templateWithValues: any) {
     try {
+      const templateId = templateWithValues.id;
+      const variableValues = templateWithValues.variableValues || {};
       await apiFetch('/api/tasks?action=apply-template&templateId=' + templateId, {
         method: 'POST',
-        body: JSON.stringify({}),
+        body: JSON.stringify({ variableValues }),
       });
       toast.success('Task created from template');
       setTemplatesOpen(false);

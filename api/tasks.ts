@@ -4,6 +4,29 @@ import { db } from '../server/lib/db/client.js';
 import { tasks, taskTemplates } from '../server/lib/db/schema.js';
 import { requireAuth, type AuthedRequest } from '../server/lib/auth-middleware.js';
 
+// ─── Variable substitution helper ────────────────────────────────────────────
+
+interface TemplateValues {
+  [key: string]: string;
+}
+
+function substituteVariables(text: string | null | undefined, values: TemplateValues): string {
+  if (!text) return '';
+  let result = text;
+  for (const [key, value] of Object.entries(values)) {
+    const regex = new RegExp(`\\{\\{${key}\\}\\}`, 'g');
+    result = result.replace(regex, value || '');
+  }
+  return result;
+}
+
+function substituteArrayVariables<T extends { title?: string }>(items: T[], values: TemplateValues): T[] {
+  return items.map(item => ({
+    ...item,
+    ...(item.title && { title: substituteVariables(item.title, values) }),
+  }));
+}
+
 // ─── Smart-view date helpers ──────────────────────────────────────────────
 
 function todayUtcRange(): { start: Date; end: Date } {
@@ -40,18 +63,26 @@ export default async function handler(req: AuthedRequest, res: VercelResponse) {
       if (!template) return res.status(404).json({ error: 'template_not_found' });
 
       const body = req.body ?? {};
+      const variableValues = body.variableValues ?? {};
+
+      // Substitute variables in all text fields
+      const title = body.title ?? substituteVariables(template.defaultTitle, variableValues);
+      const description = body.description ?? substituteVariables(template.defaultDescription ?? null, variableValues);
+      const subtasks = body.subtasks ?? substituteArrayVariables(template.defaultSubtasks ?? [], variableValues);
+      const labels = Array.isArray(body.labels) ? body.labels : (template.defaultLabels ?? []);
+
       const [row] = await db.insert(tasks).values({
         userId: user.sub,
-        title: body.title ?? template.defaultTitle,
-        description: body.description ?? template.defaultDescription ?? null,
+        title,
+        description: description || null,
         categoryId: body.categoryId ?? template.defaultCategoryId ?? null,
         status: body.status ?? template.defaultStatus,
         priority: body.priority ?? template.defaultPriority,
         estimatedMinutes: body.estimatedMinutes ?? template.defaultEstimatedMinutes,
         recurringRule: body.recurringRule ?? template.defaultRecurringRule ?? null,
         dueDate: body.dueDate ? new Date(body.dueDate) : null,
-        subtasks: body.subtasks ?? template.defaultSubtasks ?? [],
-        labels: Array.isArray(body.labels) ? body.labels : (template.defaultLabels ?? []),
+        subtasks,
+        labels,
         blockedByTaskIds: [],
         reminderEnabled: body.reminderEnabled ?? false,
         reminderMinutes: body.reminderMinutes ?? null,
@@ -80,6 +111,7 @@ export default async function handler(req: AuthedRequest, res: VercelResponse) {
         defaultLabels: Array.isArray(body.defaultLabels) ? body.defaultLabels : [],
         defaultSubtasks: body.defaultSubtasks ?? [],
         isPinned: body.isPinned ?? false,
+        variables: body.variables ?? [],
       }).returning();
       return res.status(201).json(row);
     }
@@ -91,7 +123,7 @@ export default async function handler(req: AuthedRequest, res: VercelResponse) {
       for (const key of [
         'name', 'description', 'defaultCategoryId', 'defaultTitle', 'defaultDescription',
         'defaultEstimatedMinutes', 'defaultPriority', 'defaultStatus', 'defaultRecurringRule',
-        'defaultLabels', 'defaultSubtasks', 'isPinned'
+        'defaultLabels', 'defaultSubtasks', 'isPinned', 'variables'
       ]) {
         if (key in body) patch[key] = body[key];
       }
