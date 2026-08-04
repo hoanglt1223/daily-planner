@@ -206,7 +206,6 @@ export function TasksPage() {
   }, [tasks]);
 
   const filtered = useMemo(() => {
-    const q = search.toLowerCase().trim();
     return tasks
       .filter(t => {
         switch (smartView) {
@@ -618,7 +617,7 @@ export function TasksPage() {
           {search && (
             <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
               <Badge variant="secondary" className="text-xs">
-                {filteredTasks.length}
+                {filtered.length}
               </Badge>
               <Button
                 variant="ghost"

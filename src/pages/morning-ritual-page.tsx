@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Sun,
-  Coffee,
   CheckCircle2,
   Target,
   Calendar,
