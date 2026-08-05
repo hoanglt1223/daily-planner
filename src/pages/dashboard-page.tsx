@@ -24,6 +24,7 @@ import { SmartPrioritization } from '@/components/dashboard/smart-prioritization
 import { EstimationAccuracy } from '@/components/dashboard/estimation-accuracy';
 import { MeetingCostAnalytics } from '@/components/dashboard/meeting-cost-analytics';
 import { VacationStatus } from '@/components/dashboard/vacation-status';
+import { TaskVelocityDashboard } from '@/components/dashboard/task-velocity-dashboard';
 import { MusicPlayer } from '@/components/music-player';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -176,6 +177,8 @@ export function DashboardPage() {
       <EstimationAccuracy />
 
       <MeetingCostAnalytics />
+
+      <TaskVelocityDashboard />
 
       <TimesheetExport />
     </div>
