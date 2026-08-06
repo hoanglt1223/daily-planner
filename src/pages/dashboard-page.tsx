@@ -25,6 +25,7 @@ import { EstimationAccuracy } from '@/components/dashboard/estimation-accuracy';
 import { MeetingCostAnalytics } from '@/components/dashboard/meeting-cost-analytics';
 import { VacationStatus } from '@/components/dashboard/vacation-status';
 import { TaskVelocityDashboard } from '@/components/dashboard/task-velocity-dashboard';
+import { QuickTaskCreate } from '@/components/dashboard/quick-task-create';
 import { MusicPlayer } from '@/components/music-player';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -140,6 +141,8 @@ export function DashboardPage() {
       )}
 
       <DailyTimeline />
+
+      <QuickTaskCreate />
 
       <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-4">
         <TodayTasks />
