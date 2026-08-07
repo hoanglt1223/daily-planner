@@ -6,7 +6,10 @@ import { Toaster } from '@/components/ui/sonner';
 import { QuickCaptureProvider } from '@/components/quick-capture-provider';
 import { MusicControlProvider } from '@/lib/music-control.tsx';
 import { router } from '@/router';
+import { initPWA } from '@/lib/pwa-utils';
 import './index.css';
+
+initPWA();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

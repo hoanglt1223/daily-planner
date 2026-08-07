@@ -13,6 +13,7 @@ import { QuickTaskDialog } from '@/components/quick-task-dialog';
 import { QuickTimeLogDialog } from '@/components/quick-time-log-dialog';
 import { GlobalQuickNotes } from '@/components/global-quick-notes';
 import { GlobalCommandPalette } from '@/components/global-command-palette';
+import { PWAInstallPrompt } from '@/components/ui/pwa-install-prompt';
 import { cn } from '@/lib/utils';
 
 type Me = { id: string; name: string; role: 'user' | 'manager' | 'admin'; email: string; timezone?: string };
@@ -163,6 +164,7 @@ export function AppLayout() {
       <QuickTimeLogDialog />
       <GlobalQuickNotes />
       <GlobalCommandPalette />
+      <PWAInstallPrompt />
     </div>
   );
 }
