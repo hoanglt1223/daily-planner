@@ -32,6 +32,7 @@ const VacationPage = lazy(() => import('@/pages/vacation-page').then(m => ({ def
 const WorkloadPage = lazy(() => import('@/pages/workload-page').then(m => ({ default: m.default })));
 const MusicPage = lazy(() => import('@/pages/music-page').then(m => ({ default: m.MusicPage })));
 const TemplatesPage = lazy(() => import('@/pages/templates-page').then(m => ({ default: m.TemplatesPage })));
+const EveningWinddownPage = lazy(() => import('@/pages/evening-winddown-page').then(m => ({ default: m.EveningWinddownPage })));
 
 /** Suspense wrapper for the standalone (non-AppLayout) routes. */
 function page(node: ReactNode): ReactNode {
@@ -58,6 +59,7 @@ export const router = createBrowserRouter([
     children: [
       { path: '/dashboard', element: <DashboardPage /> },
       { path: '/morning-ritual', element: <MorningRitualPage /> },
+      { path: '/evening-winddown', element: <EveningWinddownPage /> },
       { path: '/tasks', element: <TasksPage /> },
       { path: '/planner', element: <PlannerPage /> },
       { path: '/projects', element: <ProjectsPage /> },

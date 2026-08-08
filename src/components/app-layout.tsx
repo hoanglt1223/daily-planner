@@ -29,6 +29,7 @@ type Task = {
 const ICONS = {
   '/dashboard': LayoutDashboard,
   '/morning-ritual': Coffee,
+  '/evening-winddown': Moon,
   '/tasks': ListTodo,
   '/planner': CalendarDays,
   '/workload': Gauge,
@@ -79,6 +80,7 @@ export function AppLayout() {
   const links: Array<{ to: keyof typeof ICONS; label: string; show: boolean }> = [
     { to: '/dashboard', label: 'Dashboard', show: true },
     { to: '/morning-ritual', label: 'Morning Ritual', show: true },
+    { to: '/evening-winddown', label: 'Evening Wind-down', show: true },
     { to: '/tasks', label: 'Tasks', show: true },
     { to: '/planner', label: 'Planner', show: true },
     { to: '/workload', label: 'Workload', show: true },
