@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { addDays } from 'date-fns';
 import {
   AlertTriangle, Archive, ArrowUpDown, CheckCircle2, CheckSquare, ChevronDown, ChevronRight,
   Clock, Copy, Edit3, FileSpreadsheet, Link2, ListChecks, Palette, Pencil, Pin, PinOff, PlayCircle, Plus, Search, Square, Tag, Trash2, X,
@@ -26,6 +27,7 @@ import { LabelInput } from '@/components/label-input';
 import { TaskTemplates } from '@/components/task-templates';
 import { DependencyGraph } from '@/components/tasks/dependency-graph';
 import { DependencyList } from '@/components/tasks/dependency-list';
+import { RecurringTaskPreview } from '@/components/recurring-task-preview';
 
 /* ─── Types ─── */
 
@@ -43,6 +45,15 @@ interface Task {
   blockedByTaskIds: string[];
   reminderEnabled: boolean;
   reminderMinutes: number | null;
+  recurringRule: {
+    freq: 'daily' | 'weekly' | 'monthly' | 'yearly';
+    byDay?: number[];
+    interval?: number;
+    endsAfterOccurrences?: number | null;
+    endsOnDate?: string | null;
+    defaultTime?: string;
+    defaultDurationMinutes?: number;
+  } | null;
   createdAt: string; updatedAt: string;
 }
 
@@ -1253,6 +1264,19 @@ function TaskRow({ task, category, busy, selected, isHighlighted, isExpanded, on
                   <span className={cn('text-xs', s.done && 'line-through text-muted-foreground')}>{s.title}</span>
                 </div>
               ))}
+            </div>
+          )}
+
+          {/* Recurring task preview */}
+          {task.recurringRule && (
+            <div className="mt-3">
+              <RecurringTaskPreview
+                title={task.title}
+                startDate={task.dueDate ? new Date(task.dueDate) : new Date()}
+                recurringRule={task.recurringRule}
+                maxInstances={6}
+                className="border-border/50 bg-muted/30"
+              />
             </div>
           )}
           <div className="flex items-center gap-4 text-xs text-muted-foreground">
