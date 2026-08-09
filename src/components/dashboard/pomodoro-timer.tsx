@@ -42,6 +42,7 @@ interface MusicPlaylist {
 }
 
 interface PomodoroState {
+  sessionId: string | null;
   taskId: string;
   taskTitle: string;
   durationMs: number;
@@ -51,6 +52,14 @@ interface PomodoroState {
   completed: boolean;
   focusPlaylistId: string | null;
   musicEnabled: boolean;
+}
+
+interface SessionCreateResponse {
+  id: string;
+  taskId: string;
+  startedAt: string;
+  durationMinutes: number;
+  status: string;
 }
 
 /* ─── Constants ─── */
@@ -164,22 +173,65 @@ export function PomodoroTimer() {
         description: 'Great work! Take a break before your next session.',
         duration: 8000,
       });
+
+      // Record completed session
+      if (state.sessionId) {
+        const actualMinutes = Math.round(state.durationMs / 60_000);
+        apiFetch(`/api/task-sessions?action=complete&id=${state.sessionId}`, {
+          method: 'PATCH',
+          body: JSON.stringify({
+            actualMinutes,
+          }),
+        }).catch(error => {
+          console.error('Failed to record session completion:', error);
+        });
+      }
     }
   }, [state, remaining]);
 
-  const handleStart = useCallback((task: Task, durationMs: number) => {
-    setState({
-      taskId: task.id,
-      taskTitle: task.title,
-      durationMs,
-      startedAt: Date.now(),
-      pausedMs: 0,
-      pausedAt: null,
-      completed: false,
-      focusPlaylistId: state?.focusPlaylistId || null,
-      musicEnabled: state?.musicEnabled ?? false,
-    });
-    setExpanded(false);
+  const handleStart = useCallback(async (task: Task, durationMs: number) => {
+    try {
+      // Create session record
+      const response = await apiFetch<SessionCreateResponse>('/api/task-sessions?action=create', {
+        method: 'POST',
+        body: JSON.stringify({
+          taskId: task.id,
+          durationMinutes: Math.round(durationMs / 60_000),
+          focusPlaylistId: state?.focusPlaylistId || null,
+        }),
+      });
+
+      setState({
+        sessionId: response.id,
+        taskId: task.id,
+        taskTitle: task.title,
+        durationMs,
+        startedAt: Date.now(),
+        pausedMs: 0,
+        pausedAt: null,
+        completed: false,
+        focusPlaylistId: state?.focusPlaylistId || null,
+        musicEnabled: state?.musicEnabled ?? false,
+      });
+      setExpanded(false);
+    } catch (error) {
+      console.error('Failed to create session:', error);
+      toast.error('Failed to start session tracking');
+      // Still allow timer to start without session tracking
+      setState({
+        sessionId: null,
+        taskId: task.id,
+        taskTitle: task.title,
+        durationMs,
+        startedAt: Date.now(),
+        pausedMs: 0,
+        pausedAt: null,
+        completed: false,
+        focusPlaylistId: state?.focusPlaylistId || null,
+        musicEnabled: state?.musicEnabled ?? false,
+      });
+      setExpanded(false);
+    }
   }, [state?.focusPlaylistId, state?.musicEnabled]);
 
   const handlePause = useCallback(() => {
@@ -193,12 +245,24 @@ export function PomodoroTimer() {
     });
   }, []);
 
-  const handleStop = useCallback(() => {
+  const handleStop = useCallback(async () => {
     if (musicControl.isPlaying) {
       musicControl.stop();
     }
+
+    // Abandon session if tracking
+    if (state?.sessionId) {
+      try {
+        await apiFetch(`/api/task-sessions?action=abandon&id=${state.sessionId}`, {
+          method: 'PATCH',
+        });
+      } catch (error) {
+        console.error('Failed to abandon session:', error);
+      }
+    }
+
     setState(null);
-  }, [musicControl]);
+  }, [musicControl, state?.sessionId]);
 
   const handleMarkDone = useCallback(async () => {
     if (!state) return;
@@ -212,13 +276,25 @@ export function PomodoroTimer() {
     } catch (e) { toast.error((e as Error).message); }
   }, [state]);
 
-  const handleSkip = useCallback(() => {
+  const handleSkip = useCallback(async () => {
     if (musicControl.isPlaying) {
       musicControl.stop();
     }
+
+    // Abandon session if tracking
+    if (state?.sessionId) {
+      try {
+        await apiFetch(`/api/task-sessions?action=abandon&id=${state.sessionId}`, {
+          method: 'PATCH',
+        });
+      } catch (error) {
+        console.error('Failed to abandon session:', error);
+      }
+    }
+
     setState(null);
     toast.info('Session skipped');
-  }, [musicControl]);
+  }, [musicControl, state?.sessionId]);
 
   const handleMusicSettingsChange = useCallback((musicEnabled: boolean, focusPlaylistId: string | null) => {
     setState(prev => {

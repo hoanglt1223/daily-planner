@@ -18,6 +18,7 @@ import { DailyReview } from '@/components/dashboard/daily-review';
 import { StreakCalendar } from '@/components/dashboard/streak-calendar';
 import { TimeAllocation } from '@/components/dashboard/time-allocation';
 import { PomodoroTimer } from '@/components/dashboard/pomodoro-timer';
+import { SessionAnalyticsCard } from '@/components/dashboard/session-analytics-card';
 import { EnergyPatterns } from '@/components/dashboard/energy-patterns';
 import { GoalProgress } from '@/components/dashboard/goal-progress';
 import { SmartPrioritization } from '@/components/dashboard/smart-prioritization';
@@ -161,6 +162,7 @@ export function DashboardPage() {
         </div>
         <div className="space-y-4">
           <PomodoroTimer />
+          <SessionAnalyticsCard />
           <MusicPlayer />
           <GoalProgress />
           <DailyFocus />

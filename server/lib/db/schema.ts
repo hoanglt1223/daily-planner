@@ -333,3 +333,25 @@ export type TaskTemplate = typeof taskTemplates.$inferSelect;
 export type Goal = typeof goals.$inferSelect;
 export type MusicPlaylist = typeof musicPlaylists.$inferSelect;
 export type MusicTrack = typeof musicTracks.$inferSelect;
+
+export const taskSessionStatus = pgEnum('task_session_status', ['in_progress', 'completed', 'abandoned']);
+
+export const taskSessions = pgTable('task_sessions', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  taskId: uuid('task_id').notNull().references(() => tasks.id, { onDelete: 'cascade' }),
+  startedAt: timestamp('started_at', { withTimezone: true }).notNull(),
+  completedAt: timestamp('completed_at', { withTimezone: true }),
+  durationMinutes: integer('duration_minutes').notNull(), // Planned duration
+  actualMinutes: integer('actual_minutes'), // Actual time spent
+  status: taskSessionStatus('status').notNull().default('in_progress'),
+  focusPlaylistId: uuid('focus_playlist_id').references(() => musicPlaylists.$inferSelect.id, { onDelete: 'set null' }),
+  note: text('note'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+}, (t) => [
+  index('task_sessions_task_idx').on(t.taskId),
+  index('task_sessions_user_idx').on(t.userId),
+  index('task_sessions_date_idx').on(t.userId, t.startedAt),
+]);
+
+export type TaskSession = typeof taskSessions.$inferSelect;
