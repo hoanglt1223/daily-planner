@@ -77,6 +77,8 @@ function publicUser(u: typeof users.$inferSelect) {
     bookingBufferMinutes: u.bookingBufferMinutes,
     bookingMinNoticeMinutes: u.bookingMinNoticeMinutes,
     bookingHorizonDays: u.bookingHorizonDays,
+    focusWorkMinutes: u.focusWorkMinutes,
+    focusBreakMinutes: u.focusBreakMinutes,
   };
 }
 
@@ -84,7 +86,7 @@ async function updateProfile(req: AuthedRequest, res: VercelResponse) {
   const authed = requireAuth(req, res);
   if (!authed) return;
 
-  const { name, timezone, privacy, hourlyRate } = req.body ?? {};
+  const { name, timezone, privacy, hourlyRate, focusWorkMinutes, focusBreakMinutes } = req.body ?? {};
   const patch: Record<string, unknown> = {};
 
   if (typeof name === 'string' && name.trim().length >= 1 && name.trim().length <= 100) {
@@ -106,6 +108,23 @@ async function updateProfile(req: AuthedRequest, res: VercelResponse) {
       patch.hourlyRate = hourlyRate;
     } else {
       return res.status(400).json({ error: 'invalid_hourly_rate' });
+    }
+  }
+
+  // Handle focus timer settings
+  if (typeof focusWorkMinutes === 'number') {
+    if (focusWorkMinutes >= 1 && focusWorkMinutes <= 180) {
+      patch.focusWorkMinutes = focusWorkMinutes;
+    } else {
+      return res.status(400).json({ error: 'invalid_focus_work_minutes' });
+    }
+  }
+
+  if (typeof focusBreakMinutes === 'number') {
+    if (focusBreakMinutes >= 1 && focusBreakMinutes <= 60) {
+      patch.focusBreakMinutes = focusBreakMinutes;
+    } else {
+      return res.status(400).json({ error: 'invalid_focus_break_minutes' });
     }
   }
 

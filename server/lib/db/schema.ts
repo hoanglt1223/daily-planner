@@ -26,6 +26,9 @@ export const users = pgTable('users', {
   vacationDaysUsed: integer('vacation_days_used').notNull().default(0),
   vacationDaysAccrualRate: integer('vacation_days_accrual_rate').notNull().default(0), // Days per month
   vacationAccrualLastReset: timestamp('vacation_accrual_last_reset', { withTimezone: true }),
+  // Focus/Pomodoro timer preferences
+  focusWorkMinutes: integer('focus_work_minutes').notNull().default(25),
+  focusBreakMinutes: integer('focus_break_minutes').notNull().default(5),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 });
 

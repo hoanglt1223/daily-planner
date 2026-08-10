@@ -13,17 +13,33 @@ interface FocusTask {
   priority: number;
 }
 
+interface UserProfile {
+  focusWorkMinutes: number;
+  focusBreakMinutes: number;
+}
+
 export function FocusPage() {
   const navigate = useNavigate();
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [task, setTask] = useState<FocusTask | null>(null);
-  const [pomodoroTime, setPomodoroTime] = useState(25 * 60); // 25 minutes in seconds
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [pomodoroTime, setPomodoroTime] = useState(25 * 60); // Will be updated from profile
   const [isBreak, setIsBreak] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [completedSessions, setCompletedSessions] = useState(0);
   const [totalMinutes, setTotalMinutes] = useState(0);
+  const [workDuration, setWorkDuration] = useState(25); // User's work duration
+  const [breakDuration, setBreakDuration] = useState(5); // User's break duration
 
   useEffect(() => {
+    // Load user profile for timer settings
+    apiFetch<UserProfile>('/api/auth/me')
+      .then(setProfile)
+      .catch(() => {
+        // Use defaults if profile fails to load
+        setProfile({ focusWorkMinutes: 25, focusBreakMinutes: 5 });
+      });
+
     // Load current task from localStorage (set from planner/dashboard)
     const savedTask = localStorage.getItem('focusTask');
     if (savedTask) {
@@ -45,6 +61,15 @@ export function FocusPage() {
     return () => window.removeEventListener('keydown', handleKeyPress);
   }, []);
 
+  // Update timer durations when profile loads
+  useEffect(() => {
+    if (profile) {
+      setWorkDuration(profile.focusWorkMinutes);
+      setBreakDuration(profile.focusBreakMinutes);
+      setPomodoroTime(profile.focusWorkMinutes * 60);
+    }
+  }, [profile]);
+
   useEffect(() => {
     if (!isPaused && pomodoroTime > 0) {
       const timer = setInterval(() => {
@@ -53,12 +78,12 @@ export function FocusPage() {
       return () => clearInterval(timer);
     } else if (pomodoroTime === 0 && !isBreak) {
       // Pomodoro complete, log the session and start break
-      const sessionMinutes = 25;
+      const sessionMinutes = workDuration;
       setCompletedSessions(prev => prev + 1);
       setTotalMinutes(prev => prev + sessionMinutes);
       logFocusSession(sessionMinutes);
       setIsBreak(true);
-      setPomodoroTime(5 * 60);
+      setPomodoroTime(breakDuration * 60);
       if (Notification.permission === 'granted') {
         new Notification('🍅 Pomodoro Complete!', {
           body: 'Time for a break!',
@@ -69,7 +94,7 @@ export function FocusPage() {
     } else if (pomodoroTime === 0 && isBreak) {
       // Break complete, start new pomodoro
       setIsBreak(false);
-      setPomodoroTime(25 * 60);
+      setPomodoroTime(workDuration * 60);
       if (Notification.permission === 'granted') {
         new Notification('⏰ Break Over!', {
           body: 'Ready for another focus session?',
@@ -83,7 +108,7 @@ export function FocusPage() {
 
   const skipBreak = () => {
     setIsBreak(false);
-    setPomodoroTime(25 * 60);
+    setPomodoroTime(workDuration * 60);
   };
 
   const logFocusSession = async (minutes: number) => {
@@ -241,12 +266,12 @@ export function FocusPage() {
                 variant="default"
                 size="lg"
                 onClick={() => {
-                  const sessionMinutes = 25;
+                  const sessionMinutes = workDuration;
                   setCompletedSessions(prev => prev + 1);
                   setTotalMinutes(prev => prev + sessionMinutes);
                   logFocusSession(sessionMinutes);
                   setIsBreak(true);
-                  setPomodoroTime(5 * 60);
+                  setPomodoroTime(breakDuration * 60);
                 }}
                 className="min-w-[140px]"
               >

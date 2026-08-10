@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import {
   Globe, Lock, Save, Shield, Link2, Copy, RefreshCw, KeyRound, Loader2, ExternalLink,
-  CalendarClock, Plus, Pencil, Trash2, Calendar, Palette,
+  CalendarClock, Plus, Pencil, Trash2, Calendar, Palette, Timer,
 } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { apiFetch } from '@/lib/api-client';
@@ -38,6 +38,8 @@ interface UserProfile {
   bookingMinNoticeMinutes: number;
   bookingHorizonDays: number;
   hourlyRate: number | null;
+  focusWorkMinutes: number;
+  focusBreakMinutes: number;
 }
 
 /* ─── Constants ─── */
@@ -83,6 +85,14 @@ const PRIVACY_OPTIONS: Array<{ value: PrivacyMode; label: string; description: s
   },
 ];
 
+const FOCUS_PRESETS: Array<{ name: string; work: number; break: number; description: string }> = [
+  { name: 'Pomodoro', work: 25, break: 5, description: 'Classic 25min work + 5min break' },
+  { name: '52/17', work: 52, break: 17, description: '52min work + 17min break' },
+  { name: '90/20', work: 90, break: 20, description: '90min deep work + 20min break' },
+  { name: '50/10', work: 50, break: 10, description: '50min work + 10min break' },
+  { name: 'Custom', work: 25, break: 5, description: 'Set your own durations' },
+];
+
 /* ─── Page ─── */
 
 export function SettingsPage() {
@@ -124,6 +134,7 @@ export function SettingsPage() {
 
       <AppearanceSection />
       <ProfileSection profile={profile} onUpdated={setProfile} />
+      <FocusTimerSection profile={profile} onUpdated={setProfile} />
       <PrivacySection profile={profile} onUpdated={setProfile} />
       <ShareLinkSection profile={profile} onUpdated={setProfile} />
       <BookingSection profile={profile} onUpdated={setProfile} />
@@ -288,6 +299,121 @@ function AppearanceSection() {
             </div>
           </label>
         </RadioGroup>
+      </CardContent>
+    </Card>
+  );
+}
+
+/* ─── Focus Timer Section ─── */
+
+function FocusTimerSection({ profile, onUpdated }: {
+  profile: UserProfile;
+  onUpdated: (p: UserProfile) => void;
+}) {
+  const [selectedPreset, setSelectedPreset] = useState('Pomodoro');
+  const [workMinutes, setWorkMinutes] = useState(profile.focusWorkMinutes?.toString() || '25');
+  const [breakMinutesInput, setBreakMinutesInput] = useState(profile.focusBreakMinutes?.toString() || '5');
+  const [saving, setSaving] = useState(false);
+
+  const dirty = workMinutes !== profile.focusWorkMinutes.toString() || breakMinutesInput !== profile.focusBreakMinutes.toString();
+
+  async function save() {
+    setSaving(true);
+    try {
+      const work = parseInt(workMinutes, 10);
+      const breakValue = parseInt(breakMinutesInput, 10);
+
+      if (isNaN(work) || work < 1 || work > 180) {
+        toast.error('Work duration must be between 1 and 180 minutes');
+        setSaving(false);
+        return;
+      }
+
+      if (isNaN(breakValue) || breakValue < 1 || breakValue > 60) {
+        toast.error('Break duration must be between 1 and 60 minutes');
+        setSaving(false);
+        return;
+      }
+
+      const updated = await apiFetch<UserProfile>('/api/auth/update', {
+        method: 'PATCH',
+        body: JSON.stringify({
+          focusWorkMinutes: work,
+          focusBreakMinutes: breakValue,
+        }),
+      });
+      onUpdated(updated);
+      toast.success('Focus timer settings updated');
+    } catch (e) { toast.error((e as Error).message); }
+    finally { setSaving(false); }
+  }
+
+  function applyPreset(preset: typeof FOCUS_PRESETS[0]) {
+    setWorkMinutes(preset.work.toString());
+    setBreakMinutesInput(preset.break.toString());
+    setSelectedPreset(preset.name);
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-lg">
+          <Timer className="size-4" /> Focus Timer
+        </CardTitle>
+        <CardDescription>Customize your Pomodoro/work session durations.</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="focus-work">Work duration (minutes)</Label>
+            <Input
+              id="focus-work"
+              type="number"
+              min="1"
+              max="180"
+              value={workMinutes}
+              onChange={e => setWorkMinutes(e.target.value)}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="focus-break">Break duration (minutes)</Label>
+            <Input
+              id="focus-break"
+              type="number"
+              min="1"
+              max="60"
+              value={breakMinutesInput}
+              onChange={e => setBreakMinutesInput(e.target.value)}
+            />
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <Label>Quick presets</Label>
+          <div className="flex flex-wrap gap-2">
+            {FOCUS_PRESETS.map(preset => (
+              <Button
+                key={preset.name}
+                size="sm"
+                variant={selectedPreset === preset.name ? "default" : "outline"}
+                onClick={() => applyPreset(preset)}
+                className="h-7"
+              >
+                {preset.name}
+                <span className="text-xs opacity-70 ml-1">{preset.work}/{preset.break}</span>
+              </Button>
+            ))}
+          </div>
+          <p className="text-[10px] text-muted-foreground">
+            {FOCUS_PRESETS.find(p => p.name === selectedPreset)?.description}
+          </p>
+        </div>
+
+        <Separator />
+        <Button size="sm" onClick={save} disabled={!dirty || saving}>
+          {saving ? <Loader2 className="size-3.5 mr-1.5 animate-spin" /> : <Save className="size-3.5 mr-1.5" />}
+          Save timer settings
+        </Button>
       </CardContent>
     </Card>
   );
