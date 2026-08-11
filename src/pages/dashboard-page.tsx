@@ -27,6 +27,7 @@ import { MeetingCostAnalytics } from '@/components/dashboard/meeting-cost-analyt
 import { VacationStatus } from '@/components/dashboard/vacation-status';
 import { TaskVelocityDashboard } from '@/components/dashboard/task-velocity-dashboard';
 import { QuickTaskCreate } from '@/components/dashboard/quick-task-create';
+import { BudgetHealthAlert } from '@/components/dashboard/budget-health-alert';
 import { MusicPlayer } from '@/components/music-player';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -88,6 +89,8 @@ export function DashboardPage() {
           <kbd className="ml-1.5 rounded bg-primary/20 px-1.5 py-0.5 text-xs font-medium">⌘K</kbd>
         </Button>
       </div>
+
+      <BudgetHealthAlert />
 
       {isEmpty && !fetchError && (
         <Card className="border-dashed border-2 border-muted-foreground/25 bg-muted/20">
