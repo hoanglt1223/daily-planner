@@ -28,6 +28,7 @@ import { TaskTemplates } from '@/components/task-templates';
 import { DependencyGraph } from '@/components/tasks/dependency-graph';
 import { DependencyList } from '@/components/tasks/dependency-list';
 import { RecurringTaskPreview } from '@/components/recurring-task-preview';
+import { SmartScheduleRecommendations } from '@/components/smart-schedule-recommendations';
 
 /* ─── Types ─── */
 
@@ -155,6 +156,7 @@ export function TasksPage() {
   const [quickPreview, setQuickPreview] = useState<ReturnType<typeof parseQuickAdd> | null>(null);
   const [highlightedId, setHighlightedId] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [showSmartSchedule, setShowSmartSchedule] = useState<string | null>(null);
   const [depsFullscreen, setDepsFullscreen] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
 
@@ -1075,6 +1077,27 @@ export function TasksPage() {
           <TaskTemplates onSelectTemplate={(template) => createTaskFromTemplate(template.id)} />
         </DialogContent>
       </Dialog>
+
+      {/* Smart Schedule dialog */}
+      <Dialog open={showSmartSchedule !== null} onOpenChange={() => setShowSmartSchedule(null)}>
+        <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Smart Schedule Analysis</DialogTitle>
+            <DialogDescription>
+              AI-powered scheduling recommendations based on your energy patterns and historical data
+            </DialogDescription>
+          </DialogHeader>
+          {showSmartSchedule && (
+            <SmartScheduleRecommendations
+              taskId={showSmartSchedule}
+              onScheduleSlot={(date, startTime, endTime) => {
+                toast.success(`Schedule suggested: ${date} ${startTime}-${endTime}`);
+                setShowSmartSchedule(null);
+              }}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -1278,6 +1301,18 @@ function TaskRow({ task, category, busy, selected, isHighlighted, isExpanded, on
                 className="border-border/50 bg-muted/30"
               />
             </div>
+          )}
+          {/* Smart schedule button */}
+          {task.status !== 'done' && task.status !== 'archived' && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 text-xs mt-2"
+              onClick={() => setShowSmartSchedule(task.id)}
+            >
+              <Sparkles className="size-3 mr-1" />
+              Smart Schedule
+            </Button>
           )}
           <div className="flex items-center gap-4 text-xs text-muted-foreground">
             <span>Status: <strong className="text-foreground">{meta.label}</strong></span>

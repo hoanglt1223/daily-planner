@@ -358,3 +358,26 @@ export const taskSessions = pgTable('task_sessions', {
 ]);
 
 export type TaskSession = typeof taskSessions.$inferSelect;
+
+// Smart scheduling recommendations cache (user-scoped)
+export const schedulingRecommendations = pgTable('scheduling_recommendations', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  taskId: uuid('task_id').notNull().references(() => tasks.id, { onDelete: 'cascade' }),
+  recommendedHour: integer('recommended_hour').notNull(), // Hour of day (0-23)
+  confidence: integer('confidence').notNull(), // 0-100 confidence score
+  reasoning: text('reasoning').notNull(), // Human-readable explanation
+  energyPattern: jsonb('energy_pattern').$type<{
+    hour: number;
+    avgEnergy: number;
+    sampleCount: number;
+  }[]>(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+}, (t) => [
+  index('scheduling_rec_user_idx').on(t.userId),
+  index('scheduling_rec_task_idx').on(t.taskId),
+  index('scheduling_rec_expires_idx').on(t.expiresAt),
+]);
+
+export type SchedulingRecommendation = typeof schedulingRecommendations.$inferSelect;

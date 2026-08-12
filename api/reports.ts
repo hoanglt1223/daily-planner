@@ -1,7 +1,7 @@
 import type { VercelResponse } from '@vercel/node';
 import { and, eq, gte, inArray, lte, count, desc } from 'drizzle-orm';
 import { db } from '../server/lib/db/client.js';
-import { bookings, bookingEventTypes, goals, habitEntries, habits, managerUsers, tasks, timeBlocks, users } from '../server/lib/db/schema.js';
+import { bookings, bookingEventTypes, goals, habitEntries, habits, managerUsers, schedulingRecommendations, tasks, timeBlocks, users } from '../server/lib/db/schema.js';
 import { requireAuth, type AuthedRequest } from '../server/lib/auth-middleware.js';
 
 // Capacity baseline: 8 work-hours per day, matching WORKDAY_HOURS in src/lib/time-utils.ts
@@ -64,6 +64,10 @@ export default async function handler(req: AuthedRequest, res: VercelResponse) {
 
     if (kind === 'meeting-costs') {
       return await handleMeetingCosts(req, res, me, from, to);
+    }
+
+    if (kind === 'smart-schedule') {
+      return await handleSmartSchedule(req, res, me);
     }
 
     return res.status(404).json({ error: 'unknown_kind' });
@@ -1305,6 +1309,192 @@ async function handleMeetingCosts(
     recentMeetings,
     insights,
   } satisfies MeetingCostsResponse);
+}
+
+// ── Smart Schedule handler ───────────────────────────────────────────────────────
+
+type SmartScheduleResponse = {
+  taskId: string;
+  taskTitle: string;
+  taskPriority: number;
+  taskEstimatedMinutes: number;
+  recommendedSlots: Array<{
+    date: string;
+    startTime: string;
+    endTime: string;
+    confidence: number;
+    reasoning: string;
+    energyLevel: number;
+  }>;
+  energyInsights: {
+    peakHours: number[];
+    lowHours: number[];
+    pattern: string;
+  };
+};
+
+async function handleSmartSchedule(req: AuthedRequest, res: VercelResponse, me: { sub: string }) {
+  const taskId = req.query.taskId ? String(req.query.taskId) : null;
+
+  if (!taskId) {
+    return res.status(400).json({ error: 'task_id_required' });
+  }
+
+  // Get task details
+  const [task] = await db.select().from(tasks).where(
+    and(eq(tasks.id, taskId), eq(tasks.userId, me.sub))
+  );
+
+  if (!task) {
+    return res.status(404).json({ error: 'task_not_found' });
+  }
+
+  // Get user's energy patterns over the last 30 days
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+  const energyData = await db.select().from(timeBlocks).where(and(
+    eq(timeBlocks.userId, me.sub),
+    gte(timeBlocks.startAt, thirtyDaysAgo),
+    // Only include completed blocks with energy levels
+  ));
+
+  // Aggregate energy by hour of day
+  const hourlyEnergy: Record<number, { total: number; count: number }> = {};
+
+  for (const block of energyData) {
+    if (block.energyLevel && block.status === 'completed') {
+      const hour = block.startAt.getHours();
+      if (!hourlyEnergy[hour]) {
+        hourlyEnergy[hour] = { total: 0, count: 0 };
+      }
+      hourlyEnergy[hour].total += block.energyLevel;
+      hourlyEnergy[hour].count += 1;
+    }
+  }
+
+  // Calculate average energy per hour
+  const hourlyAvgEnergy: Record<number, number> = {};
+  for (const [hour, data] of Object.entries(hourlyEnergy)) {
+    hourlyAvgEnergy[parseInt(hour)] = data.count > 0 ? data.total / data.count : 0;
+  }
+
+  // Find peak and low energy hours
+  const peakHours = Object.entries(hourlyAvgEnergy)
+    .filter(([_, energy]) => energy >= 4)
+    .map(([hour]) => parseInt(hour))
+    .sort((a, b) => a - b);
+
+  const lowHours = Object.entries(hourlyAvgEnergy)
+    .filter(([_, energy]) => energy <= 2)
+    .map(([hour]) => parseInt(hour))
+    .sort((a, b) => a - b);
+
+  // Determine pattern
+  let pattern = 'insufficient_data';
+  if (Object.keys(hourlyAvgEnergy).length >= 5) {
+    const morningAvg = [6, 7, 8, 9, 10, 11].reduce((sum, h) => sum + (hourlyAvgEnergy[h] || 0), 0) / 6;
+    const afternoonAvg = [12, 13, 14, 15, 16, 17].reduce((sum, h) => sum + (hourlyAvgEnergy[h] || 0), 0) / 6;
+    const eveningAvg = [18, 19, 20, 21, 22].reduce((sum, h) => sum + (hourlyAvgEnergy[h] || 0), 0) / 5;
+
+    if (morningAvg > afternoonAvg && morningAvg > eveningAvg) {
+      pattern = 'morning_person';
+    } else if (afternoonAvg > morningAvg && afternoonAvg > eveningAvg) {
+      pattern = 'afternoon_focused';
+    } else if (eveningAvg > morningAvg && eveningAvg > afternoonAvg) {
+      pattern = 'night_owl';
+    } else {
+      pattern = 'consistent';
+    }
+  }
+
+  // Generate recommended time slots for the next 7 days
+  const recommendedSlots: SmartScheduleResponse['recommendedSlots'] = [];
+  const now = new Date();
+  const workHours = [9, 10, 11, 14, 15, 16]; // Typical work hours (avoiding lunch)
+
+  for (let dayOffset = 0; dayOffset < 7; dayOffset++) {
+    const date = new Date(now);
+    date.setDate(date.getDate() + dayOffset);
+    date.setHours(0, 0, 0, 0);
+
+    // Check existing commitments for this day
+    const dayStart = new Date(date);
+    const dayEnd = new Date(date);
+    dayEnd.setHours(23, 59, 59, 999);
+
+    const existingBlocks = await db.select().from(timeBlocks).where(and(
+      eq(timeBlocks.userId, me.sub),
+      gte(timeBlocks.startAt, dayStart),
+      lte(timeBlocks.startAt, dayEnd),
+    ));
+
+    // Find free slots during peak energy hours
+    for (const hour of workHours) {
+      // Skip if this hour is not in peak energy (for high priority tasks) or has decent energy
+      const avgEnergy = hourlyAvgEnergy[hour] || 2.5;
+      if (task.priority <= 2 && avgEnergy < 3.5) continue; // High priority needs good energy
+
+      // Check if this hour is already booked
+      const hourStart = new Date(date);
+      hourStart.setHours(hour, 0, 0, 0);
+      const hourEnd = new Date(date);
+      hourEnd.setHours(hour + 1, 0, 0, 0);
+
+      const isBooked = existingBlocks.some(block => {
+        const blockStart = new Date(block.startAt);
+        const blockEnd = new Date(block.endAt);
+        return (blockStart < hourEnd && blockEnd > hourStart);
+      });
+
+      if (!isBooked) {
+        // Calculate confidence based on energy level and data quality
+        const confidence = Math.min(95, Math.round(
+          (avgEnergy / 5) * 80 +
+          (Math.min(5, Object.keys(hourlyAvgEnergy).length) / 5) * 20
+        ));
+
+        const reasoning = confidence > 80
+          ? `Historically high energy time (${avgEnergy.toFixed(1)}/5 based on ${hourlyEnergy[hour]?.count || 0} sessions)`
+          : confidence > 60
+          ? `Moderate energy time (${avgEnergy.toFixed(1)}/5), limited data available`
+          : `Best available slot, consider tracking energy for better recommendations`;
+
+        recommendedSlots.push({
+          date: date.toISOString().split('T')[0],
+          startTime: `${String(hour).padStart(2, '0')}:00`,
+          endTime: `${String(hour + 1).padStart(2, '0')}:00`,
+          confidence,
+          reasoning,
+          energyLevel: Math.round(avgEnergy * 10) / 10,
+        });
+
+        // Only recommend top 2 slots per day
+        if (recommendedSlots.filter(s => s.date === date.toISOString().split('T')[0]).length >= 2) {
+          break;
+        }
+      }
+    }
+  }
+
+  // Sort by confidence and limit to top 10 recommendations
+  recommendedSlots.sort((a, b) => b.confidence - a.confidence);
+  const topRecommendations = recommendedSlots.slice(0, 10);
+
+  const energyInsights: SmartScheduleResponse['energyInsights'] = {
+    peakHours: peakHours.length > 0 ? peakHours : [],
+    lowHours: lowHours.length > 0 ? lowHours : [],
+    pattern,
+  };
+
+  return res.status(200).json({
+    taskId: task.id,
+    taskTitle: task.title,
+    taskPriority: task.priority,
+    taskEstimatedMinutes: task.estimatedMinutes,
+    recommendedSlots: topRecommendations,
+    energyInsights,
+  } satisfies SmartScheduleResponse);
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
