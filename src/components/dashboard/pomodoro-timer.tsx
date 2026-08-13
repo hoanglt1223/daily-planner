@@ -182,8 +182,25 @@ export function PomodoroTimer() {
           body: JSON.stringify({
             actualMinutes,
           }),
-        }).catch(error => {
-          console.error('Failed to record session completion:', error);
+        })
+        .then(() => {
+          // Check for achievements after session completion
+          return apiFetch('/api/achievements?action=check', { method: 'POST' });
+        })
+        .then((data: any) => {
+          if (data.unlocked && data.unlocked.length > 0) {
+            data.unlocked.forEach((achievement: any, index: number) => {
+              setTimeout(() => {
+                toast.success(`Achievement Unlocked: ${achievement.icon} ${achievement.name}`, {
+                  description: achievement.description,
+                  duration: 5000,
+                });
+              }, index * 1500);
+            });
+          }
+        })
+        .catch(error => {
+          console.error('Failed to record session or check achievements:', error);
         });
       }
     }

@@ -11,7 +11,8 @@
     "db:push": "drizzle-kit push",
     "db:generate": "drizzle-kit generate",
     "db:studio": "drizzle-kit studio",
-    "seed:thuthao": "tsx scripts/seed-thuthao.ts"
+    "seed:thuthao": "tsx scripts/seed-thuthao.ts",
+    "seed:achievements": "tsx scripts/seed-achievements.ts"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

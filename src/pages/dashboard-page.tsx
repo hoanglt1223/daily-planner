@@ -28,6 +28,7 @@ import { VacationStatus } from '@/components/dashboard/vacation-status';
 import { TaskVelocityDashboard } from '@/components/dashboard/task-velocity-dashboard';
 import { QuickTaskCreate } from '@/components/dashboard/quick-task-create';
 import { BudgetHealthAlert } from '@/components/dashboard/budget-health-alert';
+import { AchievementsBadge } from '@/components/achievements-badge';
 import { MusicPlayer } from '@/components/music-player';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -79,15 +80,18 @@ export function DashboardPage() {
           <h1 className="text-3xl font-bold tracking-tight">Today's overview</h1>
           <p className="text-sm text-muted-foreground">Workload, capacity, and pending requests at a glance.</p>
         </div>
-        <Button
-          size="sm"
-          onClick={openQuickCapture}
-          className="gap-2 shrink-0"
-        >
-          <Sparkles className="size-4" />
-          Quick Capture
-          <kbd className="ml-1.5 rounded bg-primary/20 px-1.5 py-0.5 text-xs font-medium">⌘K</kbd>
-        </Button>
+        <div className="flex items-center gap-2">
+          <AchievementsBadge />
+          <Button
+            size="sm"
+            onClick={openQuickCapture}
+            className="gap-2 shrink-0"
+          >
+            <Sparkles className="size-4" />
+            Quick Capture
+            <kbd className="ml-1.5 rounded bg-primary/20 px-1.5 py-0.5 text-xs font-medium">⌘K</kbd>
+          </Button>
+        </div>
       </div>
 
       <BudgetHealthAlert />

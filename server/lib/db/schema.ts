@@ -381,3 +381,44 @@ export const schedulingRecommendations = pgTable('scheduling_recommendations', {
 ]);
 
 export type SchedulingRecommendation = typeof schedulingRecommendations.$inferSelect;
+
+// Achievement system
+export const achievements = pgTable('achievements', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  slug: text('slug').notNull().unique(),
+  name: text('name').notNull(),
+  description: text('description').notNull(),
+  icon: text('icon').notNull().default('🏆'),
+  color: text('color').notNull().default('#3b82f6'),
+  category: text('category').notNull().default('productivity'), // productivity, consistency, milestones, special
+  requirement: jsonb('requirement').$type<{
+    type: 'count' | 'streak' | 'total' | 'accuracy';
+    field: string;
+    target: number;
+    period?: string;
+  }>().notNull(),
+  points: integer('points').notNull().default(10),
+  isSecret: boolean('is_secret').notNull().default(false),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+}, (t) => [
+  index('achievements_category_idx').on(t.category),
+]);
+
+export const userAchievements = pgTable('user_achievements', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  achievementId: uuid('achievement_id').notNull().references(() => achievements.id, { onDelete: 'cascade' }),
+  unlockedAt: timestamp('unlocked_at', { withTimezone: true }).defaultNow().notNull(),
+  progress: jsonb('progress').$type<{
+    current: number;
+    target: number;
+    lastUpdated: string;
+  }>().notNull(),
+}, (t) => [
+  uniqueIndex('user_achievements_user_achievement_unique').on(t.userId, t.achievementId),
+  index('user_achievements_user_idx').on(t.userId),
+  index('user_achievements_date_idx').on(t.unlockedAt),
+]);
+
+export type Achievement = typeof achievements.$inferSelect;
+export type UserAchievement = typeof userAchievements.$inferSelect;

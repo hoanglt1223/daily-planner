@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { addDays } from 'date-fns';
 import {
   AlertTriangle, Archive, ArrowUpDown, CheckCircle2, CheckSquare, ChevronDown, ChevronRight,
   Clock, Copy, Edit3, FileSpreadsheet, Link2, ListChecks, Palette, Pencil, Pin, PinOff, PlayCircle, Plus, Search, Square, Tag, Trash2, X,
@@ -266,6 +265,24 @@ export function TasksPage() {
       await apiFetch(`/api/tasks/${id}`, { method: 'PATCH', body: JSON.stringify(patch) });
       setTasks(prev => prev.map(t => t.id === id ? { ...t, ...patch } : t));
       toast.success('Task updated');
+
+      // Check for achievements when task is completed
+      if (patch.status === 'done') {
+        apiFetch('/api/achievements?action=check', { method: 'POST' })
+          .then((data: any) => {
+            if (data.unlocked && data.unlocked.length > 0) {
+              data.unlocked.forEach((achievement: any, index: number) => {
+                setTimeout(() => {
+                  toast.success(`Achievement Unlocked: ${achievement.icon} ${achievement.name}`, {
+                    description: achievement.description,
+                    duration: 5000,
+                  });
+                }, index * 1500);
+              });
+            }
+          })
+          .catch(console.error);
+      }
     } catch (e) { toast.error((e as Error).message); }
     finally { setBusyId(null); }
   }
