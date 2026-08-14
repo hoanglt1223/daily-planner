@@ -33,6 +33,8 @@ const WorkloadPage = lazy(() => import('@/pages/workload-page').then(m => ({ def
 const MusicPage = lazy(() => import('@/pages/music-page').then(m => ({ default: m.MusicPage })));
 const TemplatesPage = lazy(() => import('@/pages/templates-page').then(m => ({ default: m.TemplatesPage })));
 const EveningWinddownPage = lazy(() => import('@/pages/evening-winddown-page').then(m => ({ default: m.EveningWinddownPage })));
+const WeddingEmergencyPage = lazy(() => import('@/pages/wedding-emergency-page').then(m => ({ default: m.WeddingEmergencyPage })));
+const WeddingsPage = lazy(() => import('@/pages/weddings-page').then(m => ({ default: m.WeddingsPage })));
 
 /** Suspense wrapper for the standalone (non-AppLayout) routes. */
 function page(node: ReactNode): ReactNode {
@@ -67,6 +69,8 @@ export const router = createBrowserRouter([
       { path: '/workload', element: <WorkloadPage /> },
       { path: '/music', element: <MusicPage /> },
       { path: '/templates', element: <TemplatesPage /> },
+      { path: '/weddings', element: <WeddingsPage /> },
+      { path: '/weddings/:id', element: <WeddingEmergencyPage /> },
       { path: '/habits', element: <HabitsPage /> },
       { path: '/habits/analytics', element: <HabitAnalyticsPage /> },
       { path: '/goals', element: <GoalsPage /> },

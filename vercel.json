@@ -17,6 +17,8 @@
     { "source": "/api/music/:id/:action", "destination": "/api/music?id=:id&action=:action" },
     { "source": "/api/task-sessions/:id", "destination": "/api/task-sessions?id=:id" },
     { "source": "/api/task-sessions/:id/:action", "destination": "/api/task-sessions?id=:id&action=:action" },
+    { "source": "/api/weddings/:id", "destination": "/api/weddings?id=:id" },
+    { "source": "/api/weddings/:id/:action", "destination": "/api/weddings?id=:id&action=:action" },
     { "source": "/((?!api/).*)", "destination": "/index.html" }
   ]
 }

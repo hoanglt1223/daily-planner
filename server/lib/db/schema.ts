@@ -422,3 +422,88 @@ export const userAchievements = pgTable('user_achievements', {
 
 export type Achievement = typeof achievements.$inferSelect;
 export type UserAchievement = typeof userAchievements.$inferSelect;
+
+// Wedding emergency assistant system
+export const weddingStatus = pgEnum('wedding_status', ['planning', 'finalizing', 'day_of', 'completed', 'cancelled']);
+
+export const weddings = pgTable('weddings', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  partnerName: text('partner_name').notNull(),
+  weddingDate: timestamp('wedding_date', { withTimezone: true }).notNull(),
+  venueName: text('venue_name').notNull(),
+  venueAddress: text('venue_address'),
+  status: weddingStatus('status').notNull().default('planning'),
+  guestCount: integer('guest_count'),
+  budget: integer('budget'), // Budget in currency units
+  stressLevel: integer('stress_level').notNull().default(3), // 1-5 scale
+  notes: text('notes'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, (t) => [
+  index('weddings_user_idx').on(t.userId),
+  index('weddings_date_idx').on(t.weddingDate),
+]);
+
+export const weddingContactRole = pgEnum('wedding_contact_role', ['venue', 'caterer', 'photographer', 'florist', 'dj_band', 'officiant', 'coordinator', 'other']);
+
+export const weddingContacts = pgTable('wedding_contacts', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  weddingId: uuid('wedding_id').notNull().references(() => weddings.id, { onDelete: 'cascade' }),
+  role: weddingContactRole('role').notNull(),
+  name: text('name').notNull(),
+  company: text('company'),
+  phone: text('phone').notNull(),
+  email: text('email'),
+  notes: text('notes'),
+  backupContact: text('backup_contact'), // Backup contact info
+  hasBackup: boolean('has_backup').notNull().default(false),
+  confirmed: boolean('confirmed').notNull().default(false),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, (t) => [
+  index('wedding_contacts_wedding_idx').on(t.weddingId),
+  index('wedding_contacts_role_idx').on(t.role),
+]);
+
+export const weddingEmergencyScenario = pgEnum('wedding_emergency_scenario', ['weather', 'vendor_no_show', 'delay', 'injury', 'tech_failure', ' attire_issue', 'guest_issue', 'venue_problem']);
+
+export const weddingEmergencyPlans = pgTable('wedding_emergency_plans', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  weddingId: uuid('wedding_id').notNull().references(() => weddings.id, { onDelete: 'cascade' }),
+  scenario: weddingEmergencyScenario('scenario').notNull(),
+  title: text('title').notNull(),
+  steps: jsonb('steps').$type<Array<{ step: number; action: string; responsible: string; timeline: string }>>().notNull(),
+  contacts: jsonb('contacts').$type<Array<{ name: string; role: string; phone: string }>>().default([]),
+  supplies: jsonb('supplies').$type<Array<{ item: string; quantity: string; location: string }>>().default([]),
+  priority: integer('priority').notNull().default(3), // 1-5 for urgency
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, (t) => [
+  index('wedding_emergency_wedding_idx').on(t.weddingId),
+  index('wedding_emergency_scenario_idx').on(t.scenario),
+]);
+
+export const weddingChecklistCategory = pgEnum('wedding_checklist_category', ['1_week', '1_day', 'morning_of', 'day_of', 'emergency']);
+
+export const weddingChecklist = pgTable('wedding_checklist', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  weddingId: uuid('wedding_id').notNull().references(() => weddings.id, { onDelete: 'cascade' }),
+  category: weddingChecklistCategory('category').notNull(),
+  task: text('task').notNull(),
+  completed: boolean('completed').notNull().default(false),
+  priority: integer('priority').notNull().default(3), // 1-5 for urgency
+  assignee: text('assignee'), // Who is responsible
+  notes: text('notes'),
+  completedAt: timestamp('completed_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, (t) => [
+  index('wedding_checklist_wedding_idx').on(t.weddingId),
+  index('wedding_checklist_category_idx').on(t.category),
+]);
+
+export type Wedding = typeof weddings.$inferSelect;
+export type WeddingContact = typeof weddingContacts.$inferSelect;
+export type WeddingEmergencyPlan = typeof weddingEmergencyPlans.$inferSelect;
+export type WeddingChecklist = typeof weddingChecklist.$inferSelect;
