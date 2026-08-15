@@ -1,7 +1,7 @@
 import type { VercelResponse } from '@vercel/node';
-import { and, eq, gte, inArray, lte, count, desc } from 'drizzle-orm';
+import { and, eq, gte, inArray, lte, count, desc, or } from 'drizzle-orm';
 import { db } from '../server/lib/db/client.js';
-import { bookings, bookingEventTypes, goals, habitEntries, habits, managerUsers, schedulingRecommendations, tasks, timeBlocks, users } from '../server/lib/db/schema.js';
+import { bookings, bookingEventTypes, goals, habitEntries, habits, managerUsers, schedulingRecommendations, tasks, timeBlocks, users, activityLog } from '../server/lib/db/schema.js';
 import { requireAuth, type AuthedRequest } from '../server/lib/auth-middleware.js';
 
 // Capacity baseline: 8 work-hours per day, matching WORKDAY_HOURS in src/lib/time-utils.ts
@@ -44,6 +44,10 @@ export default async function handler(req: AuthedRequest, res: VercelResponse) {
 
     if (kind === 'estimation-accuracy') {
       return await handleEstimationAccuracy(req, res, me, from, to);
+    }
+
+    if (kind === 'activities') {
+      return await handleActivities(req, res, me, from, to);
     }
 
     if (kind === 'weekly-review') {
@@ -1495,6 +1499,106 @@ async function handleSmartSchedule(req: AuthedRequest, res: VercelResponse, me: 
     recommendedSlots: topRecommendations,
     energyInsights,
   } satisfies SmartScheduleResponse);
+}
+
+// ── Activity Feed ────────────────────────────────────────────────────────────────
+
+export type ActivityResponse = {
+  activities: Array<{
+    id: string;
+    userId: string;
+    action: string;
+    entityType: string;
+    entityId: string;
+    metadata: Record<string, any>;
+    createdAt: string;
+    user?: {
+      id: string;
+      name: string;
+      email: string;
+    };
+  }>;
+  from: string;
+  to: string;
+  total: number;
+};
+
+async function handleActivities(
+  req: AuthedRequest,
+  res: VercelResponse,
+  me: { sub: string; role?: string },
+  from: Date,
+  to: Date,
+) {
+  const action = req.query.action ? String(req.query.action) : undefined;
+  const entityType = req.query.entityType ? String(req.query.entityType) : undefined;
+  const userId = req.query.userId ? String(req.query.userId) : undefined;
+  const limit = req.query.limit ? parseInt(String(req.query.limit), 10) : 100;
+
+  // Build where conditions
+  const conditions = [
+    gte(activityLog.createdAt, from.toISOString()),
+    lte(activityLog.createdAt, to.toISOString()),
+  ];
+
+  // Filter by action type if specified
+  if (action) {
+    conditions.push(eq(activityLog.action, action));
+  }
+
+  // Filter by entity type if specified
+  if (entityType) {
+    conditions.push(eq(activityLog.entityType, entityType));
+  }
+
+  // Managers can see their team's activities, regular users only their own
+  if (userId) {
+    conditions.push(eq(activityLog.userId, userId));
+  } else if (me.role !== 'admin' && me.role !== 'manager') {
+    conditions.push(eq(activityLog.userId, me.sub));
+  }
+
+  // Fetch activities with user details
+  const activities = await db
+    .select({
+      id: activityLog.id,
+      userId: activityLog.userId,
+      action: activityLog.action,
+      entityType: activityLog.entityType,
+      entityId: activityLog.entityId,
+      metadata: activityLog.metadata,
+      createdAt: activityLog.createdAt,
+      userName: users.name,
+      userEmail: users.email,
+    })
+    .from(activityLog)
+    .leftJoin(users, eq(activityLog.userId, users.id))
+    .where(and(...conditions))
+    .orderBy(desc(activityLog.createdAt))
+    .limit(limit);
+
+  // Format response
+  const formattedActivities = activities.map((activity) => ({
+    id: activity.id,
+    userId: activity.userId,
+    action: activity.action,
+    entityType: activity.entityType,
+    entityId: activity.entityId,
+    metadata: activity.metadata,
+    createdAt: activity.createdAt,
+    user: activity.userName ? {
+      id: activity.userId,
+      name: activity.userName,
+      email: activity.userEmail || '',
+    } : undefined,
+  }));
+
+  return res.status(200).json({
+    activities: formattedActivities,
+    from: from.toISOString(),
+    to: to.toISOString(),
+    total: formattedActivities.length,
+  } satisfies ActivityResponse);
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────────

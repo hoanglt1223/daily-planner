@@ -4,6 +4,7 @@ import { addDays, fmtDay, fmtHour, startOfWeek } from '@/lib/time-utils';
 import { fetchTeamCapacity } from '@/lib/capacity-api';
 import type { CapacityUser } from '@/lib/capacity-api';
 import { CapacityGrid } from '@/components/capacity/capacity-grid';
+import { ActivityFeed } from '@/components/dashboard/activity-feed';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -213,6 +214,11 @@ export function ManagerPage() {
           </CardContent>
         </Card>
       )}
+
+      {/* Activity Feed - shows for both individual and capacity views */}
+      <div className="mt-4">
+        <ActivityFeed />
+      </div>
     </div>
   );
 }

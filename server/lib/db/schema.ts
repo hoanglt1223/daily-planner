@@ -348,7 +348,7 @@ export const taskSessions = pgTable('task_sessions', {
   durationMinutes: integer('duration_minutes').notNull(), // Planned duration
   actualMinutes: integer('actual_minutes'), // Actual time spent
   status: taskSessionStatus('status').notNull().default('in_progress'),
-  focusPlaylistId: uuid('focus_playlist_id').references(() => musicPlaylists.$inferSelect.id, { onDelete: 'set null' }),
+  focusPlaylistId: uuid('focus_playlist_id').references(() => musicPlaylists.id, { onDelete: 'set null' }),
   note: text('note'),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 }, (t) => [
@@ -503,7 +503,53 @@ export const weddingChecklist = pgTable('wedding_checklist', {
   index('wedding_checklist_category_idx').on(t.category),
 ]);
 
+export const weddingExpenseCategory = pgEnum('wedding_expense_category', ['venue', 'catering', 'attire', 'photography', 'videography', 'decor', 'music', 'flowers', 'transportation', 'invitations', 'rings', 'gifts', 'other']);
+
+export const weddingExpenses = pgTable('wedding_expenses', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  weddingId: uuid('wedding_id').notNull().references(() => weddings.id, { onDelete: 'cascade' }),
+  category: weddingExpenseCategory('category').notNull(),
+  amount: integer('amount').notNull(), // Amount in currency units
+  description: text('description').notNull(),
+  vendor: text('vendor'), // Vendor/company name
+  date: timestamp('date', { withTimezone: true }).notNull(),
+  isPaid: boolean('is_paid').notNull().default(false),
+  paymentMethod: text('payment_method'), // cash, card, transfer, etc.
+  notes: text('notes'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, (t) => [
+  index('wedding_expenses_wedding_idx').on(t.weddingId),
+  index('wedding_expenses_category_idx').on(t.category),
+  index('wedding_expenses_date_idx').on(t.date),
+]);
+
 export type Wedding = typeof weddings.$inferSelect;
 export type WeddingContact = typeof weddingContacts.$inferSelect;
 export type WeddingEmergencyPlan = typeof weddingEmergencyPlans.$inferSelect;
 export type WeddingChecklist = typeof weddingChecklist.$inferSelect;
+export type WeddingExpense = typeof weddingExpenses.$inferSelect;
+
+// Activity feed system
+export const activityLog = pgTable('activity_log', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  action: text('action').notNull(), // task_created, task_completed, booking_approved, achievement_unlocked, etc.
+  entityType: text('entity_type').notNull(), // task, booking, achievement, user, comment
+  entityId: uuid('entity_id').notNull(),
+  metadata: jsonb('metadata').$type<{
+    title?: string;
+    priority?: number;
+    assignee?: string;
+    status?: string;
+    [key: string]: any;
+  }>().$defaultFn('{}').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+}, (t) => [
+  index('activity_log_user_idx').on(t.userId),
+  index('activity_log_entity_idx').on(t.entityType, t.entityId),
+  index('activity_log_created_idx').on(t.createdAt),
+  index('activity_log_action_idx').on(t.action),
+]);
+
+export type ActivityLog = typeof activityLog.$inferSelect;
