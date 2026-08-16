@@ -1,6 +1,6 @@
 import { Suspense, useEffect, useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { BarChart3, CalendarDays, CheckCircle, Coffee, FolderOpen, LayoutDashboard, Lightbulb, ListTodo, Loader2, LogOut, Moon, Music, Settings, ShieldCheck, Sun, Target, Users, Gauge, Heart } from 'lucide-react';
+import { BarChart3, CalendarDays, CheckCircle, Coffee, DollarSign, FolderOpen, LayoutDashboard, Lightbulb, ListTodo, Loader2, LogOut, Moon, Music, Settings, ShieldCheck, Sun, Target, Users, Gauge, Heart } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { apiFetch, clearAuthToken, getAuthToken } from '@/lib/api-client';
 import { setActiveTimeZone } from '@/lib/time-utils';
@@ -36,6 +36,7 @@ const ICONS = {
   '/projects': FolderOpen,
   '/music': Music,
   '/weddings': Heart,
+  '/meeting-costs': DollarSign,
   '/habits': CheckCircle,
   '/goals': Target,
   '/weekly-review': BarChart3,
@@ -88,6 +89,7 @@ export function AppLayout() {
     { to: '/projects', label: 'Projects', show: true },
     { to: '/music', label: 'Music', show: true },
     { to: '/weddings', label: 'Weddings', show: true },
+    { to: '/meeting-costs', label: 'Meeting Costs', show: true },
     { to: '/habits', label: 'Habits', show: true },
     { to: '/goals', label: 'Goals', show: true },
     { to: '/weekly-review', label: 'Weekly Review', show: true },

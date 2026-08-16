@@ -35,6 +35,7 @@ const TemplatesPage = lazy(() => import('@/pages/templates-page').then(m => ({ d
 const EveningWinddownPage = lazy(() => import('@/pages/evening-winddown-page').then(m => ({ default: m.EveningWinddownPage })));
 const WeddingEmergencyPage = lazy(() => import('@/pages/wedding-emergency-page').then(m => ({ default: m.WeddingEmergencyPage })));
 const WeddingsPage = lazy(() => import('@/pages/weddings-page').then(m => ({ default: m.WeddingsPage })));
+const MeetingCostsPage = lazy(() => import('@/pages/meeting-costs-page').then(m => ({ default: m.MeetingCostsPage })));
 
 /** Suspense wrapper for the standalone (non-AppLayout) routes. */
 function page(node: ReactNode): ReactNode {
@@ -71,6 +72,7 @@ export const router = createBrowserRouter([
       { path: '/templates', element: <TemplatesPage /> },
       { path: '/weddings', element: <WeddingsPage /> },
       { path: '/weddings/:id', element: <WeddingEmergencyPage /> },
+      { path: '/meeting-costs', element: <MeetingCostsPage /> },
       { path: '/habits', element: <HabitsPage /> },
       { path: '/habits/analytics', element: <HabitAnalyticsPage /> },
       { path: '/goals', element: <GoalsPage /> },
