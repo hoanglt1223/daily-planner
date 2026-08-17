@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Button } from '@/components/ui/button';
 import { CostByAttendeeChart } from './cost-by-attendee-chart';
 import { MeetingCostInsights } from './meeting-cost-insights';
 import { CostOverTimeChart } from './cost-over-time-chart';
@@ -10,20 +10,41 @@ interface MeetingCostDashboardProps {
   to?: Date;
 }
 
+type ViewTab = 'overview' | 'breakdown' | 'attendees';
+
 export function MeetingCostDashboard({ from, to }: MeetingCostDashboardProps) {
   const toDate = to || new Date();
   const fromDate = from || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000); // Default 30 days
+  const [activeTab, setActiveTab] = useState<ViewTab>('overview');
 
   return (
     <div className="space-y-4">
-      <Tabs defaultValue="overview" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="breakdown">By Meeting Type</TabsTrigger>
-          <TabsTrigger value="attendees">By Attendee</TabsTrigger>
-        </TabsList>
+      <div className="flex gap-2">
+        <Button
+          variant={activeTab === 'overview' ? 'default' : 'outline'}
+          size="sm"
+          onClick={() => setActiveTab('overview')}
+        >
+          Overview
+        </Button>
+        <Button
+          variant={activeTab === 'breakdown' ? 'default' : 'outline'}
+          size="sm"
+          onClick={() => setActiveTab('breakdown')}
+        >
+          By Meeting Type
+        </Button>
+        <Button
+          variant={activeTab === 'attendees' ? 'default' : 'outline'}
+          size="sm"
+          onClick={() => setActiveTab('attendees')}
+        >
+          By Attendee
+        </Button>
+      </div>
 
-        <TabsContent value="overview" className="space-y-4">
+      {activeTab === 'overview' && (
+        <div className="space-y-4">
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -107,9 +128,11 @@ export function MeetingCostDashboard({ from, to }: MeetingCostDashboardProps) {
               </CardContent>
             </Card>
           </div>
-        </TabsContent>
+        </div>
+      )}
 
-        <TabsContent value="breakdown" className="space-y-4">
+      {activeTab === 'breakdown' && (
+        <div className="space-y-4">
           <Card>
             <CardHeader>
               <CardTitle>Cost by Meeting Type</CardTitle>
@@ -119,9 +142,11 @@ export function MeetingCostDashboard({ from, to }: MeetingCostDashboardProps) {
               <CostByAttendeeChart from={fromDate} to={toDate} />
             </CardContent>
           </Card>
-        </TabsContent>
+        </div>
+      )}
 
-        <TabsContent value="attendees" className="space-y-4">
+      {activeTab === 'attendees' && (
+        <div className="space-y-4">
           <Card>
             <CardHeader>
               <CardTitle>Cost by Attendee</CardTitle>
@@ -131,8 +156,8 @@ export function MeetingCostDashboard({ from, to }: MeetingCostDashboardProps) {
                 <CostByAttendeeChart from={fromDate} to={toDate} />
               </CardContent>
           </Card>
-        </TabsContent>
-      </Tabs>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Heart, Plus, Calendar, Users, Settings, Trash2 } from 'lucide-react';
+import { Heart, Plus, Calendar, Users, Settings, Trash2, AlertTriangle } from 'lucide-react';
 import { apiFetch } from '@/lib/api-client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -29,7 +29,6 @@ type Wedding = {
 };
 
 export function WeddingsPage() {
-  const navigate = useNavigate();
   const [weddings, setWeddings] = useState<Wedding[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

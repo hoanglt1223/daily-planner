@@ -1,7 +1,7 @@
 import type { VercelResponse } from '@vercel/node';
 import { eq, and, desc } from 'drizzle-orm';
 import { db } from '../server/lib/db/client.js';
-import { weddings, weddingContacts, weddingEmergencyPlans, weddingChecklist } from '../server/lib/db/schema.js';
+import { weddings, weddingContacts, weddingEmergencyPlans, weddingChecklist, weddingExpenses } from '../server/lib/db/schema.js';
 import { requireAuth, type AuthedRequest } from '../server/lib/auth-middleware.js';
 import { nanoid } from 'nanoid';
 
@@ -47,6 +47,16 @@ export default async function handler(req: AuthedRequest, res: VercelResponse) {
     return updateChecklist(req, res, url.searchParams.get('checklistId')!);
   } else if (action === 'checklist-delete' && url.searchParams.get('checklistId')) {
     return deleteChecklist(req, res, url.searchParams.get('checklistId')!);
+  } else if (action === 'expense-list' && id) {
+    return listExpenses(req, res, id);
+  } else if (action === 'expense-summary' && id) {
+    return getBudgetSummary(req, res, id);
+  } else if (action === 'expense-create' && id) {
+    return createExpense(req, res, id);
+  } else if (action === 'expense-update' && url.searchParams.get('expenseId')) {
+    return updateExpense(req, res, url.searchParams.get('expenseId')!);
+  } else if (action === 'expense-delete' && url.searchParams.get('expenseId')) {
+    return deleteExpense(req, res, url.searchParams.get('expenseId')!);
   } else {
     return res.status(400).json({ error: 'Invalid action' });
   }
@@ -456,5 +466,124 @@ async function deleteChecklist(req: AuthedRequest, res: VercelResponse, checklis
   } catch (error) {
     console.error('Error deleting checklist item:', error);
     return res.status(500).json({ error: 'Failed to delete checklist item' });
+  }
+}
+
+// EXPENSE TRACKING FUNCTIONS
+async function listExpenses(req: AuthedRequest, res: VercelResponse, weddingId: string) {
+  try {
+    const expenses = await db.select()
+      .from(weddingExpenses)
+      .where(eq(weddingExpenses.weddingId, weddingId))
+      .orderBy(desc(weddingExpenses.date));
+
+    return res.status(200).json(expenses);
+  } catch (error) {
+    console.error('Error listing expenses:', error);
+    return res.status(500).json({ error: 'Failed to list expenses' });
+  }
+}
+
+async function getBudgetSummary(req: AuthedRequest, res: VercelResponse, weddingId: string) {
+  try {
+    const wedding = await db.select().from(weddings).where(eq(weddings.id, weddingId)).limit(1);
+    if (!wedding[0]) {
+      return res.status(404).json({ error: 'Wedding not found' });
+    }
+
+    const expenses = await db.select()
+      .from(weddingExpenses)
+      .where(eq(weddingExpenses.weddingId, weddingId));
+
+    const budget = wedding[0].budget || 0;
+    const totalSpent = expenses.reduce((sum, exp) => sum + exp.amount, 0);
+    const totalPaid = expenses.filter(exp => exp.isPaid).reduce((sum, exp) => sum + exp.amount, 0);
+    const remaining = budget - totalSpent;
+
+    const categoryBreakdown = expenses.reduce((acc, exp) => {
+      acc[exp.category] = (acc[exp.category] || 0) + exp.amount;
+      return acc;
+    }, {} as Record<string, number>);
+
+    return res.status(200).json({
+      budget,
+      totalSpent,
+      totalPaid,
+      remaining,
+      categoryBreakdown,
+      expenseCount: expenses.length,
+      paidCount: expenses.filter(exp => exp.isPaid).length,
+    });
+  } catch (error) {
+    console.error('Error getting budget summary:', error);
+    return res.status(500).json({ error: 'Failed to get budget summary' });
+  }
+}
+
+async function createExpense(req: AuthedRequest, res: VercelResponse, weddingId: string) {
+  try {
+    const body = req.body ?? {};
+    const { category, amount, description, vendor, date, isPaid, paymentMethod, notes } = body;
+
+    if (!category || !amount || !description || !date) {
+      return res.status(400).json({ error: 'Category, amount, description, and date are required' });
+    }
+
+    const newExpense = await db.insert(weddingExpenses).values({
+      id: nanoid(),
+      weddingId,
+      category,
+      amount: parseInt(amount),
+      description: description.trim(),
+      vendor: vendor?.trim() || null,
+      date: new Date(date),
+      isPaid: isPaid || false,
+      paymentMethod: paymentMethod?.trim() || null,
+      notes: notes?.trim() || null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }).returning();
+
+    return res.status(201).json(newExpense[0]);
+  } catch (error) {
+    console.error('Error creating expense:', error);
+    return res.status(500).json({ error: 'Failed to create expense' });
+  }
+}
+
+async function updateExpense(req: AuthedRequest, res: VercelResponse, expenseId: string) {
+  try {
+    const body = req.body ?? {};
+    const { category, amount, description, vendor, date, isPaid, paymentMethod, notes } = body;
+
+    const updated = await db.update(weddingExpenses)
+      .set({
+        category: category || undefined,
+        amount: amount !== undefined ? parseInt(amount) : undefined,
+        description: description?.trim(),
+        vendor: vendor !== undefined ? vendor?.trim() : undefined,
+        date: date !== undefined ? new Date(date) : undefined,
+        isPaid: isPaid !== undefined ? isPaid : undefined,
+        paymentMethod: paymentMethod !== undefined ? paymentMethod?.trim() : undefined,
+        notes: notes !== undefined ? notes?.trim() : undefined,
+        updatedAt: new Date(),
+      })
+      .where(eq(weddingExpenses.id, expenseId))
+      .returning();
+
+    return res.status(200).json(updated[0]);
+  } catch (error) {
+    console.error('Error updating expense:', error);
+    return res.status(500).json({ error: 'Failed to update expense' });
+  }
+}
+
+async function deleteExpense(req: AuthedRequest, res: VercelResponse, expenseId: string) {
+  try {
+    await db.delete(weddingExpenses).where(eq(weddingExpenses.id, expenseId));
+    return res.status(200).json({ success: true });
+  } catch (error) {
+    console.error('Error deleting expense:', error);
+    return res.status(500).json({ error: 'Failed to delete expense' });
   }
 }

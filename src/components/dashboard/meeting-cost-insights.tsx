@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { TrendingUp, TrendingDown, AlertTriangle, Info } from 'lucide-react';
+import { TrendingUp, TrendingDown, AlertTriangle, Info, CheckCircle } from 'lucide-react';
 
 interface MeetingCostInsightsProps {
   from: Date;
@@ -38,34 +37,36 @@ export function MeetingCostInsights({ from, to }: MeetingCostInsightsProps) {
   return (
     <div className="space-y-3">
       {insights.map((insight, index) => (
-        <Alert key={index} variant={insight.variant as any}>
-          {insight.icon}
-          <AlertTitle className="text-sm font-medium">
-            {insight.title}
-          </AlertTitle>
-          <AlertDescription className="text-xs">
-            {insight.description}
-          </AlertDescription>
-        </Alert>
+        <div key={index} className="flex items-start gap-3 p-3 rounded-lg border bg-card">
+          <div className={`mt-0.5 ${insight.variant === 'danger' ? 'text-red-500' : insight.variant === 'warning' ? 'text-amber-500' : 'text-blue-500'}`}>
+            {insight.icon}
+          </div>
+          <div>
+            <p className="text-sm font-medium">{insight.title}</p>
+            <p className="text-xs text-muted-foreground">{insight.description}</p>
+          </div>
+        </div>
       ))}
       {data.summary?.mostExpensiveMeeting && (
-        <Alert variant="default">
-          <Info className="h-4 w-4" />
-          <AlertTitle className="text-sm font-medium">
-            Most Expensive Meeting
-          </AlertTitle>
-          <AlertDescription className="text-xs">
-            {data.summary.mostExpensiveMeeting.title} - $
-            {data.summary.mostExpensiveMeeting.cost?.toFixed(2)}
-          </AlertDescription>
-        </Alert>
+        <div className="flex items-start gap-3 p-3 rounded-lg border bg-card">
+          <div className="mt-0.5 text-blue-500">
+            <Info className="h-4 w-4" />
+          </div>
+          <div>
+            <p className="text-sm font-medium">Most Expensive Meeting</p>
+            <p className="text-xs text-muted-foreground">
+              {data.summary.mostExpensiveMeeting.title} - $
+              {data.summary.mostExpensiveMeeting.cost?.toFixed(2)}
+            </p>
+          </div>
+        </div>
       )}
     </div>
   );
 }
 
 interface Insight {
-  variant: 'default' | 'destructive' | 'warning';
+  variant: 'success' | 'warning' | 'danger';
   icon: React.ReactNode;
   title: string;
   description: string;
@@ -79,7 +80,7 @@ function generateInsights(data: any): Insight[] {
   // Convert API insights to UI insights
   for (const apiInsight of apiInsights) {
     insights.push({
-      variant: 'default',
+      variant: 'success',
       icon: <Info className="h-4 w-4" />,
       title: 'Meeting Cost Insight',
       description: apiInsight,
@@ -93,7 +94,7 @@ function generateInsights(data: any): Insight[] {
 
   if (totalCost > 10000) {
     insights.push({
-      variant: 'destructive',
+      variant: 'danger',
       icon: <AlertTriangle className="h-4 w-4" />,
       title: 'High Meeting Costs',
       description: `Total meeting costs of $${totalCost.toFixed(2)} indicate significant resource allocation.`,
@@ -107,8 +108,8 @@ function generateInsights(data: any): Insight[] {
     });
   } else if (totalCost > 0) {
     insights.push({
-      variant: 'default',
-      icon: <TrendingDown className="h-4 w-4" />,
+      variant: 'success',
+      icon: <CheckCircle className="h-4 w-4" />,
       title: 'Efficient Meeting Usage',
       description: `Meeting costs of $${totalCost.toFixed(2)} show good cost control.`,
     });
@@ -116,7 +117,7 @@ function generateInsights(data: any): Insight[] {
 
   if (totalHours > 40) {
     insights.push({
-      variant: 'destructive',
+      variant: 'danger',
       icon: <AlertTriangle className="h-4 w-4" />,
       title: 'Excessive Meeting Time',
       description: `${totalHours.toFixed(1)}h spent in meetings may impact deep work capacity.`,

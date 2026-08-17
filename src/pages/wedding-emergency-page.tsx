@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { Phone, Mail, Users, AlertTriangle, CheckCircle2, Plus, Trash2, Clock, Heart, Flame, Sparkles, X } from 'lucide-react';
+import { Phone, Mail, Users, AlertTriangle, CheckCircle2, Plus, Trash2, Clock, Heart, Flame, Sparkles, X, DollarSign } from 'lucide-react';
 import { apiFetch } from '@/lib/api-client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
+import { WeddingBudgetTracker } from '@/components/wedding-budget-tracker';
 
 type Wedding = {
   id: string;
@@ -262,6 +263,14 @@ export function WeddingEmergencyPage() {
           onClick={() => setActiveTab('checklist')}
         >
           Checklist
+        </Button>
+        <Button
+          variant={activeTab === 'budget' ? 'default' : 'ghost'}
+          size="sm"
+          onClick={() => setActiveTab('budget')}
+        >
+          <DollarSign className="h-4 w-4 mr-1" />
+          Budget
         </Button>
         <Button
           variant={activeTab === 'timeline' ? 'default' : 'ghost'}
@@ -522,6 +531,12 @@ export function WeddingEmergencyPage() {
               </CardContent>
             </Card>
           )}
+        </div>
+      )}
+
+      {activeTab === 'budget' && (
+        <div className="space-y-4">
+          <WeddingBudgetTracker weddingId={id!} weddingBudget={wedding?.budget || null} />
         </div>
       )}
 

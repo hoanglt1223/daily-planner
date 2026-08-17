@@ -505,6 +505,21 @@ export function TasksPage() {
     finally { setBulkBusy(false); }
   }
 
+  async function bulkSetCategory(categoryId: string) {
+    setBulkBusy(true);
+    const ids = [...selectedIds];
+    try {
+      await Promise.all(ids.map(id =>
+        apiFetch(`/api/tasks/${id}`, { method: 'PATCH', body: JSON.stringify({ categoryId: categoryId === 'none' ? null : categoryId }) })
+      ));
+      setTasks(prev => prev.map(t => ids.includes(t.id) ? { ...t, categoryId: categoryId === 'none' ? null : categoryId } : t));
+      const targetCategory = categoryId === 'none' ? 'uncategorized' : categories.find(c => c.id === categoryId)?.name || 'unknown';
+      toast.success(`${ids.length} task${ids.length > 1 ? 's' : ''} moved to ${targetCategory}`);
+      clearSelection();
+    } catch (e) { toast.error((e as Error).message); }
+    finally { setBulkBusy(false); }
+  }
+
   if (loading) {
     return (
       <div className="space-y-4">
@@ -967,6 +982,23 @@ export function TasksPage() {
               <SelectContent>
                 {Object.entries(PRIORITY_LABEL).map(([v, { label }]) => (
                   <SelectItem key={v} value={v}>{label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select onValueChange={v => bulkSetCategory(v)} disabled={bulkBusy}>
+              <SelectTrigger className="h-7 w-auto text-xs">
+                <Tag className="size-3 mr-1" />
+                <SelectValue placeholder="Set project..." />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Uncategorized</SelectItem>
+                {categories.map(c => (
+                  <SelectItem key={c.id} value={c.id}>
+                    <span className="flex items-center gap-1.5">
+                      <span className="size-2 rounded-full" style={{ backgroundColor: c.color }} />
+                      {c.name}
+                    </span>
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
