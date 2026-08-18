@@ -31,6 +31,7 @@ import { BudgetHealthAlert } from '@/components/dashboard/budget-health-alert';
 import { AchievementsBadge } from '@/components/achievements-badge';
 import { MusicPlayer } from '@/components/music-player';
 import { ActivityFeed } from '@/components/dashboard/activity-feed';
+import { DailyEnergyScheduler } from '@/components/dashboard/daily-energy-scheduler';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -150,6 +151,8 @@ export function DashboardPage() {
       )}
 
       <DailyTimeline />
+
+      <DailyEnergyScheduler />
 
       <ActivityFeed />
 
