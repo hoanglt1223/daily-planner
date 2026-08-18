@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Plus } from 'lucide-react';
+import { Plus, Sparkles, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { apiFetch } from '@/lib/api-client';
 import { cn } from '@/lib/utils';
+import { fetchSmartEstimate, getConfidenceColor, getConfidenceIcon } from '@/lib/time-estimator';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -27,11 +28,14 @@ export function QuickTaskDialog() {
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [dueDate, setDueDate] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [estimateLoading, setEstimateLoading] = useState(false);
+  const [smartEstimate, setSmartEstimate] = useState<{ estimate: number; confidence: string; message: string } | null>(null);
 
   // Fetch categories when dialog opens
   useEffect(() => {
     if (!open) return;
     apiFetch<Category[]>('/api/categories').then(setCategories).catch(() => {});
+    setSmartEstimate(null);
   }, [open]);
 
   // Listen for global shortcut event
@@ -47,7 +51,30 @@ export function QuickTaskDialog() {
     setPriority(3);
     setCategoryId(null);
     setDueDate('');
+    setSmartEstimate(null);
   }, []);
+
+  const loadSmartEstimate = useCallback(async () => {
+    setEstimateLoading(true);
+    try {
+      const estimate = await fetchSmartEstimate(categoryId, priority);
+      if (estimate.estimate) {
+        setMinutes(estimate.estimate);
+        setSmartEstimate({
+          estimate: estimate.estimate,
+          confidence: estimate.confidence,
+          message: estimate.message,
+        });
+        toast.success(estimate.message);
+      } else {
+        toast.info('Not enough data yet for smart estimates');
+      }
+    } catch (err) {
+      toast.error('Failed to load smart estimate');
+    } finally {
+      setEstimateLoading(false);
+    }
+  }, [categoryId, priority]);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -106,9 +133,43 @@ export function QuickTaskDialog() {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <Label htmlFor="qt-min">Est. minutes</Label>
-                  <Input id="qt-min" type="number" min={15} step={15}
-                    value={minutes} onChange={e => setMinutes(Number(e.target.value) || 60)} />
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="qt-min">Est. minutes</Label>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      className="h-6 px-2 text-xs"
+                      onClick={loadSmartEstimate}
+                      disabled={estimateLoading}
+                      title="Get smart estimate based on your historical data"
+                    >
+                      {estimateLoading ? (
+                        <Loader2 className="size-3 animate-spin" />
+                      ) : (
+                        <>
+                          <Sparkles className="size-3 mr-1" />
+                          Smart
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                  <div className="relative">
+                    <Input id="qt-min" type="number" min={15} step={15}
+                      value={minutes} onChange={e => setMinutes(Number(e.target.value) || 60)}
+                      className={cn(smartEstimate && 'pr-8')} />
+                    {smartEstimate && (
+                      <span className={cn(
+                        'absolute right-2 top-1/2 -translate-y-1/2 text-xs font-medium',
+                        getConfidenceColor(smartEstimate.confidence as any)
+                      )}>
+                        {getConfidenceIcon(smartEstimate.confidence as any)}
+                      </span>
+                    )}
+                  </div>
+                  {smartEstimate && (
+                    <p className="text-[10px] text-muted-foreground">{smartEstimate.message}</p>
+                  )}
                 </div>
                 <div className="space-y-1">
                   <Label id="qt-pri-label">Priority</Label>

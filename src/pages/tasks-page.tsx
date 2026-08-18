@@ -2,11 +2,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertTriangle, Archive, ArrowUpDown, CheckCircle2, CheckSquare, ChevronDown, ChevronRight,
   Clock, Copy, Edit3, FileSpreadsheet, Link2, ListChecks, Palette, Pencil, Pin, PinOff, PlayCircle, Plus, Search, Square, Tag, Trash2, X,
-  Zap, Sparkles, Filter, FilterX, SlidersHorizontal,
+  Zap, Sparkles, Filter, FilterX, SlidersHorizontal, Loader2,
 } from 'lucide-react';
 import { apiFetch } from '@/lib/api-client';
 import { parseQuickAdd } from '@/lib/parse-quick-add';
 import { useTasksKeyboardShortcuts } from '@/lib/use-tasks-keyboard-shortcuts';
+import { fetchSmartEstimate, getConfidenceColor, getConfidenceIcon } from '@/lib/time-estimator';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -1078,6 +1079,7 @@ export function TasksPage() {
               onDuplicate={() => duplicateTask(task)}
               onPin={() => updateTask(task.id, { isPinned: !task.isPinned })}
               onLabelClick={setLabelFilter}
+              onSmartSchedule={() => setShowSmartSchedule(task.id)}
             />
           ))}
         </div>
@@ -1153,12 +1155,13 @@ export function TasksPage() {
 
 /* ─── Task Row ─── */
 
-function TaskRow({ task, category, busy, selected, isHighlighted, isExpanded, onToggleSelect, onToggleExpand, onStatusChange, onEdit, onDelete, onDuplicate, onPin, onLabelClick }: {
+function TaskRow({ task, category, busy, selected, isHighlighted, isExpanded, onToggleSelect, onToggleExpand, onStatusChange, onEdit, onDelete, onDuplicate, onPin, onLabelClick, onSmartSchedule }: {
   task: Task; category?: Category; busy: boolean; selected: boolean;
   isHighlighted: boolean; isExpanded: boolean;
   onToggleSelect: () => void; onToggleExpand: () => void;
   onStatusChange: (s: TaskStatus) => void; onEdit: () => void; onDelete: () => void; onDuplicate: () => void; onPin: () => void;
   onLabelClick: (label: string) => void;
+  onSmartSchedule: () => void;
 }) {
   const prio = PRIORITY_LABEL[task.priority] ?? PRIORITY_LABEL[3];
   const meta = STATUS_META[task.status];
@@ -1357,7 +1360,7 @@ function TaskRow({ task, category, busy, selected, isHighlighted, isExpanded, on
               size="sm"
               variant="outline"
               className="h-7 text-xs mt-2"
-              onClick={() => setShowSmartSchedule(task.id)}
+              onClick={onSmartSchedule}
             >
               <Sparkles className="size-3 mr-1" />
               Smart Schedule
@@ -1421,12 +1424,37 @@ function NewTaskDialog({ open, onOpenChange, categories, projects, availableLabe
   const [reminderEnabled, setReminderEnabled] = useState(false);
   const [reminderMinutes, setReminderMinutes] = useState<number | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [estimateLoading, setEstimateLoading] = useState(false);
+  const [smartEstimate, setSmartEstimate] = useState<{ estimate: number; confidence: string; message: string } | null>(null);
+
+  const loadSmartEstimate = useCallback(async () => {
+    setEstimateLoading(true);
+    try {
+      const estimate = await fetchSmartEstimate(categoryId, priority);
+      if (estimate.estimate) {
+        setMinutes(estimate.estimate);
+        setSmartEstimate({
+          estimate: estimate.estimate,
+          confidence: estimate.confidence,
+          message: estimate.message,
+        });
+        toast.success(estimate.message);
+      } else {
+        toast.info('Not enough data yet for smart estimates');
+      }
+    } catch (err) {
+      toast.error('Failed to load smart estimate');
+    } finally {
+      setEstimateLoading(false);
+    }
+  }, [categoryId, priority]);
 
   function reset() {
     setTitle(''); setMinutes(60); setPriority(3); setCategoryId(null); setProjectId(null);
     setDueDate(''); setRepeatFreq('none'); setLabels([]);
     setBlockedByTaskIds([]);
     setReminderEnabled(false); setReminderMinutes(null);
+    setSmartEstimate(null);
   }
 
   async function submit(e: React.FormEvent) {
@@ -1472,9 +1500,43 @@ function NewTaskDialog({ open, onOpenChange, categories, projects, availableLabe
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
-                <Label htmlFor="nt-min">Est. minutes</Label>
-                <Input id="nt-min" type="number" min={15} step={15}
-                  value={minutes} onChange={e => setMinutes(Number(e.target.value) || 60)} />
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="nt-min">Est. minutes</Label>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    className="h-6 px-2 text-xs"
+                    onClick={loadSmartEstimate}
+                    disabled={estimateLoading}
+                    title="Get smart estimate based on your historical data"
+                  >
+                    {estimateLoading ? (
+                      <Loader2 className="size-3 animate-spin" />
+                    ) : (
+                      <>
+                        <Sparkles className="size-3 mr-1" />
+                        Smart
+                      </>
+                    )}
+                  </Button>
+                </div>
+                <div className="relative">
+                  <Input id="nt-min" type="number" min={15} step={15}
+                    value={minutes} onChange={e => setMinutes(Number(e.target.value) || 60)}
+                    className={cn(smartEstimate && 'pr-8')} />
+                  {smartEstimate && (
+                    <span className={cn(
+                      'absolute right-2 top-1/2 -translate-y-1/2 text-xs font-medium',
+                      getConfidenceColor(smartEstimate.confidence as any)
+                    )}>
+                      {getConfidenceIcon(smartEstimate.confidence as any)}
+                    </span>
+                  )}
+                </div>
+                {smartEstimate && (
+                  <p className="text-[10px] text-muted-foreground">{smartEstimate.message}</p>
+                )}
               </div>
               <div className="space-y-1">
                 <Label id="nt-pri-label">Priority</Label>
@@ -1618,6 +1680,30 @@ function EditTaskDialog({ task, categories, projects, availableLabels, onClose, 
   const [reminderMinutes, setReminderMinutes] = useState<number | null>(task.reminderMinutes ?? null);
   const [newSubtask, setNewSubtask] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [estimateLoading, setEstimateLoading] = useState(false);
+  const [smartEstimate, setSmartEstimate] = useState<{ estimate: number; confidence: string; message: string } | null>(null);
+
+  const loadSmartEstimate = useCallback(async () => {
+    setEstimateLoading(true);
+    try {
+      const estimate = await fetchSmartEstimate(categoryId, priority);
+      if (estimate.estimate) {
+        setMinutes(estimate.estimate);
+        setSmartEstimate({
+          estimate: estimate.estimate,
+          confidence: estimate.confidence,
+          message: estimate.message,
+        });
+        toast.success(estimate.message);
+      } else {
+        toast.info('Not enough data yet for smart estimates');
+      }
+    } catch (err) {
+      toast.error('Failed to load smart estimate');
+    } finally {
+      setEstimateLoading(false);
+    }
+  }, [categoryId, priority]);
 
   function addSubtask() {
     const t = newSubtask.trim();
@@ -1674,8 +1760,42 @@ function EditTaskDialog({ task, categories, projects, availableLabels, onClose, 
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
-                <Label htmlFor="et-min">Est. minutes</Label>
-                <Input id="et-min" type="number" min={15} step={15} value={minutes} onChange={e => setMinutes(Number(e.target.value) || 60)} />
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="et-min">Est. minutes</Label>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    className="h-6 px-2 text-xs"
+                    onClick={loadSmartEstimate}
+                    disabled={estimateLoading}
+                    title="Get smart estimate based on your historical data"
+                  >
+                    {estimateLoading ? (
+                      <Loader2 className="size-3 animate-spin" />
+                    ) : (
+                      <>
+                        <Sparkles className="size-3 mr-1" />
+                        Smart
+                      </>
+                    )}
+                  </Button>
+                </div>
+                <div className="relative">
+                  <Input id="et-min" type="number" min={15} step={15} value={minutes} onChange={e => setMinutes(Number(e.target.value) || 60)}
+                    className={cn(smartEstimate && 'pr-8')} />
+                  {smartEstimate && (
+                    <span className={cn(
+                      'absolute right-2 top-1/2 -translate-y-1/2 text-xs font-medium',
+                      getConfidenceColor(smartEstimate.confidence as any)
+                    )}>
+                      {getConfidenceIcon(smartEstimate.confidence as any)}
+                    </span>
+                  )}
+                </div>
+                {smartEstimate && (
+                  <p className="text-[10px] text-muted-foreground">{smartEstimate.message}</p>
+                )}
               </div>
               <div className="space-y-1">
                 <Label id="et-pri-label">Priority</Label>

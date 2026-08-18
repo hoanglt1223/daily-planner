@@ -1,7 +1,7 @@
 import type { VercelResponse } from '@vercel/node';
-import { and, eq, or, gte, lt, like, sql } from 'drizzle-orm';
+import { and, eq, or, gte, lt, like, sql, desc } from 'drizzle-orm';
 import { db } from '../server/lib/db/client.js';
-import { tasks, taskTemplates } from '../server/lib/db/schema.js';
+import { tasks, taskTemplates, timeBlocks } from '../server/lib/db/schema.js';
 import { requireAuth, type AuthedRequest } from '../server/lib/auth-middleware.js';
 
 // ─── Variable substitution helper ────────────────────────────────────────────
@@ -142,6 +142,62 @@ export default async function handler(req: AuthedRequest, res: VercelResponse) {
         and(eq(taskTemplates.id, id), eq(taskTemplates.userId, user.sub))
       );
       return res.status(204).end();
+    }
+
+    if (req.method === 'GET' && action === 'estimate' && !id) {
+      const categoryId = req.query.categoryId ? String(req.query.categoryId) : null;
+      const priority = req.query.priority ? Number(req.query.priority) : null;
+
+      const conds = [
+        eq(timeBlocks.userId, user.sub),
+        eq(timeBlocks.status, 'completed'),
+        sql`${timeBlocks.actualMinutes} IS NOT NULL`,
+        sql`${timeBlocks.actualMinutes} > 0`,
+      ];
+
+      if (categoryId) {
+        conds.push(eq(tasks.categoryId, categoryId));
+      }
+      if (priority) {
+        conds.push(eq(tasks.priority, priority));
+      }
+
+      const historicalData = await db.select({
+        actualMinutes: timeBlocks.actualMinutes,
+      })
+      .from(timeBlocks)
+      .innerJoin(tasks, eq(timeBlocks.taskId, tasks.id))
+      .where(and(...conds))
+      .limit(100);
+
+      if (historicalData.length === 0) {
+        return res.status(200).json({
+          estimate: null,
+          confidence: 'none',
+          sampleSize: 0,
+          message: 'No historical data available for similar tasks',
+        });
+      }
+
+      const values = historicalData.map(d => d.actualMinutes).sort((a, b) => a - b);
+      const median = values[Math.floor(values.length / 2)];
+      const sampleSize = values.length;
+
+      let confidence: 'low' | 'medium' | 'high';
+      if (sampleSize < 5) confidence = 'low';
+      else if (sampleSize < 15) confidence = 'medium';
+      else confidence = 'high';
+
+      return res.status(200).json({
+        estimate: median,
+        confidence,
+        sampleSize,
+        message: confidence === 'high'
+          ? `Based on ${sampleSize} similar tasks, you typically spend ${median} minutes`
+          : confidence === 'medium'
+          ? `Based on ${sampleSize} similar tasks, estimate ~${median} minutes`
+          : `Limited data (${sampleSize} tasks), suggest ${median} minutes`,
+      });
     }
 
     if (req.method === 'GET' && !id) {
