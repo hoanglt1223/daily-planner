@@ -29,6 +29,7 @@ import { DependencyGraph } from '@/components/tasks/dependency-graph';
 import { DependencyList } from '@/components/tasks/dependency-list';
 import { RecurringTaskPreview } from '@/components/recurring-task-preview';
 import { SmartScheduleRecommendations } from '@/components/smart-schedule-recommendations';
+import { TaskAgeIndicator } from '@/components/tasks/task-age-indicator';
 
 /* ─── Types ─── */
 
@@ -1258,6 +1259,7 @@ function TaskRow({ task, category, busy, selected, isHighlighted, isExpanded, on
                 {task.subtasks.filter(s => s.done).length}/{task.subtasks.length}
               </span>
             )}
+            <TaskAgeIndicator updatedAt={task.updatedAt} compact />
             {/* Label chips */}
             {(task.labels ?? []).map(l => (
               <button
