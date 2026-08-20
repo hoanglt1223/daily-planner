@@ -36,6 +36,7 @@ const EveningWinddownPage = lazy(() => import('@/pages/evening-winddown-page').t
 const WeddingEmergencyPage = lazy(() => import('@/pages/wedding-emergency-page').then(m => ({ default: m.WeddingEmergencyPage })));
 const WeddingsPage = lazy(() => import('@/pages/weddings-page').then(m => ({ default: m.WeddingsPage })));
 const MeetingCostsPage = lazy(() => import('@/pages/meeting-costs-page').then(m => ({ default: m.MeetingCostsPage })));
+const SearchPage = lazy(() => import('@/pages/search-page').then(m => ({ default: m.SearchPage })));
 
 /** Suspense wrapper for the standalone (non-AppLayout) routes. */
 function page(node: ReactNode): ReactNode {
@@ -80,6 +81,7 @@ export const router = createBrowserRouter([
       { path: '/weekly-review', element: <WeeklyReviewPage /> },
       { path: '/insights', element: <InsightsPage /> },
       { path: '/priority-matrix', element: <PriorityMatrixPage /> },
+      { path: '/search', element: <SearchPage /> },
       { path: '/settings', element: <SettingsPage /> },
       { path: '/manager', element: <ManagerPage /> },
       { path: '/admin', element: <AdminPage /> },
