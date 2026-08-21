@@ -1,6 +1,6 @@
 import { Suspense, useEffect, useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { BarChart3, CalendarDays, CheckCircle, Coffee, DollarSign, FolderOpen, LayoutDashboard, Lightbulb, ListTodo, Loader2, LogOut, Moon, Music, Search as SearchIcon, Settings, ShieldCheck, Sun, Target, Users, Gauge, Heart } from 'lucide-react';
+import { BarChart3, CalendarDays, CheckCircle, Coffee, DollarSign, FolderOpen, LayoutDashboard, Lightbulb, ListTodo, Loader2, LogOut, Moon, Music, Search as SearchIcon, Settings, ShieldCheck, Sun, Target, Users, Gauge, Heart, Bell } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { apiFetch, clearAuthToken, getAuthToken } from '@/lib/api-client';
 import { setActiveTimeZone } from '@/lib/time-utils';
@@ -44,6 +44,7 @@ const ICONS = {
   '/insights': Lightbulb,
   '/manager': Users,
   '/admin': ShieldCheck,
+  '/activity-feed': Bell,
 } as const;
 
 export function AppLayout() {
@@ -87,6 +88,7 @@ export function AppLayout() {
     { to: '/tasks', label: 'Tasks', show: true },
     { to: '/planner', label: 'Planner', show: true },
     { to: '/search', label: 'Search', show: true },
+    { to: '/activity-feed', label: 'Activity Feed', show: true },
     { to: '/workload', label: 'Workload', show: true },
     { to: '/projects', label: 'Projects', show: true },
     { to: '/music', label: 'Music', show: true },
