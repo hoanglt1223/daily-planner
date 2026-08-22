@@ -32,6 +32,7 @@ import { AchievementsBadge } from '@/components/achievements-badge';
 import { MusicPlayer } from '@/components/music-player';
 import { ActivityFeed } from '@/components/dashboard/activity-feed';
 import { DailyEnergyScheduler } from '@/components/dashboard/daily-energy-scheduler';
+import { ProjectPortfolioAnalytics } from '@/components/dashboard/project-portfolio-analytics';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -171,6 +172,7 @@ export function DashboardPage() {
         <div className="lg:col-span-2 space-y-4">
           {weekBlocks.length > 0 && <WeeklyChart blocks={weekBlocks} />}
           <TimeAllocation />
+          <ProjectPortfolioAnalytics />
           <StreakCalendar />
         </div>
         <div className="space-y-4">
