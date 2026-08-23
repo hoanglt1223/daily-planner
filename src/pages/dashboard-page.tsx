@@ -25,6 +25,7 @@ import { SmartPrioritization } from '@/components/dashboard/smart-prioritization
 import { EstimationAccuracy } from '@/components/dashboard/estimation-accuracy';
 import { MeetingCostAnalytics } from '@/components/dashboard/meeting-cost-analytics';
 import { VacationStatus } from '@/components/dashboard/vacation-status';
+import { BurnoutDetector } from '@/components/dashboard/burnout-detector';
 import { TaskVelocityDashboard } from '@/components/dashboard/task-velocity-dashboard';
 import { QuickTaskCreate } from '@/components/dashboard/quick-task-create';
 import { BudgetHealthAlert } from '@/components/dashboard/budget-health-alert';
@@ -184,6 +185,7 @@ export function DashboardPage() {
           <DailyReview />
           <EnergyPatterns />
           <VacationStatus />
+          <BurnoutDetector />
         </div>
       </div>
 

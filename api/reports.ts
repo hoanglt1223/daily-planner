@@ -74,6 +74,10 @@ export default async function handler(req: AuthedRequest, res: VercelResponse) {
       return await handleSmartSchedule(req, res, me);
     }
 
+    if (kind === 'burnout-risk') {
+      return await handleBurnoutRisk(req, res, me, from, to);
+    }
+
     return res.status(404).json({ error: 'unknown_kind' });
   } catch (e) {
     console.error(e);
@@ -1599,6 +1603,287 @@ async function handleActivities(
     to: to.toISOString(),
     total: formattedActivities.length,
   } satisfies ActivityResponse);
+}
+
+// ── Burnout Risk handler ───────────────────────────────────────────────────────────
+
+export type BurnoutRiskResponse = {
+  from: string;
+  to: string;
+  riskScore: number; // 0-100
+  riskLevel: 'low' | 'moderate' | 'high' | 'critical';
+  factors: {
+    workIntensity: {
+      score: number; // 0-100
+      avgDailyWorkHours: number;
+      maxDailyHours: number;
+      overtimeDays: number;
+    };
+    energyTrend: {
+      score: number; // 0-100
+      declining: boolean;
+      avgEnergyLevel: number;
+      recentEnergyAvg: number;
+      earlierEnergyAvg: number;
+    };
+    vacationBalance: {
+      score: number; // 0-100
+      daysUsed: number;
+      daysAvailable: number;
+      daysSinceBreak: number;
+      needsVacation: boolean;
+    };
+    workLifeBalance: {
+      score: number; // 0-100
+      weekendWork: number;
+      eveningWork: number;
+      lateNightWork: number;
+    };
+  };
+  insights: string[];
+  recommendations: string[];
+  earlyWarnings: string[];
+};
+
+async function handleBurnoutRisk(
+  req: AuthedRequest,
+  res: VercelResponse,
+  me: { sub: string },
+  from: Date,
+  to: Date,
+) {
+  // Fetch user data for vacation balance
+  const [user] = await db.select({
+    vacationDaysAvailable: users.vacationDaysAvailable,
+    vacationDaysUsed: users.vacationDaysUsed,
+    vacationAccrualLastReset: users.vacationAccrualLastReset,
+  }).from(users).where(eq(users.id, me.sub)).limit(1);
+
+  const vacationDaysAvailable = user?.vacationDaysAvailable || 20;
+  const vacationDaysUsed = user?.vacationDaysUsed || 0;
+
+  // Fetch time blocks for analysis (last 30 days minimum)
+  const analysisFrom = new Date(Math.min(from.getTime(), Date.now() - 30 * 24 * 60 * 60 * 1000));
+  const blocks = await db.select().from(timeBlocks).where(and(
+    eq(timeBlocks.userId, me.sub),
+    gte(timeBlocks.startAt, analysisFrom),
+    lte(timeBlocks.startAt, to),
+  ));
+
+  // Calculate work intensity metrics
+  const dailyWorkMinutes = new Map<string, number>();
+  const weekendWorkBlocks: typeof blocks = [];
+  const eveningWorkBlocks: typeof blocks = [];
+  const lateNightWorkBlocks: typeof blocks = [];
+
+  for (const block of blocks) {
+    const date = block.startAt;
+    const dateKey = date.toISOString().slice(0, 10);
+    const duration = Math.round((new Date(block.endAt).getTime() - new Date(block.startAt).getTime()) / 60000);
+
+    dailyWorkMinutes.set(dateKey, (dailyWorkMinutes.get(dateKey) || 0) + duration);
+
+    const dayOfWeek = date.getDay();
+    const hour = date.getHours();
+
+    // Track work-life balance violations
+    if (dayOfWeek === 0 || dayOfWeek === 6) {
+      weekendWorkBlocks.push(block);
+    }
+    if (hour >= 17 && hour < 21) {
+      eveningWorkBlocks.push(block);
+    }
+    if (hour >= 21 || hour < 6) {
+      lateNightWorkBlocks.push(block);
+    }
+  }
+
+  const dailyHours = Array.from(dailyWorkMinutes.values()).map(mins => mins / 60);
+  const avgDailyWorkHours = dailyHours.length > 0
+    ? dailyHours.reduce((a, b) => a + b, 0) / dailyHours.length
+    : 0;
+  const maxDailyHours = dailyHours.length > 0 ? Math.max(...dailyHours) : 0;
+  const overtimeDays = dailyHours.filter(h => h > 10).length;
+
+  // Work intensity score (0-100, higher = more intense)
+  let workIntensityScore = 0;
+  if (avgDailyWorkHours > 10) workIntensityScore += 40;
+  else if (avgDailyWorkHours > 8) workIntensityScore += 30;
+  else if (avgDailyWorkHours > 6) workIntensityScore += 20;
+
+  if (maxDailyHours > 12) workIntensityScore += 30;
+  else if (maxDailyHours > 10) workIntensityScore += 20;
+
+  if (overtimeDays > 5) workIntensityScore += 30;
+  else if (overtimeDays > 2) workIntensityScore += 15;
+
+  // Energy trend analysis
+  const blocksWithEnergy = blocks.filter(b => b.energyLevel && b.energyLevel > 0);
+  const midPoint = new Date(analysisFrom.getTime() + (to.getTime() - analysisFrom.getTime()) / 2);
+
+  const earlierEnergy = blocksWithEnergy.filter(b => new Date(b.startAt) < midPoint);
+  const recentEnergy = blocksWithEnergy.filter(b => new Date(b.startAt) >= midPoint);
+
+  const earlierEnergyAvg = earlierEnergy.length > 0
+    ? earlierEnergy.reduce((sum, b) => sum + (b.energyLevel || 0), 0) / earlierEnergy.length
+    : 0;
+  const recentEnergyAvg = recentEnergy.length > 0
+    ? recentEnergy.reduce((sum, b) => sum + (b.energyLevel || 0), 0) / recentEnergy.length
+    : 0;
+  const overallEnergyAvg = blocksWithEnergy.length > 0
+    ? blocksWithEnergy.reduce((sum, b) => sum + (b.energyLevel || 0), 0) / blocksWithEnergy.length
+    : 0;
+
+  const energyDeclining = recentEnergyAvg < earlierEnergyAvg && (earlierEnergyAvg - recentEnergyAvg) > 0.5;
+
+  let energyTrendScore = 0;
+  if (energyDeclining) {
+    const declineSeverity = (earlierEnergyAvg - recentEnergyAvg) / earlierEnergyAvg;
+    energyTrendScore = Math.min(100, declineSeverity * 100);
+  }
+  if (overallEnergyAvg < 2.5) energyTrendScore = Math.max(energyTrendScore, 60);
+  else if (overallEnergyAvg < 3) energyTrendScore = Math.max(energyTrendScore, 30);
+
+  // Vacation balance analysis
+  const vacationUsageRate = vacationDaysUsed / (vacationDaysUsed + vacationDaysAvailable);
+  const lastVacationReset = user?.vacationAccrualLastReset ? new Date(user.vacationAccrualLastReset) : new Date();
+  const daysSinceLastReset = Math.floor((Date.now() - lastVacationReset.getTime()) / (1000 * 60 * 60 * 24));
+  const daysSinceBreak = daysSinceLastReset; // Approximation
+
+  let vacationBalanceScore = 0;
+  if (vacationUsageRate > 0.8) vacationBalanceScore += 40;
+  else if (vacationUsageRate > 0.6) vacationBalanceScore += 30;
+  else if (vacationUsageRate > 0.4) vacationBalanceScore += 15;
+
+  if (daysSinceBreak > 90) vacationBalanceScore += 40;
+  else if (daysSinceBreak > 60) vacationBalanceScore += 25;
+  else if (daysSinceBreak > 30) vacationBalanceScore += 10;
+
+  const needsVacation = daysSinceBreak > 60 || vacationUsageRate > 0.7;
+
+  // Work-life balance score
+  const totalWeekendWork = weekendWorkBlocks.length;
+  const totalEveningWork = eveningWorkBlocks.length;
+  const totalLateNightWork = lateNightWorkBlocks.length;
+
+  let workLifeBalanceScore = 0;
+  if (totalWeekendWork > 4) workLifeBalanceScore += 35;
+  else if (totalWeekendWork > 2) workLifeBalanceScore += 20;
+
+  if (totalEveningWork > 8) workLifeBalanceScore += 30;
+  else if (totalEveningWork > 4) workLifeBalanceScore += 15;
+
+  if (totalLateNightWork > 3) workLifeBalanceScore += 35;
+  else if (totalLateNightWork > 1) workLifeBalanceScore += 15;
+
+  // Calculate overall burnout risk score
+  const riskScore = Math.round(
+    (workIntensityScore * 0.35 +
+     energyTrendScore * 0.30 +
+     vacationBalanceScore * 0.20 +
+     workLifeBalanceScore * 0.15)
+  );
+
+  // Determine risk level
+  let riskLevel: 'low' | 'moderate' | 'high' | 'critical';
+  if (riskScore >= 75) riskLevel = 'critical';
+  else if (riskScore >= 50) riskLevel = 'high';
+  else if (riskScore >= 25) riskLevel = 'moderate';
+  else riskLevel = 'low';
+
+  // Generate insights
+  const insights: string[] = [];
+  if (avgDailyWorkHours > 10) {
+    insights.push(`You're averaging ${avgDailyWorkHours.toFixed(1)}h per day. Consider reducing workload.`);
+  }
+  if (energyDeclining) {
+    insights.push('Your energy levels are declining over time. This is a common early burnout sign.');
+  }
+  if (totalWeekendWork > 2) {
+    insights.push(`Working ${totalWeekendWork} weekends. Protect personal time for recovery.`);
+  }
+  if (needsVacation) {
+    insights.push(`It's been ${daysSinceBreak} days since your last extended break. Plan time off.`);
+  }
+  if (overallEnergyAvg < 3 && blocksWithEnergy.length > 5) {
+    insights.push('Your average energy is low. Prioritize rest and recovery activities.');
+  }
+
+  // Generate recommendations
+  const recommendations: string[] = [];
+  if (riskScore >= 50) {
+    recommendations.push('Schedule a vacation or long weekend within the next 2 weeks.');
+    recommendations.push('Reduce daily work hours to under 8h for the next week.');
+  }
+  if (totalWeekendWork > 0) {
+    recommendations.push('Set strict boundaries: no weekend work for the next month.');
+  }
+  if (totalEveningWork > 4) {
+    recommendations.push('Limit evening work to emergencies only during weekdays.');
+  }
+  if (energyDeclining) {
+    recommendations.push('Add short breaks between work blocks (5-10 min every hour).');
+    recommendations.push('Consider starting work later when your energy is naturally higher.');
+  }
+  if (vacationDaysAvailable > 5) {
+    recommendations.push(`You have ${vacationDaysAvailable} vacation days available. Use them proactively.`);
+  }
+
+  // Early warnings
+  const earlyWarnings: string[] = [];
+  if (workIntensityScore > 60) {
+    earlyWarnings.push('CRITICAL: Work intensity is unsustainable long-term.');
+  }
+  if (energyTrendScore > 50) {
+    earlyWarnings.push('WARNING: Energy levels declining significantly.');
+  }
+  if (vacationBalanceScore > 50 && daysSinceBreak > 60) {
+    earlyWarnings.push('ALERT: Overdue for extended time off.');
+  }
+  if (workLifeBalanceScore > 60) {
+    earlyWarnings.push('CAUTION: Poor work-life balance detected.');
+  }
+  if (maxDailyHours > 14) {
+    earlyWarnings.push('DANGER: Excessive daily work hours recorded.');
+  }
+
+  return res.status(200).json({
+    from: analysisFrom.toISOString(),
+    to: to.toISOString(),
+    riskScore,
+    riskLevel,
+    factors: {
+      workIntensity: {
+        score: workIntensityScore,
+        avgDailyWorkHours: Math.round(avgDailyWorkHours * 10) / 10,
+        maxDailyHours: Math.round(maxDailyHours * 10) / 10,
+        overtimeDays,
+      },
+      energyTrend: {
+        score: energyTrendScore,
+        declining: energyDeclining,
+        avgEnergyLevel: Math.round(overallEnergyAvg * 10) / 10,
+        recentEnergyAvg: Math.round(recentEnergyAvg * 10) / 10,
+        earlierEnergyAvg: Math.round(earlierEnergyAvg * 10) / 10,
+      },
+      vacationBalance: {
+        score: vacationBalanceScore,
+        daysUsed: vacationDaysUsed,
+        daysAvailable: vacationDaysAvailable,
+        daysSinceBreak,
+        needsVacation,
+      },
+      workLifeBalance: {
+        score: workLifeBalanceScore,
+        weekendWork: totalWeekendWork,
+        eveningWork: totalEveningWork,
+        lateNightWork: totalLateNightWork,
+      },
+    },
+    insights,
+    recommendations,
+    earlyWarnings,
+  } satisfies BurnoutRiskResponse);
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
