@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Sparkles, Clock, Calendar, CheckCircle, Timer } from 'lucide-react';
 import { useQuickCaptureContext } from '@/components/quick-capture-provider';
+import { TemplateSelector } from '@/components/template-selector';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -11,13 +12,36 @@ import { toast } from 'sonner';
 
 type CaptureType = 'task' | 'habit';
 
+interface Template {
+  id: string;
+  name: string;
+  description: string | null;
+  defaultCategoryId: string | null;
+  defaultTitle: string;
+  defaultDescription: string | null;
+  defaultEstimatedMinutes: number;
+  defaultPriority: number;
+  defaultStatus: string;
+  defaultLabels: string[];
+  defaultSubtasks: Array<{ id: string; title: string; done: boolean }>;
+  defaultRecurringRule: {
+    freq: 'daily' | 'weekly' | 'monthly';
+    byDay?: string[];
+    interval?: number;
+    until?: string;
+    defaultTime?: string;
+    defaultDurationMinutes?: number;
+  } | null;
+}
+
 export function QuickCaptureDialog() {
   const { isOpen, close } = useQuickCaptureContext();
   const [input, setInput] = useState('');
   const [type, setType] = useState<CaptureType>('task');
   const [submitting, setSubmitting] = useState(false);
+  const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null);
 
-  const parsed = parseQuickAdd(input);
+  const parsed = parseQuickAdd(selectedTemplate?.defaultTitle ? `${selectedTemplate.defaultTitle} ${input}`.trim() : input);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -30,12 +54,15 @@ export function QuickCaptureDialog() {
           method: 'POST',
           body: JSON.stringify({
             title: parsed.title || input,
-            description: null,
-            status: 'todo',
-            priority: parsed.priority || 3,
-            estimatedMinutes: parsed.durationMinutes || 30,
+            description: selectedTemplate?.defaultDescription || null,
+            status: selectedTemplate?.defaultStatus || 'todo',
+            priority: parsed.priority || selectedTemplate?.defaultPriority || 3,
+            estimatedMinutes: parsed.durationMinutes || selectedTemplate?.defaultEstimatedMinutes || 30,
             dueDate: parsed.dueDate || null,
-            categoryId: null,
+            categoryId: selectedTemplate?.defaultCategoryId || null,
+            labels: selectedTemplate?.defaultLabels || [],
+            subtasks: selectedTemplate?.defaultSubtasks || [],
+            recurringRule: selectedTemplate?.defaultRecurringRule || null,
           }),
         });
         toast.success('Task captured');
@@ -55,6 +82,7 @@ export function QuickCaptureDialog() {
         toast.success('Habit captured');
       }
       setInput('');
+      setSelectedTemplate(null);
       close();
     } catch (err) {
       toast.error((err as Error).message);
@@ -80,6 +108,29 @@ export function QuickCaptureDialog() {
             <Sparkles className="size-5 text-primary" />
             <h2 className="text-lg font-semibold">Quick Capture</h2>
           </div>
+
+          {type === 'task' && (
+            <div className="flex items-center gap-2">
+              <TemplateSelector
+                onSelect={(template) => {
+                  setSelectedTemplate(template);
+                  setInput('');
+                }}
+              />
+              {selectedTemplate && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setSelectedTemplate(null)}
+                  className="h-7 px-2"
+                >
+                  <span className="text-xs">{selectedTemplate.name}</span>
+                  <span className="ml-1 text-muted-foreground">×</span>
+                </Button>
+              )}
+            </div>
+          )}
 
           <div className="flex gap-2">
             <Button

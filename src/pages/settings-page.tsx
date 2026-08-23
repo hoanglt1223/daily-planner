@@ -17,6 +17,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { toast } from 'sonner';
 import { EventTypeForm } from '@/components/booking/event-type-form';
 import { AvailabilityEditor } from '@/components/booking/availability-editor';
+import { TaskTemplatesManager } from '@/components/task-templates-manager';
 import {
   listEventTypes, deleteEventType, updateBookingSettings,
   type BookingEventType,
@@ -138,6 +139,7 @@ export function SettingsPage() {
       <PrivacySection profile={profile} onUpdated={setProfile} />
       <ShareLinkSection profile={profile} onUpdated={setProfile} />
       <BookingSection profile={profile} onUpdated={setProfile} />
+      <TaskTemplatesManager />
       <PasswordSection />
     </div>
   );
