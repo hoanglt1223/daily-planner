@@ -26,7 +26,7 @@ export interface VelocityStats {
 /**
  * Group tasks by date period
  */
-function groupByPeriod(tasks: Task[], timeBlocks: TimeBlock[], period: 'day' | 'week' | 'month'): Map<string, { completed: number; created: number }> {
+function groupByPeriod(tasks: any[], timeBlocks: any[], period: 'day' | 'week' | 'month'): Map<string, { completed: number; created: number }> {
   const grouped = new Map<string, { completed: number; created: number }>();
 
   tasks.forEach(task => {
@@ -53,7 +53,7 @@ function groupByPeriod(tasks: Task[], timeBlocks: TimeBlock[], period: 'day' | '
   // Count completed tasks based on time blocks with 'completed' status
   timeBlocks.forEach(block => {
     if (block.status === 'completed' && block.taskId) {
-      const date = new Date(block.updatedAt || block.createdAt);
+      const date = new Date(block.createdAt);
       let key: string;
 
       if (period === 'day') {
@@ -216,11 +216,12 @@ export function calculateVelocityStats(tasks: Task[], timeBlocks: TimeBlock[]): 
 /**
  * Format period key for display
  */
-export function formatPeriodKey(key: string, period: 'day' | 'week' | 'month'): string {
-  if (period === 'day') {
+export function formatPeriodKey(key: string, period: 'day' | 'week' | 'month' | 'daily' | 'weekly' | 'monthly'): string {
+  const normalizedPeriod = period === 'daily' ? 'day' : period === 'weekly' ? 'week' : period === 'monthly' ? 'month' : period;
+  if (normalizedPeriod === 'day') {
     const date = new Date(key);
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-  } else if (period === 'week') {
+  } else if (normalizedPeriod === 'week') {
     const [year, week] = key.split('-W');
     return `W${week} ${year}`;
   } else {
