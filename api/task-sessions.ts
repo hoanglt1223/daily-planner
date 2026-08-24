@@ -80,7 +80,7 @@ export default async function handler(req: AuthedRequest, res: VercelResponse) {
 
       const taskAnalytics = Array.from(taskAccuracy.entries()).map(([taskId, data]) => ({
         taskId,
-        taskTitle: sessions.find(s => s.taskId === taskId)?.task?.title ?? 'Unknown',
+        taskTitle: sessions.find(s => s.taskId === taskId && s.task)?.task?.title ?? 'Unknown',
         plannedMinutes: data.planned,
         actualMinutes: data.actual,
         sessionCount: data.count,
@@ -156,7 +156,7 @@ export default async function handler(req: AuthedRequest, res: VercelResponse) {
       const updated = await db.update(taskSessions)
         .set({
           status: 'abandoned',
-          completedAt: new Date().toISOString(),
+          completedAt: new Date(),
           actualMinutes: 0,
         })
         .where(eq(taskSessions.id, sessionId))

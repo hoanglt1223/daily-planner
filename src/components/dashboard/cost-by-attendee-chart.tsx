@@ -65,7 +65,7 @@ export function CostByAttendeeChart({ from, to }: CostByAttendeeChartProps) {
         />
         <YAxis tick={{ fontSize: 12 }} />
         <Tooltip
-          formatter={(value: ValueType | undefined, name?: NameType) => [
+          formatter={(value: any, name?: any) => [
             name === 'totalCost' ? `$${Number(value || 0).toFixed(2)}` : value,
             name === 'totalCost' ? 'Total Cost' : 'Meetings'
           ]}

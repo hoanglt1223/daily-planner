@@ -49,7 +49,7 @@ export function CostOverTimeChart({ from, to }: CostOverTimeChartProps) {
         />
         <YAxis tick={{ fontSize: 12 }} />
         <Tooltip
-          formatter={(value: number | undefined) => [`$${(value || 0).toFixed(2)}`, 'Daily Cost']}
+          formatter={(value: any) => [`$${(value || 0).toFixed(2)}`, 'Daily Cost']}
           labelFormatter={(label: React.ReactNode) => `Date: ${label}`}
         />
         <Line

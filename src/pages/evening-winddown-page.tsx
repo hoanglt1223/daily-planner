@@ -132,36 +132,32 @@ export function EveningWinddownPage() {
       const todayStart = startOfDay(new Date()).toISOString();
       const todayEnd = endOfDay(new Date()).toISOString();
 
-      const [blocksRes, tasksRes, tomorrowRes, notesRes] = await Promise.all([
-        apiFetch(`/time-blocks?from=${todayStart}&to=${todayEnd}`),
-        apiFetch('/tasks'),
-        apiFetch(`/tasks?dueDate=${tomorrow}`),
-        apiFetch(`/daily-notes?date=${today}`),
+      const [blocksData, tasksData, tomorrowData, notesData] = await Promise.all([
+        apiFetch<Block[]>(`/time-blocks?from=${todayStart}&to=${todayEnd}`),
+        apiFetch<Task[]>('/tasks'),
+        apiFetch<Task[]>(`/tasks?dueDate=${tomorrow}`),
+        apiFetch<DailyNote>(`/daily-notes?date=${today}`),
       ]);
 
-      if (blocksRes.ok) {
-        const data = await blocksRes.json() as Block[];
-        setBlocks(data.filter((b: Block) => b.status === 'completed' || b.actualMinutes));
+      if (blocksData) {
+        setBlocks(blocksData.filter((b: Block) => b.status === 'completed' || b.actualMinutes));
       }
 
-      if (tasksRes.ok) {
-        const data = await tasksRes.json() as Task[];
-        setTasks(data.filter((t: Task) => t.status === 'done'));
+      if (tasksData) {
+        setTasks(tasksData.filter((t: Task) => t.status === 'done'));
       }
 
-      if (tomorrowRes.ok) {
-        const data = await tomorrowRes.json() as Task[];
-        setTomorrowTasks(data.filter((t: Task) =>
+      if (tomorrowData) {
+        setTomorrowTasks(tomorrowData.filter((t: Task) =>
           ['todo', 'doing'].includes(t.status) && t.dueDate === tomorrow
         ).slice(0, 3));
       }
 
-      if (notesRes.ok) {
-        const data = await notesRes.json() as DailyNote;
-        setDailyNote(data);
-        if (data.reflectionData) {
-          setSelectedMood(data.reflectionData.mood || '');
-          setWentWell(data.reflectionData.wentWell || '');
+      if (notesData) {
+        setDailyNote(notesData);
+        if (notesData.reflectionData) {
+          setSelectedMood(notesData.reflectionData.mood || '');
+          setWentWell(notesData.reflectionData.wentWell || '');
           setToImprove(data.reflectionData.toImprove || '');
           setTomorrowPriorities(data.reflectionData.tomorrowPriorities || '');
         }
@@ -187,7 +183,7 @@ export function EveningWinddownPage() {
         tomorrowPriorities,
       };
 
-      const res = await apiFetch('/daily-notes', {
+      await apiFetch('/daily-notes', {
         method: 'PUT',
         body: JSON.stringify({
           date: today,
@@ -196,10 +192,8 @@ export function EveningWinddownPage() {
         }),
       });
 
-      if (res.ok) {
-        toast.success('Evening reflection saved');
-        setCompleted(true);
-      }
+      toast.success('Evening reflection saved');
+      setCompleted(true);
     } catch (e) {
       console.error(e);
       toast.error('Failed to save reflection');

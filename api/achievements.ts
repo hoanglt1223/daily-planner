@@ -33,7 +33,7 @@ export default async function handler(req: AuthedRequest, res: VercelResponse) {
 
     // POST /api/achievements?action=check
     if (req.method === 'POST' && action === 'check') {
-      const unlocked = await checkAndUnlockAchievements(user.id);
+      const unlocked = await checkAndUnlockAchievements(user.sub);
       res.json({ unlocked });
       return;
     }
@@ -41,7 +41,7 @@ export default async function handler(req: AuthedRequest, res: VercelResponse) {
     // GET /api/achievements?action=progress
     if (req.method === 'GET' && action === 'progress') {
       const allAchievements = await db.query.achievements.findMany();
-      const userProgress = await calculateAllProgress(user.id, allAchievements);
+      const userProgress = await calculateAllProgress(user.sub, allAchievements);
       res.json(userProgress);
       return;
     }
@@ -56,10 +56,10 @@ export default async function handler(req: AuthedRequest, res: VercelResponse) {
         .select({ total: sql<number>`sum(${achievements.points})` })
         .from(achievements)
         .innerJoin(userAchievements, eq(userAchievements.achievementId, achievements.id))
-        .where(eq(userAchievements.userId, user.id));
+        .where(eq(userAchievements.userId, user.sub));
 
       const recent = await db.query.userAchievements.findMany({
-        where: eq(userAchievements.userId, user.id),
+        where: eq(userAchievements.userId, user.sub),
         with: {
           achievement: true,
         },
@@ -70,10 +70,10 @@ export default async function handler(req: AuthedRequest, res: VercelResponse) {
       res.json({
         totalUnlocked: userUnlocked.length,
         totalPoints: totalPoints[0]?.total || 0,
-        recent: recent.map(ua => ({
-          ...(ua.achievement ?? {}),
+        recent: recent.map(ua => ua.achievement ? {
+          ...ua.achievement,
           unlockedAt: ua.unlockedAt,
-        })),
+        } : null),
       });
       return;
     }
