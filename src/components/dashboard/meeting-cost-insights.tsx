@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Card, CardContent } from '@/components/ui/card';
-import { TrendingUp, TrendingDown, AlertTriangle, Info, CheckCircle } from 'lucide-react';
+import { TrendingUp, AlertTriangle, Info, CheckCircle } from 'lucide-react';
 
 interface MeetingCostInsightsProps {
   from: Date;

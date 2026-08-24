@@ -42,6 +42,12 @@ export function startOfDay(date: Date, tz: string = getActiveTimeZone()): Date {
   return fromZonedTime(`${dateIso}T00:00:00`, tz);
 }
 
+/** End of day (23:59:59.999) of the given date, interpreted in `tz`. */
+export function endOfDay(date: Date, tz: string = getActiveTimeZone()): Date {
+  const dateIso = formatInTimeZone(date, tz, 'yyyy-MM-dd');
+  return fromZonedTime(`${dateIso}T23:59:59.999`, tz);
+}
+
 /** Monday 00:00 of the week containing the given date, in `tz`. */
 export function startOfWeek(date: Date, tz: string = getActiveTimeZone()): Date {
   // Get the day-of-week as it reads in tz, without relying on Date setters.

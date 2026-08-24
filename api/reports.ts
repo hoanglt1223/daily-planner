@@ -1541,8 +1541,8 @@ async function handleActivities(
 
   // Build where conditions
   const conditions = [
-    gte(activityLog.createdAt, from.toISOString()),
-    lte(activityLog.createdAt, to.toISOString()),
+    gte(activityLog.createdAt, from),
+    lte(activityLog.createdAt, to),
   ];
 
   // Filter by action type if specified
@@ -1589,7 +1589,7 @@ async function handleActivities(
     entityType: activity.entityType,
     entityId: activity.entityId,
     metadata: activity.metadata,
-    createdAt: activity.createdAt,
+    createdAt: activity.createdAt.toISOString(),
     user: activity.userName ? {
       id: activity.userId,
       name: activity.userName,

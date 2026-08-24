@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { apiFetch } from '@/lib/api-client';
 import { formatDistanceToNow } from 'date-fns';
 import { Bell, CheckCircle2, Calendar, DollarSign, Trophy, Target, User, Settings, Clock, Coffee, Moon, Music, Heart, Briefcase, AlertCircle, Info, Sparkles } from 'lucide-react';
-import type { LucideIcon } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
@@ -45,19 +44,6 @@ const ACTION_CONFIG: Record<string, { icon: any; color: string; label: string }>
   'wedding_planned': { icon: Heart, color: 'text-pink-500', label: 'Wedding Planned' },
   'user_updated': { icon: User, color: 'text-blue-500', label: 'Profile Updated' },
   'meeting_logged': { icon: DollarSign, color: 'text-green-500', label: 'Meeting Logged' },
-};
-
-const ENTITY_ICONS: Record<string, LucideIcon> = {
-  'task': CheckCircle2,
-  'booking': Calendar,
-  'achievement': Trophy,
-  'goal': Target,
-  'habit': CheckCircle2,
-  'time_block': Clock,
-  'project': Briefcase,
-  'user': User,
-  'music_playlist': Music,
-  'wedding': Heart,
 };
 
 function groupActivitiesByDate(activities: ActivityLog[]): Record<string, ActivityLog[]> {

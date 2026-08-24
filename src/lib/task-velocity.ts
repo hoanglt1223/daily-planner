@@ -1,4 +1,4 @@
-import { Task, TimeBlock } from '@/server/lib/db/schema';
+import type { Task, TimeBlock } from '../../server/lib/db/schema';
 
 export interface VelocityData {
   date: string;

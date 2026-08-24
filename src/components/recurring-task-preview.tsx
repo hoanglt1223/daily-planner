@@ -3,7 +3,7 @@ import { Calendar, Clock, Info, TrendingUp } from 'lucide-react';
 import { format, isToday, isTomorrow, isSameDay, addDays } from 'date-fns';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { generateRecurringPreview, getRecurringPatternDescription, type RecurringRule, type PreviewInstance } from '@/lib/recurring-preview-utils';
+import { generateRecurringPreview, getRecurringPatternDescription, type RecurringRule } from '@/lib/recurring-preview-utils';
 import { cn } from '@/lib/utils';
 
 interface RecurringTaskPreviewProps {

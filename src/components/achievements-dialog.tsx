@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Trophy, Flame, CheckCircle2, Award, Zap, Star } from 'lucide-react';
+import { Trophy, CheckCircle2, Award } from 'lucide-react';
 import { apiFetch } from '@/lib/api-client';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';

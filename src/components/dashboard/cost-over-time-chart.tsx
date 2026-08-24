@@ -36,7 +36,7 @@ export function CostOverTimeChart({ from, to }: CostOverTimeChartProps) {
       date: new Date(period.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
       cost: period.totalCost || 0,
     }))
-    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    .sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
   return (
     <ResponsiveContainer width="100%" height={300}>
@@ -49,8 +49,8 @@ export function CostOverTimeChart({ from, to }: CostOverTimeChartProps) {
         />
         <YAxis tick={{ fontSize: 12 }} />
         <Tooltip
-          formatter={(value: number) => [`$${value.toFixed(2)}`, 'Daily Cost']}
-          labelFormatter={(label: string) => `Date: ${label}`}
+          formatter={(value: number | undefined) => [`$${(value || 0).toFixed(2)}`, 'Daily Cost']}
+          labelFormatter={(label: React.ReactNode) => `Date: ${label}`}
         />
         <Line
           type="monotone"

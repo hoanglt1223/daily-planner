@@ -13,24 +13,19 @@ export function TaskAgeIndicator({ updatedAt, compact = false }: TaskAgeIndicato
   const now = new Date();
   const daysSinceUpdate = Math.floor((now.getTime() - updatedDate.getTime()) / (1000 * 60 * 60 * 24));
 
-  let ageTier: 'fresh' | 'recent' | 'aging' | 'stale';
   let label: string;
   let colorClass: string;
 
   if (daysSinceUpdate < 2) {
-    ageTier = 'fresh';
     label = 'Updated recently';
     colorClass = 'text-emerald-600 bg-emerald-50 border-emerald-200';
   } else if (daysSinceUpdate < 7) {
-    ageTier = 'recent';
     label = `Updated ${formatDistanceToNow(updatedDate, { addSuffix: true })}`;
     colorClass = 'text-sky-600 bg-sky-50 border-sky-200';
   } else if (daysSinceUpdate < 14) {
-    ageTier = 'aging';
     label = `Updated ${formatDistanceToNow(updatedDate, { addSuffix: true })}`;
     colorClass = 'text-amber-600 bg-amber-50 border-amber-200';
   } else {
-    ageTier = 'stale';
     label = `Updated ${formatDistanceToNow(updatedDate, { addSuffix: true })}`;
     colorClass = 'text-red-600 bg-red-50 border-red-200';
   }

@@ -1,6 +1,7 @@
 import { db } from './db/client.js';
 import { activityLog } from './db/schema.js';
 import type { ActivityLog } from './db/schema.js';
+import { lt } from 'drizzle-orm';
 
 export type ActivityAction =
   | 'task_created'
@@ -156,7 +157,7 @@ export async function cleanupOldActivities(daysToKeep: number = 90): Promise<num
   try {
     const result = await db
       .delete(activityLog)
-      .where((log) => log.createdAt.lt(cutoffDate));
+      .where(lt(activityLog.createdAt, cutoffDate));
 
     return result.rowCount || 0;
   } catch (error) {

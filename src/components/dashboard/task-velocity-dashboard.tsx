@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { apiFetch } from '@/lib/api-client';
-import { calculateVelocityStats, formatPeriodKey, type VelocityStats } from '@/lib/task-velocity';
+import { calculateVelocityStats, formatPeriodKey } from '@/lib/task-velocity';
 
 interface Task {
   id: string;
@@ -23,10 +23,10 @@ interface TimeBlock {
   updatedAt: string;
 }
 
-type ViewPeriod = 'daily' | 'weekly' | 'monthly';
+type ViewPeriod = 'day' | 'week' | 'month';
 
 export function TaskVelocityDashboard() {
-  const [viewPeriod, setViewPeriod] = useState<ViewPeriod>('daily');
+  const [viewPeriod, setViewPeriod] = useState<ViewPeriod>('day');
   const [tasks, setTasks] = useState<Task[]>([]);
   const [timeBlocks, setTimeBlocks] = useState<TimeBlock[]>([]);
   const [loading, setLoading] = useState(true);
@@ -56,7 +56,7 @@ export function TaskVelocityDashboard() {
   }, []);
 
   const stats = useMemo(() => {
-    return calculateVelocityStats(tasks, timeBlocks);
+    return calculateVelocityStats(tasks as Task[], timeBlocks as TimeBlock[]);
   }, [tasks, timeBlocks]);
 
   const currentData = stats[viewPeriod === 'daily' ? 'daily' : viewPeriod === 'weekly' ? 'weekly' : 'monthly'];
@@ -211,7 +211,7 @@ export function TaskVelocityDashboard() {
               {stats.bestDay ? stats.bestDay.completed : 0}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
-              {stats.bestDay ? formatPeriodKey(stats.bestDay.date, 'daily') : 'No data'}
+              {stats.bestDay ? formatPeriodKey(stats.bestDay.date, 'day') : 'No data'}
             </p>
           </CardContent>
         </Card>
@@ -226,7 +226,7 @@ export function TaskVelocityDashboard() {
               <Button
                 size="sm"
                 variant={viewPeriod === 'daily' ? 'default' : 'outline'}
-                onClick={() => setViewPeriod('daily')}
+                onClick={() => setViewPeriod('day')}
               >
                 Daily
               </Button>

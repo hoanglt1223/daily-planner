@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip, Legend, Cell } from 'recharts';
 
+type ValueType = number | string;
+type NameType = string;
+
 interface CostByAttendeeChartProps {
   from: Date;
   to: Date;
@@ -62,11 +65,11 @@ export function CostByAttendeeChart({ from, to }: CostByAttendeeChartProps) {
         />
         <YAxis tick={{ fontSize: 12 }} />
         <Tooltip
-          formatter={(value: number, name: string) => [
-            name === 'totalCost' ? `$${value.toFixed(2)}` : value,
+          formatter={(value: ValueType | undefined, name?: NameType) => [
+            name === 'totalCost' ? `$${Number(value || 0).toFixed(2)}` : value,
             name === 'totalCost' ? 'Total Cost' : 'Meetings'
           ]}
-          labelFormatter={(label: string) => `Type: ${label}`}
+          labelFormatter={(label: React.ReactNode) => `Type: ${label}`}
         />
         <Legend />
         <Bar dataKey="totalCost" name="Total Cost" radius={[4, 4, 0, 0]}>

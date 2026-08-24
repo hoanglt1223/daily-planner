@@ -16,7 +16,7 @@ export default async function handler(req: AuthedRequest, res: VercelResponse) {
     if (req.method === 'GET' && action === 'list') {
       const sessions = await db.query.taskSessions.findMany({
         where: and(
-          eq(taskSessions.userId, user.id),
+          eq(taskSessions.userId, user.sub),
           taskId ? eq(taskSessions.taskId, taskId as string) : undefined,
           from ? gte(taskSessions.startedAt, new Date(from as string)) : undefined,
           to ? lte(taskSessions.startedAt, new Date(to as string)) : undefined,
@@ -44,7 +44,7 @@ export default async function handler(req: AuthedRequest, res: VercelResponse) {
 
       const sessions = await db.query.taskSessions.findMany({
         where: and(
-          eq(taskSessions.userId, user.id),
+          eq(taskSessions.userId, user.sub),
           gte(taskSessions.startedAt, fromDate),
           lte(taskSessions.startedAt, toDate),
         ),
@@ -80,7 +80,7 @@ export default async function handler(req: AuthedRequest, res: VercelResponse) {
 
       const taskAnalytics = Array.from(taskAccuracy.entries()).map(([taskId, data]) => ({
         taskId,
-        taskTitle: sessions.find(s => s.taskId === taskId)?.task?.title || 'Unknown',
+        taskTitle: sessions.find(s => s.taskId === taskId)?.task?.title ?? 'Unknown',
         plannedMinutes: data.planned,
         actualMinutes: data.actual,
         sessionCount: data.count,
@@ -118,12 +118,12 @@ export default async function handler(req: AuthedRequest, res: VercelResponse) {
     if (req.method === 'POST' && action === 'create') {
       const body = req.body;
       const session = await db.insert(taskSessions).values({
-        userId: user.id,
+        userId: user.sub,
         taskId: body.taskId,
         durationMinutes: body.durationMinutes,
         focusPlaylistId: body.focusPlaylistId || null,
         status: 'in_progress',
-        startedAt: new Date().toISOString(),
+        startedAt: new Date(),
       }).returning();
 
       res.json(session[0]);
@@ -138,7 +138,7 @@ export default async function handler(req: AuthedRequest, res: VercelResponse) {
       const updated = await db.update(taskSessions)
         .set({
           status: 'completed',
-          completedAt: new Date().toISOString(),
+          completedAt: new Date(),
           actualMinutes: body.actualMinutes,
           note: body.note || null,
         })

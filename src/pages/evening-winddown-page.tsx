@@ -20,7 +20,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
-import { startOfDay, endOfDay, fmtHour } from '@/lib/time-utils';
+import { startOfDay, endOfDay } from '@/lib/time-utils';
 import { toast } from 'sonner';
 
 /* ─── Types ─── */
@@ -140,24 +140,24 @@ export function EveningWinddownPage() {
       ]);
 
       if (blocksRes.ok) {
-        const data = await blocksRes.json();
+        const data = await blocksRes.json() as Block[];
         setBlocks(data.filter((b: Block) => b.status === 'completed' || b.actualMinutes));
       }
 
       if (tasksRes.ok) {
-        const data = await tasksRes.json();
+        const data = await tasksRes.json() as Task[];
         setTasks(data.filter((t: Task) => t.status === 'done'));
       }
 
       if (tomorrowRes.ok) {
-        const data = await tomorrowRes.json();
+        const data = await tomorrowRes.json() as Task[];
         setTomorrowTasks(data.filter((t: Task) =>
           ['todo', 'doing'].includes(t.status) && t.dueDate === tomorrow
         ).slice(0, 3));
       }
 
       if (notesRes.ok) {
-        const data = await notesRes.json();
+        const data = await notesRes.json() as DailyNote;
         setDailyNote(data);
         if (data.reflectionData) {
           setSelectedMood(data.reflectionData.mood || '');

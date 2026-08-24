@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Search, Filter, X, Clock, CheckCircle2, AlertCircle, Archive } from 'lucide-react';
+import { Search, Filter } from 'lucide-react';
 import { SearchResults } from '@/components/search/search-results';
 import { FilterPanel } from '@/components/search/filter-panel';
 import { Button } from '@/components/ui/button';

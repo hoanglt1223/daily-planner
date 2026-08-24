@@ -543,7 +543,7 @@ export const activityLog = pgTable('activity_log', {
     assignee?: string;
     status?: string;
     [key: string]: any;
-  }>().$defaultFn('{}').notNull(),
+  }>().notNull().default('{}'),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 }, (t) => [
   index('activity_log_user_idx').on(t.userId),

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { AlertTriangle, Shield, Activity, Calendar, Clock, Moon, Sunset, Brain, TrendingDown, CheckCircle2, XCircle } from 'lucide-react';
+import { AlertTriangle, Shield, Activity, Calendar, Clock, Moon, Brain, CheckCircle2, XCircle } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
 

@@ -1,12 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Briefcase, TrendingUp, AlertCircle, CheckCircle2, Clock } from 'lucide-react';
+import { Briefcase, AlertCircle, CheckCircle2, Clock } from 'lucide-react';
 import { apiFetch } from '@/lib/api-client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { startOfWeek, addDays } from '@/lib/time-utils';
-import { cn } from '@/lib/utils';
 
 type Block = { id: string; taskId: string | null; startAt: string; endAt: string; status: string; actualMinutes: number | null };
 type Task = { id: string; projectId: string | null; status: string; title: string; estimatedMinutes: number };
@@ -197,9 +196,7 @@ function computeProjectAnalytics(
   projects: Project[],
 ): ProjectAnalytics {
   // Build maps
-  const projectMap = new Map(projects.map(p => [p.id, p]));
   const taskProjectMap = new Map(tasks.map(t => [t.id, t.projectId]));
-  const taskStatusMap = new Map(tasks.map(t => [t.id, t.status]));
 
   // Aggregate time by project
   const projectMinutes = new Map<string, number>();

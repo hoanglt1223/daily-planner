@@ -179,7 +179,7 @@ export default async function handler(req: AuthedRequest, res: VercelResponse) {
         });
       }
 
-      const values = historicalData.map(d => d.actualMinutes).sort((a, b) => a - b);
+      const values = historicalData.map(d => d.actualMinutes).filter((v): v is number => v != null).sort((a, b) => a - b);
       const median = values[Math.floor(values.length / 2)];
       const sampleSize = values.length;
 

@@ -16,7 +16,7 @@ export default async function handler(req: AuthedRequest, res: VercelResponse) {
     if (req.method === 'GET' && action === 'list') {
       const allAchievements = await db.query.achievements.findMany();
       const userUnlocked = await db.query.userAchievements.findMany({
-        where: eq(userAchievements.userId, user.id),
+        where: eq(userAchievements.userId, user.sub),
       });
 
       const unlockedIds = new Set(userUnlocked.map(ua => ua.achievementId));
@@ -49,7 +49,7 @@ export default async function handler(req: AuthedRequest, res: VercelResponse) {
     // GET /api/achievements?action=stats
     if (req.method === 'GET' && action === 'stats') {
       const userUnlocked = await db.query.userAchievements.findMany({
-        where: eq(userAchievements.userId, user.id),
+        where: eq(userAchievements.userId, user.sub),
       });
 
       const totalPoints = await db
@@ -71,7 +71,7 @@ export default async function handler(req: AuthedRequest, res: VercelResponse) {
         totalUnlocked: userUnlocked.length,
         totalPoints: totalPoints[0]?.total || 0,
         recent: recent.map(ua => ({
-          ...ua.achievement,
+          ...(ua.achievement ?? {}),
           unlockedAt: ua.unlockedAt,
         })),
       });

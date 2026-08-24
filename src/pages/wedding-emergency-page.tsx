@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { Phone, Mail, Users, AlertTriangle, CheckCircle2, Plus, Trash2, Clock, Heart, Flame, Sparkles, X, DollarSign } from 'lucide-react';
+import { Phone, Mail, Users, AlertTriangle, CheckCircle2, Plus, Trash2, Clock, Heart, Flame, Sparkles, DollarSign } from 'lucide-react';
 import { apiFetch } from '@/lib/api-client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';

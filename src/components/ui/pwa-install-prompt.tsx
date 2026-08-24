@@ -1,10 +1,8 @@
 import { useEffect, useState } from 'react';
-import { Download, Wifi, WifiOff, X } from 'lucide-react';
+import { Download, WifiOff, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
 import {
   canInstallPWA,
-  isAppOffline,
   promptPWAInstall,
   subscribeToOnlineStatus,
   shouldShowIOSInstallPrompt,
