@@ -1,4 +1,5 @@
 import { pgTable, text, timestamp, uuid, integer, boolean, jsonb, pgEnum, index, primaryKey, uniqueIndex } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 
 export const userRole = pgEnum('user_role', ['user', 'manager', 'admin']);
 export const privacyMode = pgEnum('privacy_mode', ['details_to_managers', 'busy_only_to_managers', 'private']);
@@ -543,7 +544,7 @@ export const activityLog = pgTable('activity_log', {
     assignee?: string;
     status?: string;
     [key: string]: any;
-  }>().notNull().default('{}'),
+  }>().notNull().default(sql`'{}'::jsonb`),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 }, (t) => [
   index('activity_log_user_idx').on(t.userId),

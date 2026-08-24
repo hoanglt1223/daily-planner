@@ -23,10 +23,10 @@ interface TimeBlock {
   updatedAt: string;
 }
 
-type ViewPeriod = 'day' | 'week' | 'month';
+type ViewPeriod = 'daily' | 'weekly' | 'monthly';
 
 export function TaskVelocityDashboard() {
-  const [viewPeriod, setViewPeriod] = useState<ViewPeriod>('day');
+  const [viewPeriod, setViewPeriod] = useState<ViewPeriod>('daily');
   const [tasks, setTasks] = useState<Task[]>([]);
   const [timeBlocks, setTimeBlocks] = useState<TimeBlock[]>([]);
   const [loading, setLoading] = useState(true);
@@ -59,8 +59,8 @@ export function TaskVelocityDashboard() {
     return calculateVelocityStats(tasks as Task[], timeBlocks as TimeBlock[]);
   }, [tasks, timeBlocks]);
 
-  const currentData = stats[viewPeriod === 'daily' ? 'daily' : viewPeriod === 'weekly' ? 'weekly' : 'monthly'];
-  const trend = stats.trends[viewPeriod === 'daily' ? 'daily' : viewPeriod === 'weekly' ? 'weekly' : 'monthly'];
+  const currentData = stats[viewPeriod];
+  const trend = stats.trends[viewPeriod];
 
   // Calculate max for chart scaling
   const maxValue = useMemo(() => {
@@ -226,7 +226,7 @@ export function TaskVelocityDashboard() {
               <Button
                 size="sm"
                 variant={viewPeriod === 'daily' ? 'default' : 'outline'}
-                onClick={() => setViewPeriod('day')}
+                onClick={() => setViewPeriod('daily')}
               >
                 Daily
               </Button>
